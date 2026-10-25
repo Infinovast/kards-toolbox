@@ -110,7 +110,8 @@ with sync_playwright() as p:
     page.get_by_label("导入卡组码", exact=True).press("Control+Enter")
     expect(page.get_by_text("39 / 39", exact=True)).to_be_visible()
     # Standard card starts with four solid slots, then one diagonal half slot.
-    card = next(c for c in cards[:36] if c["json"].get("rarity") == "Standard")
+    visible_names = page.get_by_test_id("builder-grid").get_by_role("button").evaluate_all("els => els.map(el => el.getAttribute('aria-label').slice(2))")
+    card = next(c for c in cards if c["json"].get("rarity") == "Standard" and c["json"]["title"]["zh-Hans"] in visible_names)
     tile = page.get_by_role("button", name="添加" + card["json"]["title"]["zh-Hans"], exact=True).locator("..")
     before_count = tile.locator('[data-half="true"]').count()
     tile.get_by_role("button").click()

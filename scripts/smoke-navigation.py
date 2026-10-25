@@ -92,7 +92,8 @@ with sync_playwright() as p:
     page.get_by_role("button", name="关于", exact=True).click()
     expect(page.get_by_role("heading", name="KARDS Toolbox", exact=True)).to_be_visible()
     expect(page.get_by_text("KARDS 工具箱", exact=True)).to_be_visible()
-    expect(page.get_by_text("版本 0.3.0", exact=False)).to_be_visible()
+    version = json.loads((ROOT / 'package.json').read_text(encoding='utf-8'))['version']
+    expect(page.get_by_text("版本 " + version, exact=False)).to_be_visible()
     page.wait_for_timeout(350)  # allow the existing navigation/selection animation to settle
     page.screenshot(path=str(OUT / "about-desktop.png"))
     page.get_by_role("button", name="返回", exact=True).click()

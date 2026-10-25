@@ -284,6 +284,22 @@ export default function App() {
   const [filterMainNation, setFilterMainNation] = useState<Nation | 'All'>('All');
   const [filterAllyNation, setFilterAllyNation] = useState<Nation | 'All'>('All');
   const [filterTag, setFilterTag] = useState<string | 'All'>('All');
+
+  useEffect(() => {
+    const keydown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing || document.querySelector('[role="dialog"]')) return;
+      if (event.key === 'Escape' && activeMenu === 'about') {
+        event.preventDefault(); setActiveMenu(aboutReturnMenu);
+        requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('[aria-label="关于"]')?.focus());
+      } else if (event.key === 'Escape' && activeMenu === 'decks') {
+        event.preventDefault();
+        if (searchQuery) setSearchQuery('');
+        else setSelectedDeckId(null);
+      }
+    };
+    document.addEventListener('keydown', keydown);
+    return () => document.removeEventListener('keydown', keydown);
+  }, [activeMenu, aboutReturnMenu, searchQuery]);
   
   const [customCategories, setCustomCategories] = useState<{id: string, name: string, backs: {id: string, url: string, name: string}[]}[]>([]);
 
@@ -495,25 +511,30 @@ export default function App() {
   const [collectionToDelete, setCollectionToDelete] = useState<Collection | null>(null);
   const [collectionToRename, setCollectionToRename] = useState<Collection | null>(null);
   const [renameCollectionName, setRenameCollectionName] = useState('');
-  const [deckImageModal, setDeckImageModal] = useState<{show: boolean, deck: Deck | null, loading: boolean, imageUrl: string | null, error: string | null}>({show: false, deck: null, loading: false, imageUrl: null, error: null});
+  const [deckImageModal, setDeckImageModal] = useState<{show: boolean, deck: Pick<Deck, 'name' | 'code'> | null, loading: boolean, imageUrl: string | null, error: string | null}>({show: false, deck: null, loading: false, imageUrl: null, error: null});
+  const deckImageRequest = useRef(0);
+  const closeDeckImage = () => { deckImageRequest.current++; setDeckImageModal(current => ({ ...current, show: false })); };
 
   const [cropQueue, setCropQueue] = useState<{ url: string, type: 'tablecloth' | 'cardback', category?: string, name?: string }[]>([]);
   const [cropState, setCropState] = useState<{ crop: { x: number, y: number }, zoom: number }>({ crop: { x: 0, y: 0 }, zoom: 1 });
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'tablecloth' | 'cardback', id: string, catId?: string } | null>(null);
 
-  const getOrGenerateDeckImage = async (deck: Deck) => {
+  const getOrGenerateDeckImage = async (deck: Pick<Deck, 'name' | 'code'>) => {
     const imageData = await renderDeckImage(deck.code, cardDatabase, deck.name, selectedTablecloth);
     await localforage.setItem(`deck_img_local_v1_${deck.code}`, imageData);
     return imageData;
   };
 
-  const handleGetDeckImage = async (deck: Deck) => {
+  const handleGetDeckImage = async (deck: Pick<Deck, 'name' | 'code'>) => {
+    const request = ++deckImageRequest.current;
     setDeckImageModal({ show: true, deck, loading: true, imageUrl: null, error: null });
     try {
       const imageData = await getOrGenerateDeckImage(deck);
+      if (request !== deckImageRequest.current) return;
       setDeckImageModal({ show: true, deck, loading: false, imageUrl: imageData, error: null });
     } catch (err: any) {
+      if (request !== deckImageRequest.current) return;
       setDeckImageModal({ show: true, deck, loading: false, imageUrl: null, error: err.message });
     }
   };
@@ -899,11 +920,12 @@ export default function App() {
   };
 
   const settingsPage = <section ref={settingsPageRef} tabIndex={-1} onKeyDown={event => {
-    if (event.key === 'Escape' && !event.nativeEvent.isComposing && !event.defaultPrevented && !document.querySelector('[role="dialog"][aria-modal="true"]')) { event.preventDefault(); closeSettings(); }
+    if (event.nativeEvent.isComposing || event.defaultPrevented || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+    if (event.key === 'Escape' || (event.key === 'Enter' && (event.ctrlKey || event.metaKey))) { event.preventDefault(); closeSettings(); }
   }} aria-label="应用设置" data-testid="settings-page" className="w-full p-5 outline-none md:p-8">
     <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
       <div><h2 className="text-2xl font-bold text-kards-text">设置</h2><p className="mt-2 text-sm text-kards-text-muted">管理卡牌数据、界面外观与本地备份。外观设置自动保存。</p></div>
-      <button onClick={closeSettings} className="rounded bg-kards-accent px-5 py-2 font-bold text-white">保存并返回</button>
+      <button onClick={closeSettings} title="Ctrl+Enter 保存并返回；Esc 返回" className="rounded bg-kards-accent px-5 py-2 font-bold text-white">保存并返回</button>
     </div>
     <CardDataUpdater cards={cardDatabase} onApplied={cards => { setCardDatabase(cards); setCardDatabaseError(null); }} />
     <section className="glass-panel rounded-lg p-5 md:p-6">
@@ -1235,7 +1257,7 @@ export default function App() {
             )}
             {activeMenu === 'builder' && cardDatabaseLoading && <p className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</p>}
             {activeMenu === 'builder' && cardDatabaseError && <p className="p-6 text-red-400">{cardDatabaseError}</p>}
-            {!cardDatabaseLoading && !cardDatabaseError && builderDeck && <div className={`h-full w-full max-w-[1800px] shrink-0 ${activeMenu === 'builder' ? '' : 'hidden'}`}><DeckBuilder active={activeMenu === 'builder'} key={builderRevision} cards={cardDatabase} initialDeck={builderDeck} onSave={handleSaveBuiltDeck} /></div>}
+            {!cardDatabaseLoading && !cardDatabaseError && builderDeck && <div className={`h-full w-full max-w-[1800px] shrink-0 ${activeMenu === 'builder' ? '' : 'hidden'}`}><DeckBuilder active={activeMenu === 'builder'} key={builderRevision} cards={cardDatabase} initialDeck={builderDeck} onSave={handleSaveBuiltDeck} onPreview={handleGetDeckImage} onBack={() => { setActiveMenu('decks'); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('[aria-label="主导航"] button')?.focus()); }} /></div>}
             {activeMenu === 'settings' && settingsPage}
             {activeMenu === 'about' && <AboutPage onBack={() => setActiveMenu(aboutReturnMenu)} />}
             {activeMenu === 'decks' && <div className="mb-6 flex w-full max-w-7xl flex-wrap items-center justify-between gap-3">
@@ -1321,6 +1343,7 @@ export default function App() {
                   type="text"
                   value={selectedDeck.name || ''}
                   aria-label="管理卡组名称"
+                  onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.blur(); } }}
                   onChange={(e) => handleNameChange(selectedDeck.id, e.target.value)}
                   className="text-xl font-bold tracking-tight mb-4 text-center bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-kards-gold/30 rounded w-full"
                 />
@@ -1341,13 +1364,16 @@ export default function App() {
                         className="bg-black border border-kards-gold px-2 py-1 text-xs text-kards-text max-w-[100px] focus:outline-none"
                         placeholder="输入标签..."
                         onKeyDown={(e) => {
+                          if (e.nativeEvent.isComposing) return;
                           if (e.key === 'Enter') {
+                            e.preventDefault(); e.stopPropagation();
                             const newTag = e.currentTarget.value.trim();
                             if (newTag) {
                               setDecks(decks.map(d => d.id === selectedDeck.id ? { ...d, tags: Array.from(new Set([...(d.tags || []), newTag])) } : d));
                             }
                             setAddingTagToDeckId(null);
                           } else if (e.key === 'Escape') {
+                            e.preventDefault(); e.stopPropagation();
                             setAddingTagToDeckId(null);
                           }
                         }}
@@ -1733,12 +1759,15 @@ export default function App() {
                          className="bg-kards-input-bg border border-kards-border px-3 py-1 text-sm focus:outline-none focus:border-kards-gold text-kards-text w-32"
                          autoFocus
                          onKeyDown={e => {
+                           if (e.nativeEvent.isComposing) return;
                            if (e.key === 'Enter') {
+                             e.preventDefault(); e.stopPropagation();
                              if (!newCatName.trim()) return;
                              setCustomCategories(prev => [...prev, { id: 'cat_' + Date.now().toString(), name: newCatName.trim(), backs: [] }]);
                              setNewCatName('');
                              setAddingCategory(false);
                            } else if (e.key === 'Escape') {
+                             e.preventDefault(); e.stopPropagation();
                              setAddingCategory(false);
                            }
                          }}
@@ -1930,7 +1959,9 @@ export default function App() {
                                      value={editingCardName || ''}
                                      onChange={e => setEditingCardName(e.target.value)}
                                      onKeyDown={e => {
+                                        if (e.nativeEvent.isComposing) return;
                                         if (e.key === 'Enter') {
+                                           e.preventDefault(); e.stopPropagation();
                                            if (!editingCardName.trim()) return;
                                            setCustomCategories(prev => prev.map(c => c.id === category.id ? {
                                               ...c,
@@ -1938,6 +1969,7 @@ export default function App() {
                                            } : c));
                                            setEditingCardInfo(null);
                                         } else if (e.key === 'Escape') {
+                                           e.preventDefault(); e.stopPropagation();
                                            setEditingCardInfo(null);
                                         }
                                      }}
@@ -2375,7 +2407,7 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              data-dialog-cancel onClick={() => setDeckImageModal({ ...deckImageModal, show: false })}
+              data-dialog-cancel onClick={closeDeckImage}
               className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-md"
             />
             <motion.div 
@@ -2386,15 +2418,15 @@ export default function App() {
               className="glass-panel relative w-full max-w-3xl bg-kards-gray-alt military-border shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
             >
               <div className="p-4 border-b border-kards-border flex items-center justify-between bg-kards-gray">
-                <h3 className="text-lg font-bold tracking-widest text-white flex items-center gap-2">
+                <h3 className="text-lg font-bold tracking-widest text-kards-text flex items-center gap-2">
                   <ImageIcon className="w-5 h-5 text-kards-gold" />
                   本地卡组图片 {deckImageModal.deck && `- ${deckImageModal.deck.name}`}
                 </h3>
-                <button data-dialog-cancel onClick={() => setDeckImageModal({ ...deckImageModal, show: false })} className="text-kards-text-muted hover:text-kards-text">
+                <button data-dialog-cancel onClick={closeDeckImage} aria-label="关闭卡组图片预览" className="text-kards-text-muted hover:text-kards-text">
                   <X className="w-6 h-6" />
                 </button>
               </div>
-              {deckImageModal.imageUrl && <button onClick={() => downloadDeckImage(deckImageModal.imageUrl!, deckImageModal.deck?.name || 'kards-deck')} className="m-3 self-end rounded bg-kards-accent px-4 py-2 text-sm font-bold text-white">下载 PNG 图片</button>}
+              {deckImageModal.imageUrl && <button data-dialog-confirm onClick={() => downloadDeckImage(deckImageModal.imageUrl!, deckImageModal.deck?.name || 'kards-deck')} className="m-3 self-end rounded bg-kards-accent px-4 py-2 text-sm font-bold text-white">下载 PNG 图片</button>}
               <div className="flex-1 overflow-auto p-6 flex flex-col items-center justify-center bg-kards-bg">
                 {deckImageModal.loading ? (
                   <div className="flex flex-col items-center justify-center py-12 text-kards-text-muted">

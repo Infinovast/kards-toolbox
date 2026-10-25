@@ -7,6 +7,8 @@ const sharp = require('sharp');
 
 async function main() {
   const root = path.resolve(__dirname, '..');
+  const version = require('../package.json').version;
+  const skipVisual = process.env.KARDS_SKIP_VISUAL_TESTS === '1';
   const output = path.join(root, 'test-results', 'desktop');
   await fs.mkdir(output, { recursive: true });
   const profile = await fs.mkdtemp(path.join(output, 'profile-'));
@@ -27,7 +29,7 @@ async function main() {
     await page.waitForURL('kards://app/index.html');
     await expect(page.getByRole('heading', { name: '卡组', exact: true })).toBeVisible();
     const info = await page.evaluate(() => window.kardsDesktop.getAppInfo());
-    assert.equal(info.version, '0.3.0');
+    assert.equal(info.version, version);
     assert.equal(info.name, 'KARDS Toolbox');
     assert.equal(path.resolve(info.userDataPath), profile, 'explicit test profile remains authoritative');
     await expect(page).toHaveTitle('KARDS 工具箱');
@@ -36,7 +38,7 @@ async function main() {
     await expect(page.getByRole('switch', { name: '收藏夹显示' })).not.toBeChecked();
     await page.getByRole('button', { name: '关于', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'KARDS Toolbox', exact: true })).toBeVisible();
-    await expect(page.getByText('版本 0.3.0 · Windows 桌面版', { exact: true })).toBeVisible();
+    await expect(page.getByText(`版本 ${version} · Windows 桌面版`, { exact: true })).toBeVisible();
     await page.getByRole('button', { name: '返回', exact: true }).click();
     assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
     // Observe actual native setIcon calls while exercising the preload theme bridge.
@@ -55,6 +57,7 @@ async function main() {
 
     // Real artwork, repeated copies and the final HQ slot use the production Sharp IPC.
     const records = JSON.parse(await fs.readFile(path.join(root, 'public/data/cards-v54.json'), 'utf8')).cards;
+    if (!skipVisual) {
     const imageDir = path.join(root, 'references/koishi-plugin-kardsman/data/kards/kards_cn');
     const files = await fs.readdir(imageDir);
     const code = '%%31|3X5C6BhHm6qCqDrktFvhwJx5;66nwx0x3;3f4p6x7e7l;5Z';
@@ -83,6 +86,7 @@ async function main() {
     const smallBg = `data:image/png;base64,${(await sharp({ create: { width: 320, height: 180, channels: 3, background: '#314d40' } }).png().toBuffer()).toString('base64')}`;
     const customRender = await page.evaluate(request => window.kardsDesktop.renderDeckImage(request), { ...request, background: smallBg });
     assert.equal((await sharp(Buffer.from(customRender.split(',')[1], 'base64')).metadata()).width, 2304);
+    }
     await page.getByRole('button', { name: '卡牌', exact: true }).click();
     await expect(page.getByText('本地目录 1,646 张 · 当前结果 1,646 张', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: '卡组', exact: true }).click();
@@ -155,9 +159,9 @@ async function main() {
     await expect(page.getByText('备份已导入，卡组、设置和构筑草稿已恢复。', { exact: true })).toBeVisible();
     assert.deepEqual(errors, []);
     await fs.writeFile(path.join(output, 'result.json'), JSON.stringify({
-      status: 'passed', packaged: info.packaged, version: info.version, url: page.url(), pageErrors: errors,
+      status: 'passed', packaged: info.packaged, version: info.version, url: page.url(), pageErrors: errors, imageInspection: !skipVisual,
       checks: ['production kards protocol', 'bundled database', 'preload IPC', 'Node isolation',
-        'offline PNG', 'real artwork Sharp composition', 'small custom wallpaper', 'native theme icon switching',
+        'offline PNG', ...(!skipVisual ? ['real artwork Sharp composition', 'small custom wallpaper'] : []), 'native theme icon switching',
         'IndexedDB reload', 'full-width settings', 'manual card-data preview/apply/rollback IPC (HTTP stubbed)', 'card-data backup boundary', 'native backup save/open (file dialogs stubbed)'],
     }, null, 2));
     console.log('Desktop smoke passed: production resources, offline data/PNG, preload and backup IPC');

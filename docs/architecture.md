@@ -10,6 +10,7 @@ src/components/DeckBuilder  构筑会话、草稿、规则配置、保存与导�
 src/types/card.ts           三项目共享卡牌记录、语言/阵营、快照读取
 src/lib/deckCode.ts         共享卡组码解码与编码（1/2/3/4 张区段）
 src/lib/deckRules.ts        可配置规则校验，只提示不阻止保存
+src/lib/cardFilters.ts      资料库/构筑共享筛选与构筑主盟国卡池边界
 src/lib/cardImages.ts       语言/版本/卡牌分键缓存、下载与请求去重
 src/lib/cardData.ts         官方固定 GraphQL 查询、分页校验、多语言逐字段差异
 src/lib/cardDatabase.ts     独立牌库快照的原子持久化
@@ -60,6 +61,10 @@ React 19 + TypeScript + Vite + Tailwind CSS 4，Electron 桌面壳。保留 Deck
 牌库更新不下载、清空或替换卡图；即使资料中的卡图路径变化，也保留已有按语言/版本分键的缓存。图片下载继续由资料库现有按需或批量缓存功能管理。
 
 ## 规则与卡组码
+
+构筑展示卡池独立于规则提示：主国卡全显示，盟国隐藏 Elite，排除 OnlySpawnable/Special 扩展包（与 Special 稀有度区分）。主盟国相同时主国条件优先，中立牌及其他国家不展示。导入或已保存的卡组条目原样保留，筛选不删除卡牌。文字搜索、类型、费用（含 7+）、稀有度、扩展包和状态共用 `matchesCardFilters`。
+
+构筑通过 `onPreview` 调用 App 现有生成与预览管线，传递当前卡组码、名称，复用主页背景、缓存、下载和弹窗。生成请求用序号标记，关闭后忽略迟到结果。对话框键盘服务管理首焦点、回车确认、Esc、Tab 循环和异步禁用触发按钮后的焦点恢复；页面级快捷键避开已处理事件及 IME 组词。
 
 标准预设：39 张可用牌（加总部共 40），普通/限定/特殊/精英上限 4/3/2/1，盟国牌上限 12，提示预备和衍生牌。纯主国牌组可使用相同主盟国。
 

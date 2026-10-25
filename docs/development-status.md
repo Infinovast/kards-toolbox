@@ -1,4 +1,31 @@
-# 0.3.0 开发记录
+# 0.3.1 开发记录
+
+日期：2026-10-26。本轮按要求跳过截图与读图测试，未对渲染结果做视觉验收。
+
+## 0.3.1 本轮交付
+
+- 构筑筛选栏仅保留文字搜索、构筑规则、类型、费用、稀有度、扩展包和状态，与资料库共用筛选函数，包括 7+ 费用、多语言文本与 description 回退搜索。
+- 构筑仅展示主国卡和盟国非精英卡，排除其他阵营、中立、衍生与特殊形态；主盟国相同时保留主国精英。自定义规则不扩大展示卡池，已有/导入的卡组条目不自动删除。主盟国及卡组码导入移至右侧，滚动内容与底部主操作分离。
+- 去除构筑卡图下的名称条，保留完整图片、无障碍名称、悬停提示和稀有度数量方块。构筑图片导出复用主页同一预览，使用当前未保存的名称与卡组码，确认后下载；关闭后忽略迟到结果。
+- 卡牌 hover 和焦点轻微内缩提亮；按钮使用统一基础 hover，既有局部效果继续生效，禁用按钮不触发。
+- 扩展 Enter/Esc：构筑 Ctrl+Enter 保存、Esc 返回，搜索/导入框先清空；Enter 导入、Shift+Enter 换行；资料库 Enter 聚焦首卡后可继续 Enter 查看，Esc 关闭详情/重置筛选；设置 Ctrl+Enter/Esc 返回，关于页 Esc 返回；标签与卡背行内编辑处理 Enter/Esc 并保护 IME。对话框支持焦点外 Esc 关闭，异步禁用触发按钮后仍能恢复焦点。
+
+## 0.3.1 验证
+
+| 验证 | 结果 |
+| --- | --- |
+| `npm run lint` / `npm test` | 通过；新增共享筛选和构筑卡池单测，覆盖主盟国精英、同国、大小写、特殊稀有度与特殊扩展包区别、多语言/属性筛选及真实快照 |
+| `python scripts/smoke-builder-interactions.py` | 通过；筛选控件/结果、主盟国变化、自定义规则、名称条移除、数量方块、hover 计算样式、未保存内容预览、回车下载、迟到结果、焦点恢复、IME、快捷键、标签/收藏夹和 980×640 操作可达；无 pageerror，不截图、不读图 |
+| `npm run build:desktop` | 通过 Vite 和 Electron 构建 |
+| `KARDS_SKIP_VISUAL_TESTS=1` 的桌面测试 | 开发生产资源与新版打包 EXE 均通过 preload/IPC、牌库、存储、本地预览/下载和备份流程；跳过真实图片读取、像素和尺寸断言 |
+| 设计源码检测 | 仅既有 App/CSS 颜色等 advisory；未进行截图或读图复核 |
+| ZIP 完整性 | 69 个条目，包含主程序，CRC 通过；SHA-256 记录于 `test-results/builder-interactions/release-check.json` |
+
+运行目录：`release/0.3.1/win-unpacked/KARDS Toolbox.exe`。ZIP：`release/0.3.1/KARDS Toolbox-0.3.1-win.zip`，移动时保留整个解压目录。
+
+测试报告：`test-results/builder-interactions/result.json`、`test-results/desktop/result.json`。
+
+## 0.3.0 历史记录
 
 日期：2026-10-26。需求基线见 [product-requirements.md](product-requirements.md)，剩余工作见 [development-roadmap.md](development-roadmap.md)。
 

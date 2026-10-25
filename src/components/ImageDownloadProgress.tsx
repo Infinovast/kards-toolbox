@@ -16,7 +16,7 @@ export default function ImageDownloadProgress() {
   const speed = task.bytes / seconds;
   const remaining = task.completed ? Math.ceil((task.total - task.completed) * seconds / task.completed) : null;
   const eta = remaining === null ? '估算中' : remaining >= 60 ? `${Math.floor(remaining / 60)} 分 ${remaining % 60} 秒` : `${remaining} 秒`;
-  return <section aria-label="卡图缓存下载进度" className="glass-panel fixed bottom-5 right-5 z-40 w-[340px] max-w-[calc(100vw-40px)] rounded-lg border border-kards-border p-4 text-sm text-kards-text shadow-xl">
+  return <section aria-label="卡图缓存下载进度" onKeyDown={event => { if (event.key === 'Escape' && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); if (task.status === 'running') cancelImageDownload(); else dismissImageDownload(); } }} className="glass-panel fixed bottom-5 right-5 z-40 w-[340px] max-w-[calc(100vw-40px)] rounded-lg border border-kards-border p-4 text-sm text-kards-text shadow-xl">
     <div className="flex items-center gap-2"><Download className="h-4 w-4" /><h2 className="flex-1 font-bold">{task.status === 'running' ? '正在缓存卡图' : task.status === 'canceled' ? '缓存已停止' : '缓存完成'}</h2>
       {task.status !== 'running' && <button aria-label="关闭下载进度" onClick={dismissImageDownload}><X className="h-4 w-4" /></button>}
     </div>
