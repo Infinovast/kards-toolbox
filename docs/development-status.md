@@ -1,4 +1,32 @@
-# 0.3.1 开发记录
+# 0.3.2 开发记录
+
+日期：2026-10-26。本轮遵照要求跳过截图和读图测试；验证范围为筛选逻辑、DOM、计算样式、布局尺寸、键盘交互及桌面运行。
+
+## 0.3.2 本轮交付
+
+- 所有原生下拉框替换为共享 `CustomSelect`，覆盖资料库、构筑、卡组列表、显示模式、数据差异及卡背分类。支持单选/多选、已选态、键盘导航、分组与点击外部关闭；弹层 portal 到 body 并按视口向上/向下定位，不被侧栏或对话框滚动容器裁切。
+- 阵营、类型、费用、稀有度改为多选：组内 OR、跨组 AND，重复点击取消，清空代表不限。资料库与构筑共用同一套控件和筛选逻辑；构筑继续限定主国及盟国非精英卡，不显示衍生/特殊形态。
+- 使用 36 份随包图标：阵营/类型图标加名称，中立为黑色白边菱形；费用仅显示白框 0K–7K+，稀有度只展示图形。扩展包保持单选，图标及顺序按用户提供的官方收藏页，中文内容语言显示中文名称。未来未知包保留 ID 和通用图标。逐项来源见 `public/assets/filters/sources.json`。
+- 卡组详情由固定占位侧栏改为非模态右侧悬浮层；关闭按钮或 Esc 可完全隐藏，随后单击卡组再次打开。网格列数、宽高与收藏夹行宽均不随开关变化；紧凑清单、标签、备注、卡背、收藏、图片导出与编辑入口继续可用。
+- Esc 优先处理下拉选项、模态窗口与内部标签编辑，再关闭外层详情；关闭卡组详情后恢复触发卡组按钮焦点。保留 IME、多行输入与双击编辑行为。
+
+## 0.3.2 验证
+
+| 验证 | 结果 |
+| --- | --- |
+| `npm run lint` / `npm test` | 通过；共享筛选单测增加多选并集/交集、取消限制、中立、费用 7+ 和现有卡池约束 |
+| `python scripts/smoke-custom-filters.py` | 通过；四组多选、单选扩展包、图标/标签、切换语言、键盘焦点、IME、嵌套卡背窗口、视口定位、局部滚动与 36 份离线资源；无 pageerror |
+| `python scripts/smoke-deck-overlay.py` | 通过；初始隐藏、关闭重开、焦点恢复、Esc 优先级、备注保留、双击编辑/保存、网格与收藏夹几何尺寸不变、980×640 操作可达；无 pageerror |
+| 构筑/导航/牌库更新回归 | 通过；导航和牌库更新使用 `KARDS_SKIP_VISUAL_TESTS=1`，全部不截图、不读图 |
+| `npm run build:desktop` | 通过 Vite 与 Electron 构建；保留既有 bundle 大于 500kB 提示 |
+| 桌面生产资源及新版 EXE | 使用 `KARDS_SKIP_VISUAL_TESTS=1` 通过；真实 preload/IPC、离线数据、本地 PNG、存储与备份、图标多选及 36 份资源协议可用性、卡组悬浮详情；跳过真实卡图读取、像素及尺寸检查 |
+| 设计源码检测 | 无主要问题；新增两个选择组件无检测项，其余为现有样式及颜色等 advisory。未进行视觉验收 |
+
+运行目录：`release/0.3.2/win-unpacked/KARDS Toolbox.exe`。ZIP：`release/0.3.2/KARDS Toolbox-0.3.2-win.zip`。移动时保留整个解压目录。
+
+报告：`test-results/custom-filters/result.json`、`test-results/deck-overlay/result.json`、`test-results/builder-interactions/result.json`、`test-results/navigation/result.json`、`test-results/card-sync/result.json`、`test-results/desktop/result.json`。压缩包校验记录见 `test-results/custom-filters/release-check.json`。
+
+## 0.3.1 历史记录
 
 日期：2026-10-26。本轮按要求跳过截图与读图测试，未对渲染结果做视觉验收。
 

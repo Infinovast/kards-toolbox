@@ -3,6 +3,7 @@ import copy
 import json
 import sys
 from pathlib import Path
+from select_helpers import select_value
 from playwright.sync_api import expect, sync_playwright
 
 sys.stdout.reconfigure(encoding="utf-8")
@@ -78,10 +79,10 @@ with sync_playwright() as p:
         return page.get_by_test_id("builder-grid").get_by_role("button").evaluate_all("els => els.map(el => el.getAttribute('aria-label').slice(2))")
 
     def filter_check(label, value, expected):
-        page.get_by_label(label, exact=True).select_option(value)
+        select_value(page, label, value)
         expect(page.get_by_test_id("builder-grid").get_by_role("button")).to_have_count(len(expected))
         assert set(names()) == set(expected), (label, value, names())
-        page.get_by_label(label, exact=True).select_option("All")
+        select_value(page, label, "All")
 
     def hover_button(button):
         page.mouse.move(1, 1)
@@ -91,7 +92,8 @@ with sync_playwright() as p:
     open_builder()
     filters = page.locator('[aria-label="构筑卡牌筛选"]')
     expect(filters.locator("input")).to_have_count(1)
-    expect(filters.locator("select")).to_have_count(6)
+    expect(filters.get_by_role("combobox")).to_have_count(6)
+    expect(page.locator("select")).to_have_count(0)
     expect(page.get_by_label("构筑阵营筛选", exact=True)).to_have_count(0)
     assert set(names()) == {specs[i][0] for i in [0, 1, 2, 7, 8, 10, 11]}
     expect(page.get_by_test_id("builder-grid").locator(".card-caption")).to_have_count(0)
@@ -102,7 +104,9 @@ with sync_playwright() as p:
     filter_check("构筑扩展包筛选", "Frontier", ["主国精英"])
     filter_check("构筑状态筛选", "reserved", ["主国预备"])
     filter_check("构筑状态筛选", "active", [specs[i][0] for i in [0, 1, 2, 7, 10, 11]])
-    assert "generated" not in page.get_by_label("构筑状态筛选", exact=True).locator("option").evaluate_all("els => els.map(el=>el.value)")
+    page.get_by_label("构筑状态筛选", exact=True).click()
+    assert "generated" not in page.get_by_role("listbox").get_by_role("option").evaluate_all("els => els.map(el=>el.dataset.value)")
+    page.get_by_role("listbox").press("Escape")
     search = page.get_by_label("构筑搜索卡牌", exact=True)
     search.fill("fallback keyword")
     expect(page.get_by_test_id("builder-grid").get_by_role("button")).to_have_count(7)
@@ -110,16 +114,16 @@ with sync_playwright() as p:
     expect(page.get_by_test_id("builder-grid").get_by_role("button")).to_have_count(1)
     search.press("Escape")
     expect(search).to_have_value("")
-    page.get_by_label("主国", exact=True).select_option("Soviet")
-    page.get_by_label("盟国", exact=True).select_option("Germany")
+    select_value(page, "主国", "Soviet")
+    select_value(page, "盟国", "Germany")
     assert "盟国精英" in names() and "主国精英" not in names()
-    page.get_by_label("盟国", exact=True).select_option("Soviet")
+    select_value(page, "盟国", "Soviet")
     assert "盟国精英" in names(), "same-country main elites must remain visible"
-    page.get_by_label("主国", exact=True).select_option("Germany")
-    page.get_by_label("构筑规则", exact=True).select_option("custom")
+    select_value(page, "主国", "Germany")
+    select_value(page, "构筑规则", "custom")
     page.get_by_label("允许导入的衍生卡", exact=True).check()
     assert "主国衍生" not in names() and "盟国精英" not in names()
-    page.get_by_label("构筑规则", exact=True).select_option("standard")
+    select_value(page, "构筑规则", "standard")
 
     tile = page.get_by_role("button", name="添加主国步兵", exact=True)
     tile.hover()
@@ -131,7 +135,7 @@ with sync_playwright() as p:
     page.get_by_label("卡组名称", exact=True).dispatch_event("keydown", {"key": "Enter", "isComposing": True, "bubbles": True})
     expect(page.get_by_role("heading", name="编辑卡组", exact=True)).to_be_visible()
     page.get_by_role("button", name="导出卡组图片", exact=True).click()
-    dialog = page.get_by_role("dialog")
+    dialog = page.locator('[role="dialog"][aria-modal="true"]')
     expect(dialog.get_by_role("button", name="下载 PNG 图片", exact=True)).to_be_visible()
     expect(dialog.get_by_alt_text("本地卡组图片", exact=True)).to_have_attribute("src", "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l1sAAAAASUVORK5CYII=")
     assert downloads == [], "opening preview must not download automatically"
@@ -143,16 +147,16 @@ with sync_playwright() as p:
         dialog.press("Enter")
     assert download.value.suggested_filename == "未保存预览.png"
     dialog.press("Escape")
-    expect(page.get_by_role("dialog")).to_have_count(0)
+    expect(page.locator('[role="dialog"][aria-modal="true"]')).to_have_count(0)
     expect(page.get_by_role("button", name="导出卡组图片", exact=True)).to_be_focused()
     page.evaluate("window.__holdRender = true")
     page.get_by_role("button", name="导出卡组图片", exact=True).click()
     expect(page.get_by_text("正在本机生成图片…", exact=True)).to_be_visible()
-    page.get_by_role("dialog").press("Escape")
-    expect(page.get_by_role("dialog")).to_have_count(0)
+    page.locator('[role="dialog"][aria-modal="true"]').press("Escape")
+    expect(page.locator('[role="dialog"][aria-modal="true"]')).to_have_count(0)
     page.evaluate("window.__releaseRender(); window.__holdRender = false")
     expect(page.get_by_role("button", name="导出卡组图片", exact=True)).to_be_enabled()
-    expect(page.get_by_role("dialog")).to_have_count(0)
+    expect(page.locator('[role="dialog"][aria-modal="true"]')).to_have_count(0)
     importer = page.get_by_label("导入卡组码", exact=True)
     importer.fill(code); importer.press("Escape")
     expect(importer).to_have_value("")
@@ -187,7 +191,7 @@ with sync_playwright() as p:
     card.press("Enter")
     expect(page.get_by_role("dialog", name="卡牌详情")).to_be_visible()
     library_search.press("Escape")
-    expect(page.get_by_role("dialog")).to_have_count(0)
+    expect(page.locator('[role="dialog"][aria-modal="true"]')).to_have_count(0)
     expect(library_search).to_have_value("主国步兵")
     library_search.press("Escape")
     expect(library_search).to_have_value("")
@@ -202,18 +206,19 @@ with sync_playwright() as p:
     expect(page.get_by_test_id("library-grid")).to_be_visible()
     page.get_by_role("button", name="桌布", exact=True).click()
     page.keyboard.press("Escape")
-    expect(page.get_by_role("dialog")).to_have_count(0)
+    expect(page.locator('[role="dialog"][aria-modal="true"]')).to_have_count(0)
     page.get_by_role("button", name="卡组", exact=True).click()
+    page.get_by_role("button", name="关闭卡组详情", exact=True).click()
     page.get_by_role("switch", name="收藏夹显示").check()
     page.get_by_role("button", name="新建收藏夹", exact=True).click()
     folder_input = page.get_by_placeholder("输入收藏夹名称...")
     folder_input.fill("键盘收藏夹"); folder_input.press("Enter")
-    expect(page.get_by_role("dialog")).to_have_count(0)
+    expect(page.locator('[role="dialog"][aria-modal="true"]')).to_have_count(0)
     assert len(stored(page, "kards_collections")) == 1
     hover_button(page.get_by_role("button", name="重命名键盘收藏夹", exact=True))
     page.get_by_role("button", name="重命名键盘收藏夹", exact=True).click()
     page.keyboard.press("Escape")
-    expect(page.get_by_role("dialog")).to_have_count(0)
+    expect(page.locator('[role="dialog"][aria-modal="true"]')).to_have_count(0)
     page.get_by_role("switch", name="收藏夹显示").uncheck()
     open_builder("键盘保存")
     page.set_viewport_size({"width": 980, "height": 640})

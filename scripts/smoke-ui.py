@@ -10,6 +10,7 @@ import struct
 import sys
 from pathlib import Path
 
+from select_helpers import select_value
 from playwright.sync_api import expect, sync_playwright
 
 sys.stdout.reconfigure(encoding="utf-8")
@@ -58,7 +59,7 @@ with sync_playwright() as p:
 
     page.get_by_role("button", name="卡牌", exact=True).click()
     expect(page.get_by_text("本地目录 1,646 张 · 当前结果 1,646 张", exact=True)).to_be_visible()
-    page.get_by_label("费用筛选", exact=True).select_option("7")
+    select_value(page, "费用筛选", "7")
     expected = sum(c["json"].get("kredits", 0) >= 7 for c in cards)
     expect(page.get_by_text(f"本地目录 1,646 张 · 当前结果 {expected:,} 张", exact=True)).to_be_visible()
     page.get_by_role("button", name="重置筛选").click()
@@ -69,10 +70,10 @@ with sync_playwright() as p:
         expect(page.locator('aside img[alt="105 毫米轻型榴弹炮"]')).to_be_visible()
     settle(page)
     page.screenshot(path=str(SHOTS / "library-desktop.png"), full_page=True)
-    page.get_by_label("卡牌语言", exact=True).select_option("en-EN")
+    select_value(page, "卡牌语言", "en-EN")
     english_title = next(c for c in cards if c["importId"] == "3L")["json"]["title"]["en-EN"]
     expect(page.get_by_role("heading", name=english_title, exact=True)).to_be_visible()
-    page.get_by_label("卡图版本", exact=True).select_option("40")
+    select_value(page, "卡图版本", "40")
     expect(page.get_by_role("heading", name=english_title, exact=True)).to_be_visible()
     page.get_by_label("关闭卡牌详情").click()
     page.get_by_label("搜索卡牌", exact=True).fill("__no_such_card__")
@@ -84,15 +85,15 @@ with sync_playwright() as p:
 
     page.get_by_role("button", name="卡组", exact=True).click()
     page.get_by_role("button", name="导入新卡组", exact=True).click()
-    page.get_by_role("dialog").get_by_role("textbox").last.fill(CODE)
-    page.get_by_role("dialog").get_by_role("textbox").first.fill("Smoke deck")
+    page.locator('[role="dialog"][aria-modal="true"]').get_by_role("textbox").last.fill(CODE)
+    page.locator('[role="dialog"][aria-modal="true"]').get_by_role("textbox").first.fill("Smoke deck")
     page.get_by_role("button", name="确认导入", exact=True).click()
     page.get_by_role("button", name="编辑卡组", exact=True).click()
     page.get_by_label("导入卡组码", exact=True).fill("Smoke deck\nMajor power: japan\n" + CODE)
     page.get_by_role("button", name="导入", exact=True).click()
     expect(page.get_by_label("卡组名称", exact=True)).to_have_value("Smoke deck")
     expect(page.get_by_text("39 / 39", exact=True)).to_be_visible()
-    page.get_by_label("构筑规则", exact=True).select_option("custom")
+    select_value(page, "构筑规则", "custom")
     page.get_by_label("可用牌张数", exact=True).fill("40")
     expect(page.get_by_text("规则提示 · 允许保存与导出", exact=True)).to_be_visible()
     settle(page)

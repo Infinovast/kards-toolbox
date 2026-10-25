@@ -4,6 +4,7 @@ Artwork HTTP is mocked; all storage is in an isolated browser context.
 import base64, json, re, sys
 from pathlib import Path
 from urllib.parse import unquote
+from select_helpers import select_value
 from playwright.sync_api import expect, sync_playwright
 sys.stdout.reconfigure(encoding="utf-8")
 ROOT = Path(__file__).resolve().parents[1]
@@ -46,7 +47,7 @@ with sync_playwright() as p:
     page.keyboard.press("Escape")
     expect(page.get_by_role("dialog", name="卡牌详情")).to_have_count(0)
     # Download 276 filtered cards (not just the visible 36); reject once, then accept.
-    page.get_by_label("阵营筛选", exact=True).select_option("Germany")
+    select_value(page, "阵营筛选", "Germany")
     dialogs = []
     def reject(dialog): dialogs.append(dialog.message); dialog.dismiss()
     page.on("dialog", reject)
@@ -67,9 +68,9 @@ with sync_playwright() as p:
     panel.get_by_role("button", name="关闭下载进度").click()
     # Language/version snapshot, failures, retry, and all-cache skip.
     page.get_by_role("button", name="卡牌", exact=True).click()
-    page.get_by_label("阵营筛选", exact=True).select_option("France")
-    page.get_by_label("卡牌语言", exact=True).select_option("en-EN")
-    page.get_by_label("卡图版本", exact=True).select_option("40")
+    select_value(page, "阵营筛选", "France")
+    select_value(page, "卡牌语言", "en-EN")
+    select_value(page, "卡图版本", "40")
     failed_card = next(c for c in cards if c["json"]["faction"] == "France")
     failing.add(failed_card["json"]["image"])
     page.wait_for_load_state("networkidle")
@@ -97,13 +98,13 @@ with sync_playwright() as p:
         if image: seed['kards_card_image_v1_54_zh-Hans_' + c["importId"]] = "data:image/png;base64," + base64.b64encode(image.read_bytes()).decode()
     store(page, "await Promise.all(Object.entries(arg).map(([k,v]) => store.setItem(k,v)));", seed)
     page.get_by_role("button", name="重置筛选", exact=True).click()
-    page.get_by_label("卡牌语言", exact=True).select_option("zh-Hans")
-    page.get_by_label("卡图版本", exact=True).select_option("54")
+    select_value(page, "卡牌语言", "zh-Hans")
+    select_value(page, "卡图版本", "54")
     page.wait_for_load_state("networkidle")
     page.screenshot(path=str(OUT / "library-full.png"))
     page.get_by_role("button", name="卡组", exact=True).click()
     page.get_by_role("button", name="导入新卡组", exact=True).click()
-    page.get_by_role("dialog").get_by_role("textbox").last.fill(CODE)
+    page.locator('[role="dialog"][aria-modal="true"]').get_by_role("textbox").last.fill(CODE)
     page.get_by_role("button", name="确认导入", exact=True).click()
     page.get_by_role("button", name="编辑卡组", exact=True).click()
     page.get_by_label("导入卡组码", exact=True).fill(CODE)
@@ -132,16 +133,16 @@ with sync_playwright() as p:
     settings = page.get_by_role("button", name="设置", exact=True)
     settings.click()
     expect(page.get_by_test_id("settings-page")).to_be_visible()
-    expect(page.get_by_role("dialog")).to_have_count(0)
+    expect(page.locator('[role="dialog"][aria-modal="true"]')).to_have_count(0)
     page.keyboard.press("Escape")
-    expect(page.get_by_role("dialog")).to_have_count(0)
+    expect(page.locator('[role="dialog"][aria-modal="true"]')).to_have_count(0)
     expect(settings).to_be_focused()
     page.get_by_role("button", name="卡组", exact=True).click()
     page.get_by_role("button", name="导入新卡组", exact=True).click()
-    modal = page.get_by_role("dialog").last
+    modal = page.locator('[role="dialog"][aria-modal="true"]').last
     modal.get_by_role("textbox").last.fill("%%12|ZZ;;;")
     modal.get_by_role("textbox").last.press("Control+Enter")
-    expect(page.get_by_role("dialog")).to_have_count(0)
+    expect(page.locator('[role="dialog"][aria-modal="true"]')).to_have_count(0)
     # Wallpaper spans the entire work area including both sidebars.
     store(page, "await store.setItem('kards_selected_tablecloth', '/assets/tablecloths/tablecloth (1).jpeg');")
     page.reload(); page.wait_for_load_state("networkidle")

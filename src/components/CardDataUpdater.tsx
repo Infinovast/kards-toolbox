@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Download, RotateCcw, Search, X } from 'lucide-react';
 import { cardTitle, type KardsCardRecord } from '../types/card';
+import CustomSelect from './CustomSelect';
 import { compareCardData, type CardFieldChange } from '../lib/cardData';
 import { applyCardData, cancelCardDataCheck, checkCardData, initializeCardDataSync, rollbackCardData, useCardDataSync } from '../lib/cardDataSync';
 
@@ -64,7 +65,7 @@ export default function CardDataUpdater({ cards, onApplied }: { cards: KardsCard
       </div>
       {!changes.length ? <p className="mt-4 text-sm text-kards-text">当前数据与官方数据一致，无需更新。</p> : <>
         <div className="my-4 flex flex-wrap gap-3">
-          <select aria-label="数据对比类型" value={kind} onChange={event => setKind(event.target.value)} className="rounded border border-kards-border bg-kards-input-bg px-3 py-2 text-sm text-kards-text"><option value="all">全部差异（{changes.length}）</option>{Object.entries(kindLabels).map(([key, label]) => <option key={key} value={key}>{label}（{counts[key]}）</option>)}</select>
+          <CustomSelect label="数据对比类型" value={kind} onChange={setKind} options={[{ value: 'all', label: `全部差异（${changes.length}）` }, ...Object.entries(kindLabels).map(([value, label]) => ({ value, label: `${label}（${counts[value]}）` }))]} />
           <div className="relative min-w-40 flex-1"><Search className="absolute left-3 top-3 h-4 w-4 text-kards-text-muted" /><input aria-label="搜索数据差异" value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Escape' && query && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); setQuery(''); } }} placeholder="搜索卡名或编号" className="w-full rounded border border-kards-border bg-kards-input-bg py-2 pl-9 pr-3 text-sm text-kards-text" /></div>
         </div>
         <div className="divide-y divide-kards-border border-y border-kards-border">

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Copy, ImageDown, Minus, Plus, Save, Search, Upload } from 'lucide-react';
 import localforage from 'localforage';
-import { CARD_FACTIONS, CARD_RARITIES, CARD_TYPES, cardTitle, type KardsCardRecord } from '../types/card';
+import { cardTitle, type KardsCardRecord } from '../types/card';
+import CustomSelect from './CustomSelect';
+import CardFilterSelects, { nationOptions } from './CardFilterSelects';
 import { decodeDeckCode, encodeDeckCode, findCardsByImportId } from '../lib/deckCode';
 import { inferDeckTitleFromText, extractDeckCodeFromText } from '../lib/deckImport';
 import { DEFAULT_DECK_RULES, validateDeck, type DeckRuleSet, type DeckRules } from '../lib/deckRules';
@@ -45,7 +47,7 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, onPrev
   const [entries, setEntries] = useState<Map<string, number>>(new Map());
   const [deckId, setDeckId] = useState<string>();
   const [filters, setFilters] = useState<CardFilters>({ ...EMPTY_CARD_FILTERS });
-  const setFilter = (key: keyof CardFilters, value: string) => setFilters(current => ({ ...current, [key]: value }));
+  const setFilter = <K extends keyof CardFilters,>(key: K, value: CardFilters[K]) => setFilters(current => ({ ...current, [key]: value }));
   const [page, setPage] = useState(1);
   useEffect(() => setPage(1), [filters, mainNation, allyNation, cards]);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -133,13 +135,9 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, onPrev
     <section className="flex min-w-0 flex-1 flex-col gap-3 overflow-hidden">
       <div aria-label="构筑卡牌筛选" className="flex flex-wrap gap-2 rounded-lg border border-kards-border glass-panel p-3">
         <div className="relative min-w-[160px] flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kards-text-muted" /><input aria-label="构筑搜索卡牌" value={filters.query} onChange={(e) => setFilter('query', e.target.value)} onKeyDown={event => { if (event.key === 'Escape' && filters.query && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); setFilter('query', ''); } }} placeholder="搜索卡名、卡牌文本或 ID" className={`${inputClass} w-full !pl-9`} /></div>
-        <select aria-label="构筑规则" value={ruleSet} onChange={(e) => setRuleSet(e.target.value as DeckRuleSet)} className={inputClass}><option value="standard">标准构筑</option><option value="arena">竞技场</option><option value="custom">自定义规则</option></select>
+        <CustomSelect label="构筑规则" value={ruleSet} onChange={value => setRuleSet(value as DeckRuleSet)} options={[{ value: 'standard', label: '标准构筑' }, { value: 'arena', label: '竞技场' }, { value: 'custom', label: '自定义规则' }]} />
         <div className="flex w-full flex-wrap gap-2">
-          <select aria-label="构筑类型筛选" value={filters.cardType} onChange={event => setFilter('cardType', event.target.value)} className={inputClass}><option value="All">全部类型</option>{CARD_TYPES.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select>
-          <select aria-label="构筑费用筛选" value={filters.cost} onChange={event => setFilter('cost', event.target.value)} className={inputClass}><option value="All">全部费用</option>{Array.from({ length: 8 }, (_, index) => <option key={index} value={String(index)}>{index === 7 ? '7 费及以上' : `${index} 费`}</option>)}</select>
-          <select aria-label="构筑稀有度筛选" value={filters.rarity} onChange={event => setFilter('rarity', event.target.value)} className={inputClass}><option value="All">全部稀有度</option>{CARD_RARITIES.map(item => <option key={item} value={item}>{item}</option>)}</select>
-          <select aria-label="构筑扩展包筛选" value={filters.expansion} onChange={event => setFilter('expansion', event.target.value)} className={`${inputClass} max-w-48`}><option value="All">全部扩展包</option>{expansions.map(set => <option key={set} value={set}>{set}</option>)}</select>
-          <select aria-label="构筑状态筛选" value={filters.status} onChange={event => setFilter('status', event.target.value)} className={inputClass}><option value="All">全部状态</option><option value="active">现役可构筑</option><option value="reserved">预备卡</option></select>
+          <CardFilterSelects builder filters={filters} onChange={setFilters} expansions={expansions} />
         </div>
       </div>
       <p className="text-xs text-kards-text-muted">找到 {matchingCards.length} 张</p>
@@ -161,8 +159,8 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, onPrev
       <p className="text-xs text-kards-text-muted">可用牌张数，另含 1 张总部 · 草稿自动保存</p>
       <input value={deckName} onChange={(e) => setDeckName(e.target.value)} className={inputClass} aria-label="卡组名称" onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && entries.size) { e.preventDefault(); saveDeck(); } }} />
       <div className="grid grid-cols-2 gap-2">
-        <select aria-label="主国" value={mainNation} onChange={event => setMainNation(event.target.value)} className={`${inputClass} min-w-0 w-full`}>{CARD_FACTIONS.slice(0, 10).map(item => <option key={item.id} value={item.id}>{item.label}主国</option>)}</select>
-        <select aria-label="盟国" value={allyNation} onChange={event => setAllyNation(event.target.value)} className={`${inputClass} min-w-0 w-full`}>{CARD_FACTIONS.slice(0, 10).map(item => <option key={item.id} value={item.id}>{item.label}盟国</option>)}</select>
+        <CustomSelect label="主国" value={mainNation} onChange={setMainNation} className="min-w-0 w-full" options={nationOptions().filter(item => item.value !== 'Neutral').map(item => ({ ...item, label: `${item.label}主国` }))} />
+        <CustomSelect label="盟国" value={allyNation} onChange={setAllyNation} className="min-w-0 w-full" options={nationOptions().filter(item => item.value !== 'Neutral').map(item => ({ ...item, label: `${item.label}盟国` }))} />
       </div>
       {ruleSet === 'custom' && <div className="flex flex-wrap gap-3 rounded border border-kards-border p-2">
         {numericRules.map(([key, label]) => <label key={key} className="flex items-center gap-1 text-xs text-kards-text-muted">{label}<input type="number" min="1" max="999" value={customRules[key]} onChange={event => setCustomRules({ ...customRules, [key]: Math.max(1, Math.min(999, Number(event.target.value) || 1)) })} className={`${inputClass} w-16 !px-2 !py-1`} /></label>)}

@@ -12,13 +12,19 @@ for (const query of ['测试', 'INFANTRY', 'fallback', 'card-a', 'aa', '  步兵
   assert.ok(matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, query }), query);
 }
 assert.ok(!matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, query: 'not found' }));
-for (const [key, value] of Object.entries({ cardType: 'infantry', rarity: 'Standard', cost: '7', expansion: 'Base', status: 'active' })) {
+for (const [key, value] of Object.entries({ cardType: ['infantry'], rarity: ['Standard'], cost: ['7'], expansion: 'Base', status: 'active' })) {
   assert.ok(matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, [key]: value }), key);
 }
-for (const [key, value] of Object.entries({ cardType: 'tank', rarity: 'Elite', cost: '6', expansion: 'Other', status: 'reserved' })) {
+for (const [key, value] of Object.entries({ cardType: ['tank'], rarity: ['Elite'], cost: ['6'], expansion: 'Other', status: 'reserved' })) {
   assert.ok(!matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, [key]: value }), key);
 }
-assert.ok(matchesCardFilters(changed({ kredits: 0 }), { ...EMPTY_CARD_FILTERS, cost: '0' }));
+assert.ok(matchesCardFilters(changed({ kredits: 0 }), { ...EMPTY_CARD_FILTERS, cost: ['0'] }));
+assert.ok(matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, factions: ['Japan', 'GERMANY'], cardType: ['tank', 'infantry'], rarity: ['Elite', 'Standard'], cost: ['0', '7'] }), 'OR within each group, AND between groups');
+assert.ok(!matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, factions: ['Japan', 'Neutral'], cardType: ['infantry'] }));
+assert.ok(!matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, factions: ['Germany'], cost: ['0', '6'] }));
+assert.ok(matchesCardFilters(changed({ faction: 'Neutral' }), { ...EMPTY_CARD_FILTERS, factions: ['Neutral', 'Japan'] }));
+assert.ok(matchesCardFilters(changed({ kredits: 7 }), { ...EMPTY_CARD_FILTERS, cost: ['7'] }));
+assert.ok(!matchesCardFilters(changed({ kredits: 6 }), { ...EMPTY_CARD_FILTERS, cost: ['0', '7'] }));
 assert.ok(matchesCardFilters(changed({}, true), { ...EMPTY_CARD_FILTERS, status: 'reserved' }));
 assert.ok(!matchesCardFilters(changed({}, true), { ...EMPTY_CARD_FILTERS, status: 'active' }));
 assert.ok(matchesCardFilters(changed({ set: 'OnlySpawnable' }), { ...EMPTY_CARD_FILTERS, status: 'generated' }));

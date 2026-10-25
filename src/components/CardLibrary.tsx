@@ -3,12 +3,11 @@ import { Download, Search, X } from 'lucide-react';
 import { CardFace } from './CardFace';
 import { startImageDownload, useImageDownload } from '../lib/imageDownloads';
 import { useDialogKeyboard } from '../lib/dialogKeyboard';
-import { matchesCardFilters } from '../lib/cardFilters';
+import { EMPTY_CARD_FILTERS, matchesCardFilters, type CardFilters } from '../lib/cardFilters';
+import CustomSelect from './CustomSelect';
+import CardFilterSelects from './CardFilterSelects';
 import {
-  CARD_FACTIONS,
   CARD_LANGUAGES,
-  CARD_RARITIES,
-  CARD_TYPES,
   cardText,
   cardTitle,
   factionLabel,
@@ -21,13 +20,7 @@ const PAGE_SIZE = 36;
 const DEFAULT_VERSION = 54;
 
 export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
-  const [query, setQuery] = useState('');
-  const [faction, setFaction] = useState('All');
-  const [cardType, setCardType] = useState('All');
-  const [rarity, setRarity] = useState('All');
-  const [cost, setCost] = useState('All');
-  const [expansion, setExpansion] = useState('All');
-  const [status, setStatus] = useState('All');
+  const [filters, setFilters] = useState<CardFilters>({ ...EMPTY_CARD_FILTERS });
   const expansions = useMemo(() => [...new Set(cards.map((card) => card.json.set).filter(Boolean))].sort(), [cards]);
   const [language, setLanguage] = useState<CardLanguage>('zh-Hans');
   const [version, setVersion] = useState(DEFAULT_VERSION);
@@ -36,17 +29,16 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
   const download = useImageDownload();
   const detailRef = useDialogKeyboard(!!selectedCard, () => setSelectedCard(null));
 
-  const filteredCards = useMemo(() => cards.filter(card => (faction === 'All' || card.json.faction === faction)
-    && matchesCardFilters(card, { query, cardType, rarity, cost, expansion, status })), [cards, query, faction, cardType, rarity, cost, expansion, status]);
+  const filteredCards = useMemo(() => cards.filter(card => matchesCardFilters(card, filters)), [cards, filters]);
 
   const pageCount = Math.max(1, Math.ceil(filteredCards.length / PAGE_SIZE));
   const pageCards = filteredCards.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const selectFilter = (value: string, setter: (value: string) => void) => {
-    setter(value);
+  const selectFilter = (value: CardFilters) => {
+    setFilters(value);
     setPage(1);
   };
-  const resetFilters = () => { setQuery(''); setFaction('All'); setCardType('All'); setRarity('All'); setCost('All'); setExpansion('All'); setStatus('All'); setPage(1); };
+  const resetFilters = () => { setFilters({ ...EMPTY_CARD_FILTERS }); setPage(1); };
 
   return (
     <div onKeyDown={event => {
@@ -58,16 +50,11 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
         <div className="flex flex-wrap items-center gap-3 rounded-lg border border-kards-border glass-panel p-3">
           <div className="relative min-w-[220px] flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kards-text-muted" />
-            <input aria-label="搜索卡牌" value={query} onChange={(event) => selectFilter(event.target.value, setQuery)} onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.closest('section')?.querySelector<HTMLButtonElement>('[data-testid="library-grid"] button')?.focus(); } }} placeholder="搜索卡名、卡牌文本或 ID" className="w-full rounded border border-kards-border bg-kards-input-bg py-2 pl-9 pr-3 text-sm text-kards-text outline-none focus:border-kards-gold" />
+            <input aria-label="搜索卡牌" value={filters.query} onChange={(event) => selectFilter({ ...filters, query: event.target.value })} onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.closest('section')?.querySelector<HTMLButtonElement>('[data-testid="library-grid"] button')?.focus(); } }} placeholder="搜索卡名、卡牌文本或 ID" className="w-full rounded border border-kards-border bg-kards-input-bg py-2 pl-9 pr-3 text-sm text-kards-text outline-none focus:border-kards-gold" />
           </div>
-          <select aria-label="阵营筛选" value={faction} onChange={(event) => selectFilter(event.target.value, setFaction)} className="rounded border border-kards-border bg-kards-input-bg px-3 py-2 text-sm text-kards-text"><option value="All">全部阵营</option>{CARD_FACTIONS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select>
-          <select aria-label="类型筛选" value={cardType} onChange={(event) => selectFilter(event.target.value, setCardType)} className="rounded border border-kards-border bg-kards-input-bg px-3 py-2 text-sm text-kards-text"><option value="All">全部类型</option>{CARD_TYPES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select>
-          <select aria-label="费用筛选" value={cost} onChange={(event) => selectFilter(event.target.value, setCost)} className="rounded border border-kards-border bg-kards-input-bg px-3 py-2 text-sm text-kards-text"><option value="All">全部费用</option>{Array.from({ length: 8 }, (_, index) => <option key={index} value={String(index)}>{index === 7 ? '7 费及以上' : `${index} 费`}</option>)}</select>
-          <select aria-label="稀有度筛选" value={rarity} onChange={(event) => selectFilter(event.target.value, setRarity)} className="rounded border border-kards-border bg-kards-input-bg px-3 py-2 text-sm text-kards-text"><option value="All">全部稀有度</option>{CARD_RARITIES.map((item) => <option key={item} value={item}>{item}</option>)}</select>
-          <select aria-label="卡牌语言" value={language} onChange={(event) => setLanguage(event.target.value as CardLanguage)} className="rounded border border-kards-border bg-kards-input-bg px-3 py-2 text-sm text-kards-text">{CARD_LANGUAGES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select>
-          <select aria-label="卡图版本" value={version} onChange={(event) => setVersion(Number(event.target.value))} className="rounded border border-kards-border bg-kards-input-bg px-3 py-2 text-sm text-kards-text">{Array.from({ length: 15 }, (_, index) => DEFAULT_VERSION - index).map((item) => <option key={item} value={item}>卡图 v{item}</option>)}</select>
-          <select aria-label="扩展包筛选" value={expansion} onChange={(e) => selectFilter(e.target.value, setExpansion)} className="max-w-48 rounded border border-kards-border bg-kards-input-bg px-3 py-2 text-sm text-kards-text"><option value="All">全部扩展包</option>{expansions.map((set) => <option key={set} value={set}>{set}</option>)}</select>
-          <select aria-label="卡牌状态筛选" value={status} onChange={(e) => selectFilter(e.target.value, setStatus)} className="rounded border border-kards-border bg-kards-input-bg px-3 py-2 text-sm text-kards-text"><option value="All">全部状态</option><option value="active">现役可构筑</option><option value="reserved">预备卡</option><option value="generated">衍生/特殊形态</option></select>
+          <CardFilterSelects filters={filters} onChange={selectFilter} expansions={expansions} language={language} />
+          <CustomSelect label="卡牌语言" value={language} onChange={value => setLanguage(value as CardLanguage)} options={CARD_LANGUAGES.map(item => ({ value: item.id, label: item.label }))} />
+          <CustomSelect label="卡图版本" value={String(version)} onChange={value => setVersion(Number(value))} options={Array.from({ length: 15 }, (_, index) => DEFAULT_VERSION - index).map(item => ({ value: String(item), label: `卡图 v${item}` }))} />
           <button onClick={resetFilters} className="px-2 py-2 text-sm text-kards-text-muted hover:text-kards-text">重置筛选</button>
         </div>
 

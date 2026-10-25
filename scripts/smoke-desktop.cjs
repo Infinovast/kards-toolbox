@@ -89,9 +89,25 @@ async function main() {
     }
     await page.getByRole('button', { name: '卡牌', exact: true }).click();
     await expect(page.getByText('本地目录 1,646 张 · 当前结果 1,646 张', { exact: true })).toBeVisible();
+    await expect(page.locator('select')).toHaveCount(0);
+    await page.getByRole('combobox', { name: '阵营筛选', exact: true }).click();
+    const factions = page.getByRole('listbox', { name: '阵营筛选选项', exact: true });
+    await factions.locator('[data-value="Germany"]').click();
+    await factions.locator('[data-value="Soviet"]').click();
+    const count = records.filter(card => ['Germany', 'Soviet'].includes(card.json.faction)).length;
+    await expect(page.getByText(`本地目录 1,646 张 · 当前结果 ${count.toLocaleString()} 张`, { exact: true })).toBeVisible();
+    await factions.press('Escape');
+    await page.getByRole('button', { name: '重置筛选', exact: true }).click();
+    const iconsAvailable = await page.evaluate(async () => {
+      const sources = await (await fetch('./assets/filters/sources.json')).json();
+      const statuses = await Promise.all(Object.keys(sources).map(async name => (await fetch(`./assets/filters/${name}`)).ok));
+      return statuses.length === 36 && statuses.every(Boolean);
+    });
+    assert.ok(iconsAvailable, 'all offline filter resources are served by the production protocol');
     await page.getByRole('button', { name: '卡组', exact: true }).click();
+    const mainWidth = (await page.getByRole('main').boundingBox()).width;
     await page.getByRole('button', { name: '导入新卡组', exact: true }).click();
-    await page.getByRole('dialog').getByRole('textbox').last().fill('%%12|ZZ;;;');
+    await page.locator('[role="dialog"][aria-modal="true"]').getByRole('textbox').last().fill('%%12|ZZ;;;');
     await page.getByRole('button', { name: '确认导入', exact: true }).click();
     await page.getByRole('button', { name: '编辑卡组', exact: true }).click();
     await page.getByLabel('导入卡组码', { exact: true }).fill('%%12|ZZ;;;');
@@ -100,6 +116,12 @@ async function main() {
     await page.getByLabel('卡组名称', { exact: true }).fill('Desktop offline test');
     await page.getByRole('button', { name: '保存更改', exact: true }).click();
     await expect(page.getByLabel('管理卡组名称', { exact: true })).toHaveValue('Desktop offline test');
+    await expect(page.getByRole('dialog', { name: '卡组详情', exact: true })).toBeVisible();
+    assert.equal((await page.getByRole('main').boundingBox()).width, mainWidth);
+    await page.getByRole('button', { name: '关闭卡组详情', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: '卡组详情', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: '选择卡组 Desktop offline test', exact: true }).click();
+    assert.equal((await page.getByRole('main').boundingBox()).width, mainWidth);
     await page.getByLabel('卡组备注', { exact: true }).fill('生产协议与离线存储测试');
     await page.getByRole('button', { name: '生成本地卡组图片', exact: true }).click();
     await expect(page.getByRole('button', { name: '下载 PNG 图片', exact: true })).toBeVisible();
@@ -124,7 +146,7 @@ async function main() {
     page.on('dialog', dialog => dialog.accept());
     await page.getByRole('button', { name: '设置', exact: true }).click();
     await expect(page.getByTestId('settings-page')).toBeVisible();
-    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.locator('[role="dialog"][aria-modal="true"]')).toHaveCount(0);
     await page.getByRole('button', { name: '获取最新卡牌数据', exact: true }).click();
     await expect(page.getByText('新旧数据对比', { exact: true })).toBeVisible();
     const dataRequests = await app.evaluate(() => global.__cardRequests);

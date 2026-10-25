@@ -2,9 +2,12 @@
 import json
 import sys
 from pathlib import Path
+import os
+from select_helpers import select_value
 from playwright.sync_api import expect, sync_playwright
 
 sys.stdout.reconfigure(encoding="utf-8")
+SKIP_VISUAL = os.environ.get("KARDS_SKIP_VISUAL_TESTS") == "1"
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "test-results/navigation"
 OUT.mkdir(parents=True, exist_ok=True)
@@ -50,7 +53,7 @@ with sync_playwright() as p:
     expect(page.get_by_role("list", name="卡组紧凑列表")).to_be_visible()
     expect(page.get_by_test_id("builder-grid")).to_have_count(0)
     page.wait_for_timeout(350)  # allow the existing navigation/selection animation to settle
-    page.screenshot(path=str(OUT / "folders-desktop.png"))
+    if not SKIP_VISUAL: page.screenshot(path=str(OUT / "folders-desktop.png"))
     group.get_by_role("button", name="选择卡组 旧卡组一", exact=True).dblclick()
     expect(page.get_by_label("卡组名称", exact=True)).to_have_value("旧卡组一")
     page.get_by_label("卡组名称", exact=True).fill("编辑后的卡组")
@@ -62,12 +65,13 @@ with sync_playwright() as p:
     expect(page.get_by_role("button", name="旧收藏夹 1 个卡组", exact=True)).to_be_visible()
     expect(page.get_by_role("button", name="选择卡组 编辑后的卡组", exact=True)).to_have_count(0)
     page.get_by_placeholder("搜索卡组...", exact=True).fill("")
+    page.get_by_role("button", name="关闭卡组详情", exact=True).click()
     page.get_by_role("button", name="新建收藏夹", exact=True).click()
     page.get_by_placeholder("请输入收藏夹名称...", exact=True).fill("新收藏夹")
     page.get_by_placeholder("请输入收藏夹名称...", exact=True).press("Enter")
     expect(page.get_by_role("heading", name="创建新收藏夹", exact=True)).to_have_count(0)
     page.get_by_role("button", name="添加卡组到新收藏夹", exact=True).click()
-    page.get_by_role("dialog").get_by_role("button", name="未归类卡组", exact=False).click()
+    page.locator('[role="dialog"][aria-modal="true"]').get_by_role("button", name="未归类卡组", exact=False).click()
     page.get_by_role("button", name="新收藏夹 1 个卡组", exact=True).click()
     expect(page.get_by_role("group", name="新收藏夹", exact=True).get_by_role("button", name="选择卡组 未归类卡组", exact=True)).to_be_visible()
     page.get_by_role("button", name="重命名新收藏夹", exact=True).click()
@@ -95,7 +99,7 @@ with sync_playwright() as p:
     version = json.loads((ROOT / 'package.json').read_text(encoding='utf-8'))['version']
     expect(page.get_by_text("版本 " + version, exact=False)).to_be_visible()
     page.wait_for_timeout(350)  # allow the existing navigation/selection animation to settle
-    page.screenshot(path=str(OUT / "about-desktop.png"))
+    if not SKIP_VISUAL: page.screenshot(path=str(OUT / "about-desktop.png"))
     page.get_by_role("button", name="返回", exact=True).click()
     grid = page.get_by_test_id("library-grid")
     expect(grid).to_be_visible()
@@ -111,27 +115,27 @@ with sync_playwright() as p:
         box = page.get_by_role("button", name=name, exact=True).bounding_box()
         assert box["x"] + box["width"] <= 980, (name, box)
     page.wait_for_timeout(350)  # allow the existing navigation/selection animation to settle
-    page.screenshot(path=str(OUT / "decks-min.png"))
+    if not SKIP_VISUAL: page.screenshot(path=str(OUT / "decks-min.png"))
     page.get_by_role("button", name="选择卡组 编辑后的卡组", exact=True).dblclick()
     assert page.get_by_test_id("builder-grid").evaluate("el => getComputedStyle(el).scrollbarWidth") == "thin"
     button = page.get_by_role("button", name="保存更改", exact=True)
     assert button.bounding_box()["y"] + button.bounding_box()["height"] <= 640
     page.wait_for_timeout(350)  # allow the existing navigation/selection animation to settle
-    page.screenshot(path=str(OUT / "editor-min.png"))
+    if not SKIP_VISUAL: page.screenshot(path=str(OUT / "editor-min.png"))
     button.click()
     expect(page.get_by_label("管理卡组名称", exact=True)).to_have_value("编辑后的卡组")
     toggle.check()
     page.get_by_role("button", name="旧收藏夹 2 个卡组", exact=True).click()
     page.wait_for_timeout(350)
-    page.screenshot(path=str(OUT / "folders-min.png"))
+    if not SKIP_VISUAL: page.screenshot(path=str(OUT / "folders-min.png"))
     assert page.evaluate("document.documentElement.scrollWidth") == 980
     page.get_by_role("button", name="关于", exact=True).click()
     page.get_by_role("button", name="设置", exact=True).click()
-    page.get_by_test_id("settings-page").get_by_label("显示模式",exact=True).select_option("light")
+    select_value(page, "显示模式", "light")
     page.get_by_role("button", name="保存并返回", exact=True).click()
     expect(page.get_by_alt_text("KARDS Logo", exact=True)).to_have_attribute("src", "/assets/kards_logos/Common/KardsLogoBlack.png")
     page.wait_for_timeout(350)
-    page.screenshot(path=str(OUT / "about-light-min.png"))
+    if not SKIP_VISUAL: page.screenshot(path=str(OUT / "about-light-min.png"))
     assert page.evaluate("document.documentElement.scrollWidth") == 980
     assert not errors, errors
     (OUT / "result.json").write_text(json.dumps({"status": "passed", "pageErrors": errors,

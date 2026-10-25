@@ -44,6 +44,8 @@ import DeckBuilder, { type BuilderDeck } from './components/DeckBuilder';
 import DeckFolders from './components/DeckFolders';
 import AboutPage from './components/AboutPage';
 import CardDataUpdater from './components/CardDataUpdater';
+import CustomSelect from './components/CustomSelect';
+import { nationOptions } from './components/CardFilterSelects';
 import { cardTitle, loadCardDatabase, type KardsCardRecord } from './types/card';
 
 // --- Types ---
@@ -285,21 +287,28 @@ export default function App() {
   const [filterAllyNation, setFilterAllyNation] = useState<Nation | 'All'>('All');
   const [filterTag, setFilterTag] = useState<string | 'All'>('All');
 
+  const closeDeckDetails = React.useCallback(() => {
+    const opener = document.querySelector<HTMLButtonElement>('[aria-label^="选择卡组 "][aria-pressed="true"]');
+    setSelectedDeckId(null);
+    setAddingTagToDeckId(null);
+    requestAnimationFrame(() => { if (opener?.isConnected) opener.focus(); });
+  }, []);
+
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.isComposing || document.querySelector('[role="dialog"]')) return;
+      if (event.defaultPrevented || event.isComposing || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
       if (event.key === 'Escape' && activeMenu === 'about') {
         event.preventDefault(); setActiveMenu(aboutReturnMenu);
         requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('[aria-label="关于"]')?.focus());
       } else if (event.key === 'Escape' && activeMenu === 'decks') {
         event.preventDefault();
-        if (searchQuery) setSearchQuery('');
-        else setSelectedDeckId(null);
+        if (selectedDeckId) closeDeckDetails();
+        else if (searchQuery) setSearchQuery('');
       }
     };
     document.addEventListener('keydown', keydown);
     return () => document.removeEventListener('keydown', keydown);
-  }, [activeMenu, aboutReturnMenu, searchQuery]);
+  }, [activeMenu, aboutReturnMenu, searchQuery, selectedDeckId, closeDeckDetails]);
   
   const [customCategories, setCustomCategories] = useState<{id: string, name: string, backs: {id: string, url: string, name: string}[]}[]>([]);
 
@@ -937,16 +946,7 @@ export default function App() {
                     <span className="text-sm font-bold text-kards-text tracking-wider">显示模式</span>
                     <span className="text-[10px] text-kards-text-muted uppercase tracking-tighter">切换应用视觉主题</span>
                   </div>
-                  <select
-                    aria-label="显示模式"
-                    value={settings.displayMode}
-                    onChange={(e) => setSettings(s => ({ ...s, displayMode: e.target.value as 'dark' | 'light' | 'system' }))}
-                    className="bg-kards-input-bg border border-kards-input-border text-kards-text text-sm px-3 py-1.5 focus:outline-none focus:border-kards-gold rounded transition-colors"
-                  >
-                    <option value="system">跟随系统</option>
-                    <option value="dark">深色模式</option>
-                    <option value="light">浅色模式</option>
-                  </select>
+                  <CustomSelect label="显示模式" value={settings.displayMode} onChange={value => setSettings(s => ({ ...s, displayMode: value as AppSettings['displayMode'] }))} options={[{ value: 'system', label: '跟随系统' }, { value: 'dark', label: '深色模式' }, { value: 'light', label: '浅色模式' }]} />
                 </div>
 
                 {/* Light Theme Color Picker (Only show if not dark) */}
@@ -1147,30 +1147,9 @@ export default function App() {
                 className="bg-kards-gray-alt border border-kards-border text-kards-text text-sm px-3 py-1.5 focus:outline-none focus:border-kards-gold min-w-[200px] rounded transition-colors"
               />
                 <>
-                  <select 
-                    value={filterMainNation || 'All'}
-                    onChange={e => setFilterMainNation(e.target.value as Nation | 'All')}
-                    className="bg-kards-gray-alt border border-kards-border text-kards-text text-sm px-2 py-1.5 focus:outline-none focus:border-kards-gold rounded transition-colors"
-                  >
-                    <option value="All">主国：全部</option>
-                    {Object.entries(NATION_DATA).map(([key, data]) => data.isMainAllowed && <option key={key} value={key}>{data.label}</option>)}
-                  </select>
-                  <select 
-                    value={filterAllyNation || 'All'}
-                    onChange={e => setFilterAllyNation(e.target.value as Nation | 'All')}
-                    className="bg-kards-gray-alt border border-kards-border text-kards-text text-sm px-2 py-1.5 focus:outline-none focus:border-kards-gold rounded transition-colors"
-                  >
-                    <option value="All">盟国：全部</option>
-                    {Object.keys(NATION_DATA).map(key => <option key={key} value={key}>{NATION_DATA[key as Nation].label}</option>)}
-                  </select>
-                  <select 
-                    value={filterTag || 'All'}
-                    onChange={e => setFilterTag(e.target.value)}
-                    className="bg-kards-gray-alt border border-kards-border text-kards-text text-sm px-2 py-1.5 focus:outline-none focus:border-kards-gold max-w-[120px] rounded transition-colors"
-                  >
-                    <option value="All">标签：全部</option>
-                    {allTags.map(tag => <option key={tag} value={tag}>{tag}</option>)}
-                  </select>
+                  <CustomSelect label="卡组主国筛选" value={filterMainNation || 'All'} onChange={value => setFilterMainNation(value as Nation | 'All')} options={[{ value: 'All', label: '主国：全部' }, ...nationOptions().filter(option => NATION_DATA[option.value as Nation]?.isMainAllowed)]} />
+                  <CustomSelect label="卡组盟国筛选" value={filterAllyNation || 'All'} onChange={value => setFilterAllyNation(value as Nation | 'All')} options={[{ value: 'All', label: '盟国：全部' }, ...nationOptions().filter(option => option.value !== 'Neutral')]} />
+                  <CustomSelect label="卡组标签筛选" value={filterTag || 'All'} onChange={setFilterTag} className="max-w-[180px]" options={[{ value: 'All', label: '标签：全部' }, ...allTags.map(tag => ({ value: tag, label: tag }))]} />
                 </>
               </>}
             </div>
@@ -1268,7 +1247,7 @@ export default function App() {
               {settings.showDeckFolders && <button onClick={() => setShowImportModal(true)} className="flex items-center gap-2 rounded bg-kards-accent px-3 py-2 text-sm font-bold text-white"><Plus className="h-4 w-4" />导入新卡组</button>}
             </div>}
             {activeMenu === 'decks' && !settings.showDeckFolders && (
-              <div 
+              <div data-testid="deck-grid"
                 style={{ 
                   display: 'grid',
                   gridTemplateColumns: `repeat(auto-fill, minmax(${10 * settings.uiScale}rem, 1fr))`,
@@ -1323,21 +1302,26 @@ export default function App() {
           </div>
         </main>
 
-        {/* Right Details Panel */}
-        {activeMenu === 'decks' && (
-          <aside 
-            className="glass-panel w-[320px] shrink-0 border-l border-kards-border flex flex-col z-10 overflow-hidden transition-colors"
-            style={{ 
-              backgroundColor: `rgba(var(--rgb-panel-overlay), ${settings.importBoxOpacity})` 
+        {/* Non-modal details float over the unchanged deck workspace. */}
+        {activeMenu === 'decks' && selectedDeck && (
+          <aside role="dialog" aria-modal="false" aria-label="卡组详情" tabIndex={-1}
+            onKeyDown={event => {
+              if (!event.defaultPrevented && !event.nativeEvent.isComposing && event.key === 'Escape' && !document.querySelector('[role="dialog"][aria-modal="true"]')) {
+                event.preventDefault(); event.stopPropagation(); closeDeckDetails();
+              }
             }}
+            className="glass-panel absolute bottom-5 right-5 top-5 z-30 flex w-[320px] max-w-[calc(100%-136px)] flex-col overflow-hidden rounded-lg border border-kards-border shadow-xl"
           >
-            {selectedDeck ? (
               <motion.div 
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 key={selectedDeck.id}
                 className="flex flex-col h-full"
               >
+              <div className="flex shrink-0 items-center justify-between border-b border-kards-border px-4 py-2">
+                <h2 className="text-sm font-bold text-kards-text">卡组详情</h2>
+                <button onClick={closeDeckDetails} aria-label="关闭卡组详情" title="Esc 关闭卡组详情" className="rounded p-1 text-kards-text-muted hover:text-kards-text"><X className="h-4 w-4" /></button>
+              </div>
               <div className="p-4 flex-1 overflow-y-auto no-scrollbar min-h-0 w-full">
                 <input 
                   type="text"
@@ -1438,11 +1422,6 @@ export default function App() {
                 </button>
               </div>
             </motion.div>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-kards-text-muted">
-              请选择一个卡组
-            </div>
-          )}
         </aside>
       )}
     </div>
@@ -1922,11 +1901,9 @@ export default function App() {
                               {movingCardInfo?.backId === back.id && back.isCustomCard && (
                                 <div className="absolute inset-0 z-30 bg-kards-modal-overlay flex flex-col items-center justify-center p-2" onClick={e => e.stopPropagation()}>
                                   <span className="text-kards-text text-xs mb-2">移动至...</span>
-                                  <select 
-                                    className="w-full bg-black border border-kards-border0 text-kards-text text-xs p-2 mb-2 focus:outline-none"
-                                    onChange={(e) => {
-                                      if(e.target.value) {
-                                        const newCatId = e.target.value;
+                                  <CustomSelect label="移动卡背分类" placeholder="选择分类" className="w-full mb-2" value="" onChange={(value) => {
+                                      if(value) {
+                                        const newCatId = value;
                                         setCustomCategories(prev => {
                                            const oldCat = prev.find(c => c.id === category.id);
                                            const b = oldCat?.backs.find((bk: any) => bk.id === back.id);
@@ -1939,14 +1916,7 @@ export default function App() {
                                         });
                                         setMovingCardInfo(null);
                                       }
-                                    }}
-                                    defaultValue=""
-                                  >
-                                    <option value="" disabled>选择分类</option>
-                                    {allCategories.filter(c => c.id !== category.id).map(c => (
-                                      <option key={c.id} value={c.id}>{c.name}</option>
-                                    ))}
-                                  </select>
+                                    }} options={allCategories.filter(c => c.id !== category.id).map(c => ({ value: c.id, label: c.name }))} />
                                   <button className="text-kards-gold hover:text-kards-text text-xs" onClick={() => setMovingCardInfo(null)}>取消</button>
                                 </div>
                               )}
@@ -2174,24 +2144,7 @@ export default function App() {
               <h3 className="text-xl font-bold mb-4 text-center">上传自定义卡背</h3>
               <div className="w-full mb-4">
                 <label className="block text-sm text-kards-text-muted mb-2">选择分类</label>
-                <select 
-                  className="w-full bg-kards-input-bg border border-kards-border p-2 text-kards-text focus:outline-none focus:border-kards-gold"
-                  value={uploadCategory || ''}
-                  onChange={e => setUploadCategory(e.target.value)}
-                >
-                  <optgroup label="默认分类">
-                    {allCategories.filter(c => !c.isCustom).map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </optgroup>
-                  {allCategories.filter(c => c.isCustom).length > 0 && (
-                    <optgroup label="自定义分类">
-                      {allCategories.filter(c => c.isCustom).map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </optgroup>
-                  )}
-                </select>
+                <CustomSelect label="上传卡背分类" className="w-full" value={uploadCategory || ''} placeholder="选择分类" onChange={setUploadCategory} options={[...allCategories.filter(c => !c.isCustom), ...allCategories.filter(c => c.isCustom)].map(c => ({ value: c.id, label: c.name, group: c.isCustom ? '自定义分类' : '默认分类' }))} />
               </div>
               <div className="relative w-full">
                 <input 

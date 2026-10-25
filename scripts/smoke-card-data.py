@@ -3,9 +3,12 @@ import copy
 import json
 import sys
 from pathlib import Path
+import os
+from select_helpers import select_value
 from playwright.sync_api import expect, sync_playwright
 
 sys.stdout.reconfigure(encoding="utf-8")
+SKIP_VISUAL = os.environ.get("KARDS_SKIP_VISUAL_TESTS") == "1"
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "test-results/card-sync"
 OUT.mkdir(parents=True, exist_ok=True)
@@ -81,19 +84,19 @@ with sync_playwright() as p:
     page.get_by_role("button", name="设置", exact=True).click()
     settings = page.get_by_test_id("settings-page")
     expect(settings).to_be_visible()
-    expect(page.get_by_role("dialog")).to_have_count(0)
+    expect(page.locator('[role="dialog"][aria-modal="true"]')).to_have_count(0)
     assert settings.bounding_box()["width"] == 1184
     assert requests == [], "opening settings must not contact the official API"
     page.get_by_role("button", name="获取最新卡牌数据", exact=True).click()
     expect(page.get_by_text("新旧数据对比", exact=True)).to_be_visible()
     expect(page.get_by_text("当前 6 张 → 待更新 6 张 · 新增 1 / 修改 1 / 移除 1", exact=True)).to_be_visible()
     assert store(page, "return (await store.getItem(value)).active.cards;", KEY) == baseline
-    page.get_by_label("数据对比类型").select_option("changed")
+    select_value(page, "数据对比类型", "changed")
     page.locator("details summary").first.click()
     expect(page.get_by_role("cell", name="Changed English rules for the sync fixture.", exact=True)).to_be_visible()
     expect(page.get_by_role("rowheader", name="费用", exact=True)).to_be_visible()
     page.wait_for_timeout(250)
-    page.screenshot(path=str(OUT / "comparison-desktop.png"))
+    if not SKIP_VISUAL: page.screenshot(path=str(OUT / "comparison-desktop.png"))
     page.get_by_role("button", name="卡牌", exact=True).click()
     expect(page.get_by_role("button", name="查看" + baseline[0]["json"]["title"]["zh-Hans"], exact=True)).to_be_visible()
     page.get_by_role("button", name="设置", exact=True).click()
@@ -162,10 +165,10 @@ with sync_playwright() as p:
     expect(page.get_by_text("当前数据与官方数据一致，无需更新。", exact=True)).to_be_visible()
     expect(page.get_by_role("button", name="应用更新", exact=True)).to_be_disabled()
     page.set_viewport_size({"width": 980, "height": 640})
-    page.get_by_label("显示模式", exact=True).select_option("light")
+    select_value(page, "显示模式", "light")
     settings.scroll_into_view_if_needed()
     page.wait_for_timeout(400)
-    page.screenshot(path=str(OUT / "settings-light-min.png"))
+    if not SKIP_VISUAL: page.screenshot(path=str(OUT / "settings-light-min.png"))
     assert settings.bounding_box()["width"] == 884
     assert page.evaluate("document.documentElement.scrollWidth") == 980
     assert not errors, errors

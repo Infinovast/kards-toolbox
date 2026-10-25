@@ -176,6 +176,35 @@ input, textarea { caret-color: var(--color-kards-gold); }
 .rarity-slots > span:not(.rarity-overflow) { width: 11px; height: 11px; border-width: 1px; border-style: solid; }
 .rarity-overflow { color: var(--color-kards-text); font-size: 11px; }
 .glass-panel { background-color: rgba(var(--rgb-panel-overlay), 0.78); backdrop-filter: blur(18px) saturate(1.15); }
+@layer components {
+  .custom-select-trigger { display: inline-flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 86px; max-width: 100%; min-height: 36px; padding: 7px 10px; border: 1px solid var(--color-kards-input-border); border-radius: 4px; background: var(--color-kards-input-bg); color: var(--color-kards-text); font-size: 13px; text-align: left; }
+}
+.custom-select-trigger:hover, .custom-select-trigger[aria-expanded="true"] { border-color: var(--color-kards-gold); }
+.custom-select-trigger.has-selection { border-color: var(--color-kards-status); color: var(--color-kards-status); }
+.custom-select-trigger:disabled { opacity: 0.4; }
+.custom-select-value { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
+.custom-select-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 24px; height: 24px; }
+.custom-select-icon:has(.filter-cost) { width: auto; }
+.custom-select-popover { position: fixed; z-index: 10000; display: flex; flex-direction: column; padding: 5px; border: 1px solid var(--color-kards-input-border); border-radius: 6px; background-color: rgba(var(--rgb-panel-overlay), 0.96); box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28); color: var(--color-kards-text); }
+.custom-select-heading { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 7px 10px; font-size: 12px; color: var(--color-kards-text-muted); }
+.custom-select-heading button { padding: 3px 5px; border-radius: 3px; color: var(--color-kards-status); }
+.custom-select-options { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent; }
+.custom-select-options:focus { outline: none; }
+.custom-select-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+.custom-select-option { display: flex; align-items: center; gap: 9px; min-height: 38px; padding: 7px 9px; border: 1px solid transparent; border-radius: 3px; color: var(--color-kards-text-muted); font-size: 13px; cursor: pointer; user-select: none; transition: color 160ms ease-out, background-color 160ms ease-out, border-color 160ms ease-out; }
+.custom-select-option[aria-selected="true"] { color: var(--color-kards-status); background: var(--color-kards-panel-hover); border-color: var(--color-kards-gold); }
+.custom-select-option:hover, .custom-select-option.is-active { color: var(--color-kards-text); background: var(--color-kards-panel-hover); }
+.custom-select-options:focus-visible .custom-select-option.is-active { outline: 2px solid var(--color-kards-gold); outline-offset: -2px; }
+.custom-select-option[aria-selected="true"]:hover, .custom-select-option[aria-selected="true"].is-active { color: var(--color-kards-status); }
+.custom-select-option[aria-disabled="true"] { opacity: 0.4; cursor: not-allowed; }
+.custom-select-option.is-icon-only { justify-content: center; min-height: 48px; }
+.custom-select-option.is-icon-only .custom-select-icon { width: 76px; height: 28px; }
+.custom-select-group { padding: 9px 9px 3px; font-size: 11px; color: var(--color-kards-text-muted); }
+.custom-select-check { color: var(--color-kards-status); }
+.filter-symbol { display: block; width: 100%; height: 100%; background-color: currentColor; mask-image: var(--filter-icon); mask-size: contain; mask-position: center; mask-repeat: no-repeat; }
+.filter-symbol-image { display: block; width: 100%; height: 100%; object-fit: contain; }
+.filter-cost { display: inline-flex; align-items: center; justify-content: center; min-width: 40px; height: 28px; padding: 0 5px; border: 1.5px solid #fff; border-radius: 0; background: #151515; color: #fff; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.custom-select-option[aria-selected="true"] .filter-cost, .custom-select-trigger.has-selection .filter-cost { color: var(--color-kards-gold); }
 /* Modal overlays/panels share the same material even at nested upload/crop layers. */
 [role="dialog"].glass-panel { background-color: rgba(var(--rgb-panel-overlay), 0.84); backdrop-filter: blur(18px) saturate(1.15) !important; }
 [role="dialog"] { max-height: calc(100vh - 32px); overflow-y: auto; }

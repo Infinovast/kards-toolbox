@@ -4,6 +4,7 @@ dist/
 dist-electron/
 release/
 coverage/
+__pycache__/
 .DS_Store
 *.log
 .env*
