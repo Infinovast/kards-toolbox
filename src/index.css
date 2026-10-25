@@ -142,3 +142,25 @@
 ::selection { background: var(--color-kards-accent); color: #fff; }
 :focus-visible { outline: 2px solid var(--color-kards-gold); outline-offset: 3px; }
 input, textarea { caret-color: var(--color-kards-gold); }
+
+/* Shared full-card presentation: image pixels, including their own edge/radius,
+   stay inside the frame. No CSS clipping is applied to artwork. */
+.card-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(146px, 1fr)); gap: 14px; align-content: start; grid-auto-rows: max-content; }
+.card-tile { min-width: 0; width: 100%; max-width: 190px; justify-self: center; align-self: start; }
+.card-tile > button { border-radius: 4px; }
+.card-face { display: block; width: 100%; height: auto; aspect-ratio: 618 / 867; object-fit: contain; border-radius: 0; }
+.card-face-placeholder { display: flex; align-items: center; justify-content: center; padding: 8px; text-align: center; font-size: 12px; color: var(--color-kards-text-muted); background: rgb(var(--rgb-panel-overlay), 0.72); }
+.card-caption { background: #080a08; color: #f1ebd8; border-radius: 0 0 7px 7px; padding: 6px 8px; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-gallery-builder { grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); gap: 12px; }
+.card-gallery-builder .card-tile { max-width: 138px; }
+.rarity-slots { display: flex; justify-content: center; align-items: center; gap: 5px; height: 27px; }
+.rarity-slots > span:not(.rarity-overflow) { width: 11px; height: 11px; border-width: 1px; border-style: solid; }
+.rarity-overflow { color: var(--color-kards-text); font-size: 11px; }
+.glass-panel { background-color: rgba(var(--rgb-panel-overlay), 0.78); backdrop-filter: blur(18px) saturate(1.15); }
+/* Modal overlays/panels share the same material even at nested upload/crop layers. */
+[role="dialog"].glass-panel { background-color: rgba(var(--rgb-panel-overlay), 0.84); backdrop-filter: blur(18px) saturate(1.15) !important; }
+[role="dialog"] { max-height: calc(100vh - 32px); overflow-y: auto; }
+progress { appearance: none; border: 0; border-radius: 3px; overflow: hidden; }
+progress::-webkit-progress-bar { background: var(--color-kards-input-bg); }
+progress::-webkit-progress-value { background: var(--color-kards-gold); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; } }

@@ -139,7 +139,7 @@ with sync_playwright() as p:
     png_path = OUT / "offline-deck.png"
     download.value.save_as(png_path)
     png = png_path.read_bytes()
-    assert png[:8] == b"\x89PNG\r\n\x1a\n" and struct.unpack(">II", png[16:24])[0] == 1200
+    assert png[:8] == b"\x89PNG\r\n\x1a\n" and struct.unpack(">II", png[16:24])[0] == 2304
     page.reload()
     page.wait_for_load_state("networkidle")
     saved_deck = page.get_by_role("button", name="选择卡组 Smoke edited", exact=True)

@@ -1,58 +1,55 @@
 import { cardTitle, factionLabel, type KardsCardRecord } from '../types/card';
 import { decodeDeckCode, findCardsByImportId } from './deckCode';
 import { getCachedCardImage } from './cardImages';
+import type { DeckRenderRequest } from './deckRenderTypes';
 
-// 只读取本地缓存；离线或缺图也能生成带名称、费用和数量的图片。
-export async function renderDeckImage(code: string, cards: KardsCardRecord[], title = 'KARDS 卡组'): Promise<string> {
-  const deck = decodeDeckCode(code);
-  const index = findCardsByImportId(cards);
+export async function renderDeckImage(code: string, cards: KardsCardRecord[], title = 'KARDS 卡组', background?: string | null): Promise<string> {
+  const deck = decodeDeckCode(code), index = findCardsByImportId(cards);
   const entries = [...deck.counts].sort(([a], [b]) => (index.get(a)?.json.kredits ?? 99) - (index.get(b)?.json.kredits ?? 99));
-  const columns = 5, width = 1200, cardWidth = 210, cardHeight = 330, gap = 22, top = 140;
-  const rows = Math.max(1, Math.ceil(entries.length / columns));
-  const codeLines = code.match(/.{1,128}/g) || [];
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = top + rows * (cardHeight + gap) + 80 + codeLines.length * 17;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('此环境无法创建本地画布');
-  ctx.fillStyle = '#181b16'; ctx.fillRect(0, 0, width, canvas.height);
-  ctx.fillStyle = '#e8e4d9'; ctx.font = 'bold 34px "Microsoft YaHei", sans-serif'; ctx.fillText(title, 32, 54, 1120);
-  ctx.fillStyle = '#c5a059'; ctx.font = '21px "Microsoft YaHei", sans-serif';
-  const total = [...deck.counts.values()].reduce((sum, n) => sum + n, 0);
-  ctx.fillText(`${factionLabel(deck.mainNation)} / ${factionLabel(deck.allyNation)} · ${total} 张可用牌 + 1 总部`, 32, 94);
-  const images = await Promise.all(entries.map(async ([id]) => {
-    const data = await getCachedCardImage(id);
-    if (!data) return null;
-    return new Promise<HTMLImageElement | null>((resolve) => {
-      const img = new Image(); img.onload = () => resolve(img); img.onerror = () => resolve(null); img.src = data;
-    });
-  }));
-  entries.forEach(([id, count], i) => {
-    const card = index.get(id), image = images[i];
-    const x = 30 + (i % columns) * (cardWidth + gap), y = top + Math.floor(i / columns) * (cardHeight + gap);
-    ctx.fillStyle = '#2b3027'; ctx.fillRect(x, y, cardWidth, cardHeight);
-    if (image) {
-      const scale = Math.min(cardWidth / image.width, (cardHeight - 52) / image.height);
-      ctx.drawImage(image, x + (cardWidth - image.width * scale) / 2, y, image.width * scale, image.height * scale);
-    } else {
-      ctx.fillStyle = '#a8b39b'; ctx.font = '17px "Microsoft YaHei", sans-serif';
-      ctx.fillText(card ? `${card.json.kredits ?? 0} 费 · ${factionLabel(card.json.faction)}` : `未收录 ID: ${id}`, x + 12, y + 56, cardWidth - 24);
-      ctx.fillStyle = '#c6c9bf'; ctx.font = '16px "Microsoft YaHei", sans-serif'; ctx.fillText('未缓存卡图', x + 12, y + 144);
-    }
-    ctx.fillStyle = '#e8e4d9'; ctx.font = 'bold 17px "Microsoft YaHei", sans-serif';
-    ctx.fillText(card ? cardTitle(card, 'zh-Hans') : `未知卡牌 ${id}`, x + 10, y + cardHeight - 22, cardWidth - 58);
-    ctx.fillStyle = '#c5a059'; ctx.fillText(`×${count}`, x + cardWidth - 42, y + cardHeight - 22);
-  });
-  ctx.fillStyle = '#aeb3a7'; ctx.font = '16px "Microsoft YaHei", sans-serif';
-  const footerTop = top + rows * (cardHeight + gap) + 24;
-  ctx.fillText('本地生成 · 缺图使用文字占位 · KARDS 非官方工具', 30, footerTop);
-  ctx.font = '14px monospace';
-  codeLines.forEach((line, i) => ctx.fillText(line, 30, footerTop + 26 + i * 17));
-  return canvas.toDataURL('image/png');
+  if (background && !background.startsWith('data:')) {
+    const response = await fetch(background);
+    if (!response.ok) throw new Error('无法读取生图背景');
+    const blob = await response.blob();
+    background = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(blob); });
+  }
+  const request: DeckRenderRequest = { title, mainNation: factionLabel(deck.mainNation), allyNation: factionLabel(deck.allyNation), background: background?.startsWith('data:') ? background : null,
+    cards: await Promise.all(entries.map(async ([id, count]) => ({ id, count, name: index.has(id) ? cardTitle(index.get(id)!, 'zh-Hans') : `未知卡牌 ${id}`, rarity: index.get(id)?.json.rarity || '', image: await getCachedCardImage(id) }))) };
+  if (window.kardsDesktop?.renderDeckImage) return window.kardsDesktop.renderDeckImage(request);
+  return renderBrowserPreview(request, background);
 }
 
+// Browser development preview mirrors the kardsman ten-column composition.
+// Windows uses the original Sharp pipeline through the preload bridge above.
+async function renderBrowserPreview(request: DeckRenderRequest, background?: string | null) {
+  const load = (src: string) => new Promise<HTMLImageElement>((resolve, reject) => { const img = new Image(); img.onload = () => resolve(img); img.onerror = reject; img.src = src; });
+  const total = request.cards.reduce((sum, card) => sum + card.count, 0);
+  if (!total || total > 999) throw new Error('生图支持 1—999 张可用牌');
+  const bg = await load(background || '/assets/deck-render/bg.png');
+  const width = 2304, cols = 10, gap = 6, thumbW = Math.floor((width - 120) / cols - 6), thumbH = Math.floor(thumbW * 1.42), top = 195;
+  const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = Math.max(1440, top + Math.ceil((total + 1) / cols) * (thumbH + gap) + 20);
+  const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('无法创建画布');
+  ctx.drawImage(bg, 0, 0, width, canvas.height);
+  const logo = await load('/assets/kards_logos/Common/KardsLogoWhite.png'); ctx.drawImage(logo, 40, -25, 240, 240);
+  ctx.fillStyle = '#f2ead6'; ctx.font = 'bold 48px Microsoft YaHei,sans-serif'; ctx.fillText(request.title, 350, 87, 1000);
+  ctx.font = '30px Microsoft YaHei,sans-serif'; ctx.fillText(`${request.mainNation} / ${request.allyNation} · ${total + 1} 张（含总部）`, 350, 140);
+  const rarities = ['Elite', 'Special', 'Limited', 'Standard'];
+  for (let i = 0; i < 4; i++) {
+    const rarity = rarities[i], x = width - 420 + i % 2 * 180, y = 15 + Math.floor(i / 2) * 72;
+    ctx.drawImage(await load(`/assets/deck-render/RarityIcons_${rarity}.webp`), x, y + 4, 64, 64);
+    ctx.font = 'bold 44px Microsoft YaHei,sans-serif'; ctx.fillText(String(request.cards.filter(c => c.rarity === rarity).reduce((sum, c) => sum + c.count, 0)), x + 72, y + 54);
+  }
+  let position = 0;
+  for (const card of [...request.cards, { id: 'HQ', name: '总部', rarity: '', count: 1, image: '/assets/deck-render/bunker.png' }]) {
+    const image = card.image ? await load(card.image).catch(() => null) : null;
+    for (let n = 0; n < card.count; n++, position++) {
+      const x = 60 + position % cols * (thumbW + gap), y = top + Math.floor(position / cols) * (thumbH + gap);
+      if (image) { const scale = Math.max(thumbW / image.width, thumbH / image.height), sw = thumbW / scale, sh = thumbH / scale; ctx.drawImage(image, (image.width - sw) / 2, (image.height - sh) / 2, sw, sh, x, y, thumbW, thumbH); }
+      else { ctx.fillStyle = '#e6e1d4'; ctx.fillRect(x, y, thumbW, thumbH); ctx.fillStyle = '#333'; ctx.font = '18px Microsoft YaHei,sans-serif'; ctx.fillText(card.name, x + 10, y + thumbH / 2, thumbW - 20); ctx.font = '14px Microsoft YaHei,sans-serif'; ctx.fillText('未缓存卡图', x + 10, y + thumbH / 2 + 36); }
+    }
+  }
+  return canvas.toDataURL('image/png');
+}
 export function downloadDeckImage(data: string, name: string) {
   const link = document.createElement('a'); link.href = data;
-  link.download = `${name.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_') || 'kards-deck'}.png`;
-  link.click();
+  link.download = `${name.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_') || 'kards-deck'}.png`; link.click();
 }

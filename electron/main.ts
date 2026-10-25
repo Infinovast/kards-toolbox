@@ -1,6 +1,8 @@
-import { app, BrowserWindow, clipboard, dialog, ipcMain, protocol } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, protocol } from 'electron';
 import fs from 'fs/promises';
 import path from 'path';
+import { renderKardsmanDeck } from './deckRenderer';
+import type { DeckRenderRequest } from '../src/lib/deckRenderTypes';
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -38,8 +40,8 @@ function getRendererDistPath(relativePath = 'index.html') {
   return resolved;
 }
 
-function getIconPath() {
-  return path.join(__dirname, '..', 'dist', 'assets', 'kards_logos', 'Common', 'KardsLogoBlack.png');
+function getIconPath(dark = nativeTheme.shouldUseDarkColors) {
+  return path.join(__dirname, '..', 'dist', 'assets', 'kards_logos', 'Common', dark ? 'KardsLogoWhite.png' : 'KardsLogoBlack.png');
 }
 
 async function showLoadFailure(mainWindow: BrowserWindow, details: string) {
@@ -121,7 +123,16 @@ function registerIpcHandlers() {
     userDataPath: app.getPath('userData'),
     packaged: app.isPackaged,
     developerOptions: enableDeveloperOptions,
+    darkIcon: nativeTheme.shouldUseDarkColors,
   }));
+
+  ipcMain.handle('deck:render', (_event, request: DeckRenderRequest) => renderKardsmanDeck(request));
+  ipcMain.handle('app:set-theme', (_event, mode: string) => {
+    if (!['dark', 'light', 'system'].includes(mode)) throw new Error('无效主题');
+    nativeTheme.themeSource = mode as 'dark' | 'light' | 'system';
+    mainWindow?.setIcon(getIconPath());
+    return nativeTheme.shouldUseDarkColors;
+  });
 
   ipcMain.handle('clipboard:read-text', () => clipboard.readText());
 
@@ -169,6 +180,7 @@ function registerIpcHandlers() {
   });
 }
 
+nativeTheme.on('updated', () => mainWindow?.setIcon(getIconPath()));
 app.setName(appName);
 registerIpcHandlers();
 

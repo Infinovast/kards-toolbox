@@ -1,6 +1,8 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('kardsDesktop', {
+  renderDeckImage: (request: unknown) => ipcRenderer.invoke('deck:render', request),
+  setTheme: (mode: string) => ipcRenderer.invoke('app:set-theme', mode),
   getAppInfo: () => ipcRenderer.invoke('app:get-info'),
   readClipboardText: () => ipcRenderer.invoke('clipboard:read-text'),
   saveBackup: (backup: unknown) => ipcRenderer.invoke('backup:save', backup),

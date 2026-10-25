@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Search, X } from 'lucide-react';
-import { cacheCardImage } from '../lib/cardImages';
+import { useMemo, useState } from 'react';
+import { Download, Search, X } from 'lucide-react';
+import { CardFace } from './CardFace';
+import { startImageDownload, useImageDownload } from '../lib/imageDownloads';
+import { useDialogKeyboard } from '../lib/dialogKeyboard';
 import {
   CARD_FACTIONS,
   CARD_LANGUAGES,
@@ -17,31 +19,6 @@ import {
 const PAGE_SIZE = 36;
 const DEFAULT_VERSION = 54;
 
-function CardImage({ card, language, version, className = '' }: {
-  card: KardsCardRecord;
-  language: CardLanguage;
-  version: number;
-  className?: string;
-}) {
-  const [source, setSource] = useState('');
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    setFailed(false);
-    setSource('');
-    cacheCardImage(card, language, version)
-      .then((url) => { if (active) setSource(url); })
-      .catch(() => { if (active) setFailed(true); });
-    return () => { active = false; };
-  }, [card.importId, language, version]);
-
-  if (failed || !source) {
-    return <div className={`flex items-center justify-center bg-black/30 text-center text-xs text-kards-text-muted ${className}`}>{failed ? '卡图暂不可用' : '正在载入卡图…'}</div>;
-  }
-  return <img src={source} alt={cardTitle(card, language)} className={className} />;
-}
-
 export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
   const [query, setQuery] = useState('');
   const [faction, setFaction] = useState('All');
@@ -55,6 +32,8 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
   const [version, setVersion] = useState(DEFAULT_VERSION);
   const [page, setPage] = useState(1);
   const [selectedCard, setSelectedCard] = useState<KardsCardRecord | null>(null);
+  const download = useImageDownload();
+  const detailRef = useDialogKeyboard(!!selectedCard, () => setSelectedCard(null));
 
   const filteredCards = useMemo(() => {
     const term = query.trim().toLocaleLowerCase();
@@ -80,9 +59,9 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
   };
 
   return (
-    <div className="flex h-full min-h-0 gap-4 p-5">
+    <div className="relative flex h-full min-h-0 gap-4 p-5">
       <section className="flex min-w-0 flex-1 flex-col gap-4 overflow-hidden">
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-kards-border bg-kards-panel/90 p-4">
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-kards-border glass-panel p-3">
           <div className="relative min-w-[220px] flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kards-text-muted" />
             <input aria-label="搜索卡牌" value={query} onChange={(event) => selectFilter(event.target.value, setQuery)} placeholder="搜索卡名、卡牌文本或 ID" className="w-full rounded border border-kards-border bg-kards-input-bg py-2 pl-9 pr-3 text-sm text-kards-text outline-none focus:border-kards-gold" />
@@ -100,17 +79,17 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
 
         <div className="flex flex-wrap items-center justify-between gap-1 text-xs text-kards-text-muted">
           <span>本地目录 {cards.length.toLocaleString()} 张 · 当前结果 {filteredCards.length.toLocaleString()} 张</span>
-          <span>首次显示的新卡图会自动下载并缓存</span>
+          <button disabled={!filteredCards.length || download.status === 'running'} onClick={() => {
+            if (filteredCards.length > 100 && !window.confirm(`下载当前筛选的全部 ${filteredCards.length.toLocaleString()} 张卡图（${language} / v${version}）？已有缓存会跳过；切换页面后仍会继续下载。`)) return;
+            startImageDownload(filteredCards, language, version);
+          }} className="flex items-center gap-1 rounded border border-kards-border glass-panel px-3 py-2 text-kards-text disabled:opacity-40"><Download className="h-3.5 w-3.5" />缓存筛选结果（{filteredCards.length.toLocaleString()} 张）</button>
         </div>
 
-        <div className="grid min-h-0 flex-1 auto-rows-max content-start grid-cols-2 gap-3 overflow-y-auto pb-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <div data-testid="library-grid" className="card-gallery min-h-0 flex-1 overflow-y-auto pb-2">
           {pageCards.map((card) => (
-            <button key={card.importId} onClick={() => setSelectedCard(card)} className="group overflow-hidden rounded-lg border border-kards-border bg-kards-panel/90 text-left transition hover:border-kards-gold hover:shadow-lg">
-              <CardImage card={card} language={language} version={version} className="aspect-[2/3] w-full object-cover transition group-hover:brightness-110" />
-              <div className="space-y-1 p-2">
-                <div className="truncate text-sm font-semibold text-kards-text">{cardTitle(card, language)}</div>
-                <div className="flex justify-between gap-1 text-[11px] text-kards-text-muted"><span>{factionLabel(card.json.faction)}</span><span>{card.json.kredits ?? 0} 费 · {card.json.rarity || '—'}</span></div>
-              </div>
+            <button key={card.importId} onClick={() => setSelectedCard(card)} className="card-tile group text-left" aria-label={`查看${cardTitle(card, language)}`}>
+              <CardFace card={card} language={language} version={version} />
+              <div className="card-caption" title={cardTitle(card, language)}>{cardTitle(card, language)}</div>
             </button>
           ))}
           {pageCards.length === 0 && <div className="col-span-full py-16 text-center text-kards-text-muted">没有找到匹配的卡牌</div>}
@@ -124,9 +103,9 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
       </section>
 
       {selectedCard && (
-        <aside className="relative flex w-[260px] shrink-0 flex-col overflow-y-auto rounded-lg border border-kards-border bg-kards-panel/95 p-4 xl:w-[300px]">
+        <aside ref={detailRef} role="dialog" aria-modal="false" aria-label="卡牌详情" tabIndex={-1} className="glass-panel absolute bottom-5 right-5 top-5 z-30 flex w-[300px] max-w-[calc(100%-40px)] flex-col overflow-y-auto rounded-lg border border-kards-border p-4 shadow-xl">
           <button onClick={() => setSelectedCard(null)} aria-label="关闭卡牌详情" className="absolute right-3 top-3 z-10 rounded-full bg-black/60 p-1 text-white"><X className="h-4 w-4" /></button>
-          <CardImage card={selectedCard} language={language} version={version} className="mx-auto mb-4 max-h-[55vh] w-auto rounded object-contain" />
+          <CardFace card={selectedCard} language={language} version={version} className="mx-auto mb-4 max-h-[55vh] w-full object-contain" />
           <h2 className="text-lg font-bold text-kards-text">{cardTitle(selectedCard, language)}</h2>
           <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-kards-text-muted">{cardText(selectedCard, language)}</p>
           <dl className="mt-4 grid grid-cols-2 gap-2 border-t border-kards-border pt-4 text-sm"><dt>阵营</dt><dd>{factionLabel(selectedCard.json.faction)}</dd><dt>类型</dt><dd>{typeLabel(selectedCard.json.type)}</dd><dt>费用</dt><dd>{selectedCard.json.kredits ?? 0}</dd><dt>稀有度</dt><dd>{selectedCard.json.rarity || '—'}</dd><dt>扩展包</dt><dd>{String(selectedCard.json.set || '—')}</dd><dt>卡牌 ID</dt><dd>{selectedCard.importId}</dd><dt>状态</dt><dd>{selectedCard.reserved ? '预备卡' : '现役'}</dd></dl>

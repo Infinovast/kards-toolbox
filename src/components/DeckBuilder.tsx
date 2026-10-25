@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Copy, ImageDown, Minus, Plus, Save, Search, Upload } from 'lucide-react';
 import localforage from 'localforage';
-import { CARD_FACTIONS, cardTitle, factionLabel, typeLabel, type KardsCardRecord } from '../types/card';
+import { CARD_FACTIONS, cardTitle, type KardsCardRecord } from '../types/card';
 import { decodeDeckCode, encodeDeckCode, findCardsByImportId } from '../lib/deckCode';
 import { inferDeckTitleFromText, extractDeckCodeFromText } from '../lib/deckImport';
 import { DEFAULT_DECK_RULES, validateDeck, type DeckRuleSet, type DeckRules } from '../lib/deckRules';
+import { CardFace, RaritySlots } from './CardFace';
 import { downloadDeckImage, renderDeckImage } from '../lib/deckRenderer';
 
 export interface BuilderDeck {
@@ -29,7 +30,8 @@ const numericRules = [
   ['maxLimited', '限定上限'], ['maxSpecial', '特殊上限'], ['maxElite', '精英上限'],
 ] as const;
 
-export default function DeckBuilder({ cards, initialDeck, onSave }: {
+export default function DeckBuilder({ cards, initialDeck, onSave, active = true }: {
+  active?: boolean;
   cards: KardsCardRecord[];
   initialDeck: BuilderDeck | null;
   onSave: (deck: BuilderDeck, warnings: string[]) => void;
@@ -42,6 +44,8 @@ export default function DeckBuilder({ cards, initialDeck, onSave }: {
   const [deckId, setDeckId] = useState<string>();
   const [query, setQuery] = useState('');
   const [selectedFaction, setSelectedFaction] = useState('All');
+  const [page, setPage] = useState(1);
+  useEffect(() => setPage(1), [query, selectedFaction]);
   const [deckName, setDeckName] = useState('新卡组');
   const [importText, setImportText] = useState('');
   const [message, setMessage] = useState('');
@@ -139,21 +143,24 @@ export default function DeckBuilder({ cards, initialDeck, onSave }: {
         <div className="relative min-w-[140px] flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kards-text-muted" /><input aria-label="构筑搜索卡牌" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索卡名或文本" className={`${inputClass} w-full !pl-9`} /></div>
         <select aria-label="构筑阵营筛选" value={selectedFaction} onChange={(e) => setSelectedFaction(e.target.value)} className={inputClass}><option value="All">全部阵营</option>{CARD_FACTIONS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select>
       </div>
-      <div className="flex items-start gap-2"><textarea rows={1} aria-label="导入卡组码" value={importText} onChange={(e) => setImportText(e.target.value)} placeholder="粘贴 %% 卡组码或完整分享文本" className={`${inputClass} max-h-32 min-w-0 flex-1 resize-y`} /><button onClick={importCode} className="flex items-center gap-1 rounded border border-kards-border px-3 py-2 text-sm text-kards-text hover:border-kards-gold"><Upload className="h-4 w-4" />导入</button></div>
-      <p className="text-xs text-kards-text-muted">找到 {matchingCards.length} 张{matchingCards.length > 240 ? '，显示前 240 张；可搜索缩小范围' : ''}</p>
-      <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-1 content-start gap-2 overflow-y-auto pb-2 xl:grid-cols-2">
-        {matchingCards.slice(0, 240).map((card) => <div key={card.importId} className="flex items-center gap-3 rounded border border-kards-border bg-kards-panel/90 px-3 py-3">
-          <div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-kards-text">{cardTitle(card, 'zh-Hans')}</div><div className="text-xs text-kards-text-muted">{factionLabel(card.json.faction)} · {typeLabel(card.json.type)} · {card.json.kredits ?? 0} 费 · {card.json.rarity}</div></div>
-          {(entries.get(card.importId) || 0) > 0 && <span className="text-xs font-bold text-kards-gold">×{entries.get(card.importId)}</span>}
-          <button onClick={() => adjustCard(card.importId, 1)} aria-label={`添加${cardTitle(card, 'zh-Hans')}`} className="rounded bg-kards-accent p-1.5 text-white hover:brightness-125"><Plus className="h-4 w-4" /></button>
+      <div className="flex items-start gap-2"><textarea rows={1} aria-label="导入卡组码" onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && (e.ctrlKey || e.metaKey)) { e.preventDefault(); importCode(); } else if (e.key === 'Escape') { setImportText(''); e.stopPropagation(); } }} title="Ctrl+Enter 导入；Esc 清空" value={importText} onChange={(e) => setImportText(e.target.value)} placeholder="粘贴 %% 卡组码或完整分享文本" className={`${inputClass} max-h-32 min-w-0 flex-1 resize-y`} /><button onClick={importCode} className="flex items-center gap-1 rounded border border-kards-border px-3 py-2 text-sm text-kards-text hover:border-kards-gold"><Upload className="h-4 w-4" />导入</button></div>
+      <p className="text-xs text-kards-text-muted">找到 {matchingCards.length} 张</p>
+      <div data-testid="builder-grid" className="card-gallery card-gallery-builder min-h-0 flex-1 overflow-y-auto pb-2">
+        {matchingCards.slice((page - 1) * 60, page * 60).map((card) => <div key={card.importId} className="card-tile">
+          <button onClick={() => adjustCard(card.importId, 1)} onContextMenu={e => { e.preventDefault(); adjustCard(card.importId, -1); }} aria-label={`添加${cardTitle(card, 'zh-Hans')}`} title="单击加一张，右键减一张" className="group block w-full text-left">
+            <CardFace card={card} enabled={active} />
+            <div className="card-caption" title={cardTitle(card, 'zh-Hans')}>{cardTitle(card, 'zh-Hans')}</div>
+          </button>
+          <RaritySlots rarity={card.json.rarity} count={entries.get(card.importId) || 0} />
         </div>)}
-        {!matchingCards.length && <p className="py-10 text-center text-sm text-kards-text-muted">没有匹配的卡牌，请更换搜索词或阵营</p>}
+        {!matchingCards.length && <p className="col-span-full py-10 text-center text-sm text-kards-text-muted">没有匹配的卡牌，请更换搜索词或阵营</p>}
       </div>
+      <div className="flex shrink-0 items-center justify-center gap-3 text-xs text-kards-text"><button disabled={page <= 1} onClick={() => setPage(page - 1)} className="rounded border border-kards-border px-3 py-1 disabled:opacity-40">上一页</button><span>{page} / {Math.max(1, Math.ceil(matchingCards.length / 60))}</span><button disabled={page * 60 >= matchingCards.length} onClick={() => setPage(page + 1)} className="rounded border border-kards-border px-3 py-1 disabled:opacity-40">下一页</button></div>
     </section>
-    <aside className="flex w-[300px] shrink-0 flex-col gap-3 overflow-hidden rounded-lg border border-kards-border bg-kards-panel/95 p-4 xl:w-[340px]">
+    <aside className="flex w-[300px] shrink-0 flex-col gap-3 overflow-hidden rounded-lg border border-kards-border glass-panel p-4 xl:w-[340px]">
       <div className="flex items-center justify-between"><h2 className="font-bold text-kards-text">{deckId ? '编辑卡组' : '当前卡组'}</h2><span className="text-lg font-bold tabular-nums text-kards-status">{totalCards} / {rules.deckSize}</span></div>
       <p className="text-xs text-kards-text-muted">可用牌张数，另含 1 张总部 · 草稿自动保存</p>
-      <input value={deckName} onChange={(e) => setDeckName(e.target.value)} className={inputClass} aria-label="卡组名称" />
+      <input value={deckName} onChange={(e) => setDeckName(e.target.value)} className={inputClass} aria-label="卡组名称" onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && entries.size) { e.preventDefault(); saveDeck(); } }} />
       <div className="min-h-16 flex-1 space-y-1 overflow-y-auto">
         {[...entries].map(([id, count]) => {
           const card = cardsById.get(id), title = card ? cardTitle(card, 'zh-Hans') : `未知卡牌 ${id}`;

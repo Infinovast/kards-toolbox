@@ -37,9 +37,11 @@ import { renderDeckImage, downloadDeckImage } from './lib/deckRenderer';
 import { decodeDeckCode, findCardsByImportId } from './lib/deckCode';
 import { DEFAULT_DECK_RULES, validateDeck, type DeckRuleSet, type DeckRules } from './lib/deckRules';
 import { extractDeckCodeFromText, inferDeckTitleFromText } from './lib/deckImport';
+import ImageDownloadProgress from './components/ImageDownloadProgress';
+import { handleDialogKeys, useModalFocus } from './lib/dialogKeyboard';
 import CardLibrary from './components/CardLibrary';
 import DeckBuilder, { type BuilderDeck } from './components/DeckBuilder';
-import { loadCardDatabase, type KardsCardRecord } from './types/card';
+import { cardTitle, loadCardDatabase, type KardsCardRecord } from './types/card';
 
 // --- Types ---
 type Nation = 'Germany' | 'Soviet' | 'USA' | 'Japan' | 'Britain' | 'Finland' | 'Italy' | 'France' | 'Poland' | 'Anzac';
@@ -231,6 +233,7 @@ const CARD_BACK_CATEGORIES = [
 const INITIAL_DECKS: Deck[] = [];
 
 export default function App() {
+  useModalFocus();
   const [dataLoaded, setDataLoaded] = useState(false);
   const [decks, setDecks] = useState<Deck[]>(INITIAL_DECKS);
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -397,6 +400,7 @@ export default function App() {
     }
     
     setEffectiveIsDarkMode(isDark);
+    void window.kardsDesktop?.setTheme(settings.displayMode).catch(console.error);
 
     if (isDark) {
       document.body.classList.add('dark');
@@ -492,7 +496,7 @@ export default function App() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'tablecloth' | 'cardback', id: string, catId?: string } | null>(null);
 
   const getOrGenerateDeckImage = async (deck: Deck) => {
-    const imageData = await renderDeckImage(deck.code, cardDatabase, deck.name);
+    const imageData = await renderDeckImage(deck.code, cardDatabase, deck.name, selectedTablecloth);
     await localforage.setItem(`deck_img_local_v1_${deck.code}`, imageData);
     return imageData;
   };
@@ -650,6 +654,13 @@ export default function App() {
   }, [customCategories]);
 
   const selectedDeck = decks.find(d => d.id === selectedDeckId);
+  const previewEntries = React.useMemo(() => {
+    if (!selectedDeck) return [];
+    const index = findCardsByImportId(cardDatabase);
+    try { return [...decodeDeckCode(selectedDeck.code).counts].sort(([a], [b]) => (index.get(a)?.json.kredits ?? 99) - (index.get(b)?.json.kredits ?? 99))
+      .map(([id, count]) => ({ id, count, name: index.has(id) ? cardTitle(index.get(id)!, 'zh-Hans') : `未知卡牌 ${id}` })); }
+    catch { return []; }
+  }, [selectedDeck?.code, cardDatabase]);
 
   const handleCloseImportModal = () => {
     setShowImportModal(false);
@@ -860,7 +871,7 @@ export default function App() {
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-3">
             <img 
-              src={effectiveIsDarkMode ? "/assets/kards_logos/Common/KardsLogoBeige.png" : "/assets/kards_logos/Common/KardsLogoBlack.png"} 
+              src={effectiveIsDarkMode ? "/assets/kards_logos/Common/KardsLogoWhite.png" : "/assets/kards_logos/Common/KardsLogoBlack.png"}
               alt="KARDS Logo" 
               className="h-16 w-auto transition-opacity"
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
@@ -935,10 +946,10 @@ export default function App() {
       </header>
 
       {/* --- Main Layout --- */}
-      <div className="flex flex-1 overflow-hidden">
+      <div data-testid="workspace" className="relative flex min-h-0 flex-1 overflow-hidden" style={{ backgroundImage: selectedTablecloth ? `url("${selectedTablecloth}")` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' }}>
         
         {/* Left Sidebar */}
-        <aside className="w-24 bg-kards-gray flex flex-col gap-1 p-1 z-10 border-r border-kards-border transition-colors duration-300">
+        <aside className="glass-panel w-24 shrink-0 flex flex-col gap-1 p-1 z-10 border-r border-kards-border transition-colors duration-300">
           <SidebarButton 
             active={activeMenu === 'decks'} 
             onClick={() => setActiveMenu('decks')}
@@ -966,18 +977,7 @@ export default function App() {
         </aside>
 
         {/* Center Grid */}
-        <main className="flex-1 bg-kards-bg overflow-hidden relative transition-colors duration-300">
-          {/* Fixed Background Layer */}
-          <div 
-            className="absolute inset-0 pointer-events-none z-0"
-            style={{
-              backgroundImage: selectedTablecloth ? `url("${selectedTablecloth}")` : undefined,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              backgroundColor: !selectedTablecloth ? 'rgba(255,255,255,0.02)' : undefined
-            }}
-          />
-
+        <main className="min-w-0 flex-1 overflow-hidden relative transition-colors duration-300">
           {/* Nation Background Overlay - Fixed to viewport */}
           <div className="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none z-0">
             <div className="absolute inset-0 bg-black/20" />
@@ -1032,7 +1032,7 @@ export default function App() {
             )}
             {activeMenu === 'builder' && cardDatabaseLoading && <p className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</p>}
             {activeMenu === 'builder' && cardDatabaseError && <p className="p-6 text-red-400">{cardDatabaseError}</p>}
-            {!cardDatabaseLoading && !cardDatabaseError && <div className={`h-full w-full max-w-[1800px] shrink-0 ${activeMenu === 'builder' ? '' : 'hidden'}`}><DeckBuilder key={builderRevision} cards={cardDatabase} initialDeck={builderDeck} onSave={handleSaveBuiltDeck} /></div>}
+            {!cardDatabaseLoading && !cardDatabaseError && <div className={`h-full w-full max-w-[1800px] shrink-0 ${activeMenu === 'builder' ? '' : 'hidden'}`}><DeckBuilder active={activeMenu === 'builder'} key={builderRevision} cards={cardDatabase} initialDeck={builderDeck} onSave={handleSaveBuiltDeck} /></div>}
             {activeMenu === 'decks' && (
               <div 
                 style={{ 
@@ -1049,6 +1049,7 @@ export default function App() {
                     deck={deck}
                     selected={selectedDeckId === deck.id}
                     onClick={() => setSelectedDeckId(deck.id)}
+                    onDoubleClick={() => { setBuilderDeck({ ...deck }); setActiveMenu('builder'); }}
                     settings={settings}
                   />
                 ))}
@@ -1289,7 +1290,7 @@ export default function App() {
         {/* Right Details Panel */}
         {activeMenu === 'decks' && (
           <aside 
-            className="w-[320px] border-l border-kards-border flex flex-col z-10 overflow-hidden transition-colors"
+            className="glass-panel w-[320px] shrink-0 border-l border-kards-border flex flex-col z-10 overflow-hidden transition-colors"
             style={{ 
               backgroundColor: `rgba(var(--rgb-panel-overlay), ${settings.importBoxOpacity})` 
             }}
@@ -1301,7 +1302,7 @@ export default function App() {
                 key={selectedDeck.id}
                 className="flex flex-col h-full"
               >
-              <div className="p-6 flex-1 overflow-y-auto no-scrollbar min-h-0 w-full">
+              <div className="p-4 flex-1 overflow-y-auto no-scrollbar min-h-0 w-full">
                 <input 
                   type="text"
                   value={selectedDeck.name || ''}
@@ -1310,43 +1311,13 @@ export default function App() {
                   className="text-xl font-bold tracking-tight mb-4 text-center bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-kards-gold/30 rounded w-full"
                 />
                 
-                <div className="flex flex-col items-center">
-                  <div 
-                    className="w-48 aspect-[5/7] military-border overflow-hidden relative group cursor-pointer bg-kards-gray-alt flex items-center justify-center shrink-0 shadow-2xl"
-                    onClick={() => setShowCardBackModal(selectedDeck.id)}
-                  >
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity z-20 flex items-center justify-center backdrop-blur-sm rounded-md">
-                        <span className="text-kards-text font-bold tracking-widest text-sm flex items-center gap-2">
-                          <ImageIcon className="w-4 h-4" />
-                          更换卡背
-                        </span>
-                      </div>
-                      <img 
-                        src={selectedDeck.cardBackUrl || NATION_DATA[selectedDeck.mainNation].defaultBack || '/assets/cardbacks/Common/BasicBeta.jpg'} 
-                        alt={selectedDeck.name}
-                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 pointer-events-none select-none rounded-md"
-                        onError={(e) => { 
-                          if (e.currentTarget.getAttribute('data-error')) return;
-                          e.currentTarget.setAttribute('data-error', 'true');
-                          e.currentTarget.src = '/assets/cardbacks/Common/BasicBeta.jpg'; 
-                        }}
-                      />
-                    
-                    {/* Small flags at the bottom left */}
-                    <div className="absolute bottom-1.5 left-1.5 flex items-end gap-1 bg-black/70 p-1 rounded-sm backdrop-blur-sm border border-kards-border z-10">
-                      <img src={getFlagUrl(NATION_DATA[selectedDeck.mainNation].flag)} className="w-5 h-3.5 object-contain" alt="main" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                      {selectedDeck.allyNation && (
-                        <div className="flex items-end gap-1">
-                           <div className="w-[1px] h-3 bg-white/20" />
-                           <img src={getFlagUrl(NATION_DATA[selectedDeck.allyNation].flag)} className="w-3.5 h-2.5 object-contain opacity-80" alt="ally" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <div className="mb-3 flex items-center justify-between text-xs text-kards-text-muted"><span>{selectedDeck.totalCards} 张可用牌 + 1 总部</span><button onClick={() => setShowCardBackModal(selectedDeck.id)} className="rounded border border-kards-border px-2 py-1">更换卡背</button></div>
+                <ul aria-label="卡组紧凑列表" className="space-y-0.5 text-sm">
+                  {previewEntries.map(entry => <li key={entry.id} className="flex items-center gap-2 border-b border-kards-border py-1.5"><span className="min-w-0 flex-1 truncate" title={entry.name}>{entry.name}</span><span className="shrink-0 tabular-nums text-kards-status">×{entry.count}</span></li>)}
+                </ul>
               </div>
 
-              <div className="p-4 pt-4 border-t border-kards-border bg-kards-gray space-y-4 shrink-0 w-full min-w-0 transition-colors">
+              <div className="p-4 pt-4 border-t border-kards-border space-y-4 shrink-0 w-full min-w-0 transition-colors">
                 <div className="flex gap-2 items-center overflow-x-auto py-2 w-full max-w-[280px] custom-scrollbar">
                   <div className="flex-shrink-0 flex items-center gap-2">
                     {addingTagToDeckId === selectedDeck.id ? (
@@ -1436,6 +1407,8 @@ export default function App() {
       )}
     </div>
 
+      <ImageDownloadProgress />
+
       {/* --- Clipboard Import Prompt --- */}
       <AnimatePresence>
         {clipboardDeckCandidate && !showImportModal && (
@@ -1444,21 +1417,22 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={handleDismissClipboardDeck}
+              data-dialog-cancel onClick={handleDismissClipboardDeck}
               className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm"
             />
             <motion.div
+              role="dialog" aria-modal="true" tabIndex={-1} onKeyDown={handleDialogKeys}
               initial={{ scale: 0.92, opacity: 0, y: 18 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.92, opacity: 0, y: 18 }}
-              className="relative w-full max-w-md military-border p-6 shadow-2xl transition-all"
+              className="glass-panel relative w-full max-w-md military-border p-6 shadow-2xl transition-all"
               style={{
                 backgroundColor: `rgba(var(--rgb-panel-overlay), ${settings.importBoxOpacity})`,
                 backdropFilter: `blur(${settings.importBoxOpacity * 10}px)`
               }}
             >
               <button
-                onClick={handleDismissClipboardDeck}
+                data-dialog-cancel onClick={handleDismissClipboardDeck}
                 className="absolute top-4 right-4 text-kards-text-muted hover:text-kards-text"
               >
                 <X className="w-5 h-5" />
@@ -1480,13 +1454,13 @@ export default function App() {
 
               <div className="flex gap-3 pt-5">
                 <button
-                  onClick={handleDismissClipboardDeck}
+                  data-dialog-cancel onClick={handleDismissClipboardDeck}
                   className="flex-1 border border-kards-border py-3 font-bold hover:bg-kards-panel-hover transition-colors rounded-md"
                 >
                   暂不导入
                 </button>
                 <button
-                  onClick={handleImportClipboardDeck}
+                  data-dialog-confirm onClick={handleImportClipboardDeck}
                   className="flex-1 bg-kards-accent py-3 font-bold text-white hover:brightness-125 transition-all shadow-lg rounded-md"
                 >
                   导入
@@ -1505,21 +1479,22 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={handleCloseImportModal}
+              data-dialog-cancel onClick={handleCloseImportModal}
               className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm"
             />
             <motion.div 
+              role="dialog" aria-modal="true" tabIndex={-1} onKeyDown={handleDialogKeys}
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-md military-border p-8 shadow-2xl transition-all"
+              className="glass-panel relative w-full max-w-md military-border p-8 shadow-2xl transition-all"
               style={{ 
                 backgroundColor: `rgba(var(--rgb-panel-overlay), ${settings.importBoxOpacity})`,
                 backdropFilter: `blur(${settings.importBoxOpacity * 10}px)`
               }}
             >
               <button 
-                onClick={handleCloseImportModal}
+                data-dialog-cancel onClick={handleCloseImportModal}
                 className="absolute top-4 right-4 text-kards-text-muted hover:text-kards-text"
               >
                 <X className="w-6 h-6" />
@@ -1559,13 +1534,13 @@ export default function App() {
                 
                 <div className="flex gap-4 pt-4">
                   <button 
-                    onClick={handleCloseImportModal}
+                    data-dialog-cancel onClick={handleCloseImportModal}
                     className="flex-1 border border-kards-border py-3 font-bold hover:bg-kards-panel-hover transition-colors rounded-md"
                   >
                     取消
                   </button>
                   <button 
-                    onClick={handleAddDeck}
+                    data-dialog-confirm onClick={handleAddDeck}
                     className="flex-1 bg-kards-accent py-3 font-bold text-white hover:brightness-125 transition-all shadow-lg rounded-md"
                   >
                     确认导入
@@ -1585,20 +1560,21 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setShowTableclothModal(false)}
+              data-dialog-cancel onClick={() => setShowTableclothModal(false)}
               className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm"
             />
             <motion.div 
+              role="dialog" aria-modal="true" tabIndex={-1} onKeyDown={handleDialogKeys}
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-4xl max-h-[80vh] military-border p-8 shadow-2xl flex flex-col z-50 rounded-xl transition-colors"
+              className="glass-panel relative w-full max-w-4xl max-h-[80vh] military-border p-8 shadow-2xl flex flex-col z-50 rounded-xl transition-colors"
               style={{ 
                 backgroundColor: `rgba(var(--rgb-panel-overlay), ${settings.importBoxOpacity})` 
               }}
             >
               <button 
-                onClick={() => setShowTableclothModal(false)}
+                data-dialog-cancel onClick={() => setShowTableclothModal(false)}
                 className="absolute top-4 right-4 text-kards-text-muted hover:text-kards-text"
               >
                 <X className="w-6 h-6" />
@@ -1710,17 +1686,18 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setShowCardBackModal(null)}
+              data-dialog-cancel onClick={() => setShowCardBackModal(null)}
               className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm"
             />
             <motion.div 
+              role="dialog" aria-modal="true" tabIndex={-1} onKeyDown={handleDialogKeys}
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-4xl max-h-[80vh] bg-kards-gray military-border p-8 shadow-2xl flex flex-col"
+              className="glass-panel relative w-full max-w-4xl max-h-[80vh] bg-kards-gray military-border p-8 shadow-2xl flex flex-col"
             >
               <button 
-                onClick={() => setShowCardBackModal(null)}
+                data-dialog-cancel onClick={() => setShowCardBackModal(null)}
                 className="absolute top-4 right-4 text-kards-text-muted hover:text-kards-text"
               >
                 <X className="w-6 h-6" />
@@ -1983,14 +1960,15 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setShowAddDeckToCollectionModal(null)}
+              data-dialog-cancel onClick={() => setShowAddDeckToCollectionModal(null)}
               className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-md"
             />
             <motion.div 
+              role="dialog" aria-modal="true" tabIndex={-1} onKeyDown={handleDialogKeys}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="relative w-full max-w-2xl military-border shadow-2xl flex flex-col max-h-[70vh] transition-all"
+              className="glass-panel relative w-full max-w-2xl military-border shadow-2xl flex flex-col max-h-[70vh] transition-all"
               style={{ 
                 backgroundColor: `rgba(var(--rgb-panel-overlay), ${settings.importBoxOpacity})`,
                 backdropFilter: `blur(${settings.importBoxOpacity * 10}px)`
@@ -1998,7 +1976,7 @@ export default function App() {
             >
               <div className="p-6 border-b border-kards-border flex items-center justify-between">
                 <h3 className="text-xl font-bold tracking-widest text-kards-text">选择要添加的卡组</h3>
-                <button onClick={() => setShowAddDeckToCollectionModal(null)} className="text-kards-text-muted hover:text-kards-text"><X className="w-6 h-6" /></button>
+                <button data-dialog-cancel onClick={() => setShowAddDeckToCollectionModal(null)} className="text-kards-text-muted hover:text-kards-text"><X className="w-6 h-6" /></button>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar">
                 {decks.filter(d => {
@@ -2047,10 +2025,11 @@ export default function App() {
               className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm"
             />
             <motion.div 
+              role="dialog" aria-modal="true" tabIndex={-1} onKeyDown={handleDialogKeys}
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-2xl bg-kards-gray-alt military-border p-6 shadow-2xl flex flex-col items-center"
+              className="glass-panel relative w-full max-w-2xl bg-kards-gray-alt military-border p-6 shadow-2xl flex flex-col items-center"
             >
               <h3 className="text-xl font-bold mb-4 text-center">
                 裁剪 {cropQueue[0].type === 'cardback' ? '卡背' : '桌布'}
@@ -2111,13 +2090,13 @@ export default function App() {
 
               <div className="flex w-full gap-4">
                 <button 
-                  onClick={handleCancelCrop}
+                  data-dialog-cancel onClick={handleCancelCrop}
                   className="flex-1 py-2 text-kards-text-muted hover:text-kards-text hover:bg-kards-panel-hover transition-colors border border-kards-border"
                 >
                   跳过 / 取消
                 </button>
                 <button 
-                  onClick={handleNextCrop}
+                  data-dialog-confirm onClick={handleNextCrop}
                   className="flex-1 py-2 bg-kards-accent text-white font-bold hover:brightness-125 transition-all shadow-lg"
                 >
                   确认裁剪 ({cropQueue.length} 剩余)
@@ -2136,14 +2115,15 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setShowUploadModal(false)}
+              data-dialog-cancel onClick={() => setShowUploadModal(false)}
               className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm"
             />
             <motion.div 
+              role="dialog" aria-modal="true" tabIndex={-1} onKeyDown={handleDialogKeys}
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-sm bg-kards-gray-alt military-border p-6 shadow-2xl flex flex-col items-center"
+              className="glass-panel relative w-full max-w-sm bg-kards-gray-alt military-border p-6 shadow-2xl flex flex-col items-center"
             >
               <h3 className="text-xl font-bold mb-4 text-center">上传自定义卡背</h3>
               <div className="w-full mb-4">
@@ -2180,7 +2160,7 @@ export default function App() {
                 </div>
               </div>
               <button 
-                onClick={() => setShowUploadModal(false)}
+                data-dialog-cancel onClick={() => setShowUploadModal(false)}
                 className="mt-4 text-sm text-kards-text-muted hover:text-kards-text transition-colors"
               >
                 取消
@@ -2198,14 +2178,15 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setShowCreateCollectionModal(false)}
+              data-dialog-cancel onClick={() => setShowCreateCollectionModal(false)}
               className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm"
             />
             <motion.div 
+              role="dialog" aria-modal="true" tabIndex={-1} onKeyDown={handleDialogKeys}
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-md military-border p-6 shadow-2xl flex flex-col transition-all"
+              className="glass-panel relative w-full max-w-md military-border p-6 shadow-2xl flex flex-col transition-all"
               style={{ 
                 backgroundColor: `rgba(var(--rgb-panel-overlay), ${settings.importBoxOpacity})`,
                 backdropFilter: `blur(${settings.importBoxOpacity * 10}px)`
@@ -2218,7 +2199,8 @@ export default function App() {
                 value={newCollectionName || ''}
                 onChange={(e) => setNewCollectionName(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && newCollectionName.trim()) {
+                  if (e.key === 'Enter' && !e.nativeEvent.isComposing && newCollectionName.trim()) {
+                    e.preventDefault(); e.stopPropagation();
                     setCollections([...collections, {
                       id: Date.now().toString(),
                       name: newCollectionName.trim(),
@@ -2234,12 +2216,12 @@ export default function App() {
               />
               <div className="flex gap-4">
                 <button 
-                  onClick={() => setShowCreateCollectionModal(false)}
+                  data-dialog-cancel onClick={() => setShowCreateCollectionModal(false)}
                   className="flex-1 py-2 text-kards-text-muted hover:text-kards-text hover:bg-kards-panel-hover transition-colors"
                 >
                   取消
                 </button>
-                <button 
+                <button data-dialog-confirm
                   disabled={!newCollectionName.trim()}
                   onClick={() => {
                     if (newCollectionName.trim()) {
@@ -2271,14 +2253,15 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setCollectionToDelete(null)}
+              data-dialog-cancel onClick={() => setCollectionToDelete(null)}
               className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm"
             />
             <motion.div 
+              role="dialog" aria-modal="true" tabIndex={-1} onKeyDown={handleDialogKeys}
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-sm bg-kards-gray-alt border-t-4 border-red-600 p-6 shadow-2xl flex flex-col items-center"
+              className="glass-panel relative w-full max-w-sm bg-kards-gray-alt border-t-4 border-red-600 p-6 shadow-2xl flex flex-col items-center"
             >
               <Trash2 className="w-12 h-12 text-red-500 mb-4" />
               <h3 className="text-lg font-bold mb-2 text-center text-kards-text">删除合集</h3>
@@ -2287,12 +2270,12 @@ export default function App() {
               </p>
               <div className="flex w-full gap-4">
                 <button 
-                  onClick={() => setCollectionToDelete(null)}
+                  data-dialog-cancel onClick={() => setCollectionToDelete(null)}
                   className="flex-1 py-2 text-kards-text-muted hover:text-kards-text hover:bg-kards-panel-hover transition-colors border border-kards-border"
                 >
                   取消
                 </button>
-                <button 
+                <button data-dialog-confirm
                   onClick={() => {
                     setCollections(collections.filter(c => c.id !== collectionToDelete.id));
                     setCollectionToDelete(null);
@@ -2315,14 +2298,15 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setCollectionToRename(null)}
+              data-dialog-cancel onClick={() => setCollectionToRename(null)}
               className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm"
             />
             <motion.div 
+              role="dialog" aria-modal="true" tabIndex={-1} onKeyDown={handleDialogKeys}
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-md bg-kards-gray military-border p-6 shadow-2xl flex flex-col"
+              className="glass-panel relative w-full max-w-md bg-kards-gray military-border p-6 shadow-2xl flex flex-col"
             >
               <h3 className="text-xl font-bold mb-4 text-kards-text tracking-widest">重命名合集</h3>
               <input
@@ -2331,7 +2315,8 @@ export default function App() {
                 value={renameCollectionName || ''}
                 onChange={(e) => setRenameCollectionName(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && renameCollectionName.trim()) {
+                  if (e.key === 'Enter' && !e.nativeEvent.isComposing && renameCollectionName.trim()) {
+                    e.preventDefault(); e.stopPropagation();
                     setCollections(collections.map(c => 
                       c.id === collectionToRename.id ? { ...c, name: renameCollectionName.trim() } : c
                     ));
@@ -2343,12 +2328,12 @@ export default function App() {
               />
               <div className="flex gap-4">
                 <button 
-                  onClick={() => setCollectionToRename(null)}
+                  data-dialog-cancel onClick={() => setCollectionToRename(null)}
                   className="flex-1 py-2 text-kards-text-muted hover:text-kards-text hover:bg-kards-panel-hover transition-colors"
                 >
                   取消
                 </button>
-                <button 
+                <button data-dialog-confirm
                   disabled={!renameCollectionName.trim()}
                   onClick={() => {
                     if (renameCollectionName.trim()) {
@@ -2376,21 +2361,22 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setDeckImageModal({ ...deckImageModal, show: false })}
+              data-dialog-cancel onClick={() => setDeckImageModal({ ...deckImageModal, show: false })}
               className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-md"
             />
             <motion.div 
+              role="dialog" aria-modal="true" tabIndex={-1} onKeyDown={handleDialogKeys}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="relative w-full max-w-3xl bg-kards-gray-alt military-border shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
+              className="glass-panel relative w-full max-w-3xl bg-kards-gray-alt military-border shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
             >
               <div className="p-4 border-b border-kards-border flex items-center justify-between bg-kards-gray">
                 <h3 className="text-lg font-bold tracking-widest text-white flex items-center gap-2">
                   <ImageIcon className="w-5 h-5 text-kards-gold" />
                   本地卡组图片 {deckImageModal.deck && `- ${deckImageModal.deck.name}`}
                 </h3>
-                <button onClick={() => setDeckImageModal({ ...deckImageModal, show: false })} className="text-kards-text-muted hover:text-kards-text">
+                <button data-dialog-cancel onClick={() => setDeckImageModal({ ...deckImageModal, show: false })} className="text-kards-text-muted hover:text-kards-text">
                   <X className="w-6 h-6" />
                 </button>
               </div>
@@ -2428,14 +2414,15 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setShowSettingsModal(false)}
+              data-dialog-cancel onClick={() => setShowSettingsModal(false)}
               className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-md"
             />
             <motion.div 
+              role="dialog" aria-modal="true" tabIndex={-1} onKeyDown={handleDialogKeys}
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-md military-border shadow-2xl flex flex-col transition-all max-h-[90vh] overflow-hidden"
+              className="glass-panel relative w-full max-w-md military-border shadow-2xl flex flex-col transition-all max-h-[90vh] overflow-hidden"
               style={{ 
                 backgroundColor: `rgba(var(--rgb-panel-overlay), ${settings.importBoxOpacity})`,
                 backdropFilter: `blur(${settings.importBoxOpacity * 10}px)`
@@ -2446,7 +2433,7 @@ export default function App() {
                 <h3 className="text-xl font-bold tracking-[0.2em] text-kards-text flex items-center gap-3 decoration-kards-gold/50 underline-offset-8 underline">
                   <Settings className="w-6 h-6 text-kards-gold" /> 全局设置
                 </h3>
-                <button onClick={() => setShowSettingsModal(false)} className="text-kards-text-muted hover:text-kards-text transition-colors">
+                <button data-dialog-cancel onClick={() => setShowSettingsModal(false)} className="text-kards-text-muted hover:text-kards-text transition-colors">
                   <X className="w-6 h-6" />
                 </button>
               </div>
@@ -2643,8 +2630,8 @@ export default function App() {
                 >
                   重置默认
                 </button>
-                <button 
-                  onClick={() => setShowSettingsModal(false)}
+                <button data-dialog-confirm
+                  data-dialog-cancel onClick={() => setShowSettingsModal(false)}
                   className="flex-1 bg-kards-accent py-3 font-bold text-white shadow-lg hover:brightness-110 active:scale-[0.98] transition-all rounded-sm"
                 >
                   保存并关闭
@@ -2683,11 +2670,12 @@ interface DeckCardProps {
   deck: Deck;
   selected: boolean;
   onClick: () => void;
+  onDoubleClick: () => void;
   settings: AppSettings;
   key?: React.Key;
 }
 
-function DeckCard({ deck, selected, onClick, settings }: DeckCardProps) {
+function DeckCard({ deck, selected, onClick, onDoubleClick, settings }: DeckCardProps) {
   const mainData = NATION_DATA[deck.mainNation];
   const allyData = deck.allyNation ? NATION_DATA[deck.allyNation] : null;
 
@@ -2699,6 +2687,7 @@ function DeckCard({ deck, selected, onClick, settings }: DeckCardProps) {
       whileHover={{ y: -5 }}
       className="flex flex-col items-center group cursor-pointer"
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
     >
       <div 
         style={{ width: `${10 * settings.uiScale}rem` }}

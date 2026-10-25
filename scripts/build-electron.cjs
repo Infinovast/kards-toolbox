@@ -14,7 +14,7 @@ esbuild.build({
   format: 'cjs',
   outdir: path.join(rootDir, 'dist-electron'),
   outExtension: { '.js': '.cjs' },
-  external: ['electron'],
+  external: ['electron', 'sharp'],
   define: {
     __KARDS_ENABLE_DEVELOPER_OPTIONS__: JSON.stringify(enableDeveloperOptions),
   },

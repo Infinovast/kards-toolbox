@@ -1,7 +1,7 @@
 {
   "name": "kards-local-tool",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Local-first KARDS card library, deck builder and collection manager for Windows.",
   "type": "module",
   "main": "dist-electron/main.cjs",
@@ -52,13 +52,16 @@
       "package.json",
       "THIRD_PARTY_NOTICES.md",
       "third-party/**/*",
-      "!node_modules/**/*",
       "!src/**/*",
       "!electron/**/*",
       "!openspec/**/*",
       "!public/**/*",
       "!release/**/*",
-      "!*.log"
+      "!*.log",
+      "node_modules/sharp/**/*",
+      "node_modules/@img/**/*",
+      "node_modules/detect-libc/**/*",
+      "node_modules/semver/**/*"
     ],
     "extraMetadata": {
       "main": "dist-electron/main.cjs"
@@ -76,7 +79,12 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true
-    }
+    },
+    "asarUnpack": [
+      "node_modules/@img/**/*",
+      "dist/assets/deck-render/**/*",
+      "dist/assets/kards_logos/**/*"
+    ]
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.14",
@@ -91,6 +99,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-easy-crop": "^5.5.7",
+    "sharp": "^0.35.5",
     "vite": "^6.2.0"
   },
   "devDependencies": {

@@ -7,6 +7,7 @@ declare global {
     userDataPath: string;
     packaged: boolean;
     developerOptions: boolean;
+    darkIcon: boolean;
   }
 
   interface KardsDesktopBackupOpenResult {
@@ -22,6 +23,8 @@ declare global {
 
   interface Window {
     kardsDesktop?: {
+      renderDeckImage: (request: import('../lib/deckRenderTypes').DeckRenderRequest) => Promise<string>;
+      setTheme: (mode: 'dark' | 'light' | 'system') => Promise<boolean>;
       getAppInfo: () => Promise<KardsDesktopAppInfo>;
       readClipboardText: () => Promise<string>;
       saveBackup: (backup: unknown) => Promise<KardsDesktopBackupSaveResult>;
