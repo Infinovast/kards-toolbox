@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-10-25T20:57:00+08:00",
-  "title": "Design System: KARDS Local Arsenal",
+  "title": "Design System: KARDS Toolbox",
   "extensions": {
     "motion": [
       { "name": "theme-transition", "value": "300ms", "purpose": "现有主题及卡牌状态颜色过渡。" }

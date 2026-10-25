@@ -12,6 +12,6 @@ async function startServer() {
     app.use(express.static(distPath));
     app.get('*', (_req, res) => res.sendFile(path.join(distPath, 'index.html')));
   }
-  app.listen(3000, '127.0.0.1', () => console.log('KARDS 本地军械库: http://127.0.0.1:3000'));
+  app.listen(3000, '127.0.0.1', () => console.log('KARDS 工具箱: http://127.0.0.1:3000'));
 }
 startServer().catch(console.error);

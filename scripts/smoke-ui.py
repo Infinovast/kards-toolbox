@@ -56,7 +56,7 @@ with sync_playwright() as p:
           await store.setItem('kards_card_image_v1_54_zh-Hans_3L', data);
         }""", data)
 
-    page.get_by_role("button", name="卡牌资料", exact=True).click()
+    page.get_by_role("button", name="卡牌", exact=True).click()
     expect(page.get_by_text("本地目录 1,646 张 · 当前结果 1,646 张", exact=True)).to_be_visible()
     page.get_by_label("费用筛选", exact=True).select_option("7")
     expected = sum(c["json"].get("kredits", 0) >= 7 for c in cards)
@@ -82,7 +82,12 @@ with sync_playwright() as p:
     settle(page)
     page.screenshot(path=str(SHOTS / "library-min.png"), full_page=True)
 
-    page.get_by_role("button", name="卡组构筑", exact=True).click()
+    page.get_by_role("button", name="卡组", exact=True).click()
+    page.get_by_role("button", name="导入新卡组", exact=True).click()
+    page.get_by_role("dialog").get_by_role("textbox").last.fill(CODE)
+    page.get_by_role("dialog").get_by_role("textbox").first.fill("Smoke deck")
+    page.get_by_role("button", name="确认导入", exact=True).click()
+    page.get_by_role("button", name="编辑卡组", exact=True).click()
     page.get_by_label("导入卡组码", exact=True).fill("Smoke deck\nMajor power: japan\n" + CODE)
     page.get_by_role("button", name="导入", exact=True).click()
     expect(page.get_by_label("卡组名称", exact=True)).to_have_value("Smoke deck")
@@ -106,7 +111,7 @@ with sync_playwright() as p:
     page.set_viewport_size({"width": 1280, "height": 820})
     settle(page)
     page.screenshot(path=str(SHOTS / "builder-desktop.png"), full_page=True)
-    page.get_by_role("button", name="保存卡组", exact=True).click()
+    page.get_by_role("button", name="保存更改", exact=True).click()
     expect(page.get_by_label("管理卡组名称", exact=True)).to_have_value("Smoke deck")
     page.get_by_label("卡组备注", exact=True).fill("离线测试备注：优先保留前线单位。")
     assert page.get_by_label("卡组备注", exact=True).evaluate("el => getComputedStyle(el).resize") == "none"
@@ -125,7 +130,7 @@ with sync_playwright() as p:
     first_increase.click()
     expect(page.get_by_text("40 / 40", exact=True)).to_be_visible()
     page.get_by_label("卡组名称", exact=True).fill("Smoke edited")
-    page.get_by_role("button", name="保存卡组", exact=True).click()
+    page.get_by_role("button", name="保存更改", exact=True).click()
     settle(page)
     saved = storage(page, "kards_decks")
     assert len(saved) == 1 and saved[0]["name"] == "Smoke edited"
@@ -153,12 +158,12 @@ with sync_playwright() as p:
     backup_path = OUT / "backup.json"
     download.value.save_as(backup_path)
     backup = json.loads(backup_path.read_text(encoding="utf-8"))
-    assert backup["app"] == "kards-local-tool"
+    assert backup["app"] == "kards-toolbox"
     assert any(key.startswith("deck_img_local_v1_") for key in backup["data"])
     assert not any(key.startswith("kards_card_image_") for key in backup["data"])
     assert backup["data"]["kards_decks"][0]["notes"].startswith("离线测试备注")
     page.get_by_role("button", name="保存并关闭", exact=True).click()
-    page.get_by_role("button", name="卡组构筑", exact=True).click()
+    page.get_by_role("button", name="编辑卡组", exact=True).click()
     page.get_by_label("导入卡组码", exact=True).fill("%%12|ZZ;;;")
     page.get_by_role("button", name="导入", exact=True).click()
     expect(page.get_by_text("未知卡牌 ZZ", exact=True)).to_be_visible()
@@ -167,9 +172,10 @@ with sync_playwright() as p:
     settle(page)
     page.reload()
     page.wait_for_load_state("networkidle")
-    page.get_by_role("button", name="卡组构筑", exact=True).click()
-    expect(page.get_by_label("卡组名称", exact=True)).to_have_value("Unknown draft")
-    expect(page.get_by_text("未知卡牌 ZZ", exact=True)).to_be_visible()
+    assert storage(page, "kards_builder_draft")["deckName"] == "Unknown draft"
+    page.get_by_role("button", name="选择卡组 Smoke edited", exact=True).click()
+    page.get_by_role("button", name="编辑卡组", exact=True).click()
+    expect(page.get_by_label("卡组名称", exact=True)).to_have_value("Smoke edited")
 
     # UI restore must also replace an already-mounted builder's draft.
     page.get_by_role("button", name="应用设置", exact=True).click()
@@ -178,9 +184,8 @@ with sync_playwright() as p:
     chooser.value.set_files(backup_path)
     expect(page.get_by_text("备份已导入，卡组、设置和构筑草稿已恢复。", exact=True)).to_be_visible()
     page.get_by_role("button", name="保存并关闭", exact=True).click()
-    expect(page.get_by_label("卡组名称", exact=True)).to_have_value("Smoke edited")
-    page.get_by_role("button", name="卡组列表", exact=True).click()
     expect(page.get_by_label("管理卡组名称", exact=True)).to_have_value("Smoke edited")
+    expect(page.get_by_test_id("builder-grid")).to_have_count(0)
     assert not errors, errors
     (OUT / "result.json").write_text(json.dumps({"status": "passed", "records": len(cards), "pageErrors": errors,
         "checks": ["offline snapshot", "cost 7+", "details", "language/history", "empty state", "code import",

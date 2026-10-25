@@ -85,7 +85,7 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
           }} className="flex items-center gap-1 rounded border border-kards-border glass-panel px-3 py-2 text-kards-text disabled:opacity-40"><Download className="h-3.5 w-3.5" />缓存筛选结果（{filteredCards.length.toLocaleString()} 张）</button>
         </div>
 
-        <div data-testid="library-grid" className="card-gallery min-h-0 flex-1 overflow-y-auto pb-2">
+        <div data-testid="library-grid" className="card-gallery custom-scrollbar min-h-0 flex-1 overflow-y-auto pb-2">
           {pageCards.map((card) => (
             <button key={card.importId} onClick={() => setSelectedCard(card)} className="card-tile group text-left" aria-label={`查看${cardTitle(card, language)}`}>
               <CardFace card={card} language={language} version={version} />
@@ -103,7 +103,7 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
       </section>
 
       {selectedCard && (
-        <aside ref={detailRef} role="dialog" aria-modal="false" aria-label="卡牌详情" tabIndex={-1} className="glass-panel absolute bottom-5 right-5 top-5 z-30 flex w-[300px] max-w-[calc(100%-40px)] flex-col overflow-y-auto rounded-lg border border-kards-border p-4 shadow-xl">
+        <aside ref={detailRef} role="dialog" aria-modal="false" aria-label="卡牌详情" tabIndex={-1} className="glass-panel custom-scrollbar absolute bottom-5 right-5 top-5 z-30 flex w-[300px] max-w-[calc(100%-40px)] flex-col overflow-y-auto rounded-lg border border-kards-border p-4 shadow-xl">
           <button onClick={() => setSelectedCard(null)} aria-label="关闭卡牌详情" className="absolute right-3 top-3 z-10 rounded-full bg-black/60 p-1 text-white"><X className="h-4 w-4" /></button>
           <CardFace card={selectedCard} language={language} version={version} className="mx-auto mb-4 max-h-[55vh] w-full object-contain" />
           <h2 className="text-lg font-bold text-kards-text">{cardTitle(selectedCard, language)}</h2>

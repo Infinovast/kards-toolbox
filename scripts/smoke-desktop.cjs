@@ -25,9 +25,19 @@ async function main() {
     page.on('pageerror', (error) => errors.push(error.message));
     await page.route(/^https?:/, (route) => route.abort());
     await page.waitForURL('kards://app/index.html');
-    await expect(page.getByRole('heading', { name: '卡组管理', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '卡组', exact: true })).toBeVisible();
     const info = await page.evaluate(() => window.kardsDesktop.getAppInfo());
-    assert.equal(info.version, '0.2.0');
+    assert.equal(info.version, '0.2.1');
+    assert.equal(info.name, 'KARDS Toolbox');
+    assert.equal(path.resolve(info.userDataPath), profile, 'explicit test profile remains authoritative');
+    await expect(page).toHaveTitle('KARDS 工具箱');
+    assert.equal(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getTitle()), 'KARDS 工具箱');
+    await expect(page.getByRole('complementary', { name: '主导航' }).getByRole('button')).toHaveCount(2);
+    await expect(page.getByRole('switch', { name: '收藏夹显示' })).not.toBeChecked();
+    await page.getByRole('button', { name: '关于', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'KARDS Toolbox', exact: true })).toBeVisible();
+    await expect(page.getByText('版本 0.2.1 · Windows 桌面版', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: '返回', exact: true }).click();
     assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
     // Observe actual native setIcon calls while exercising the preload theme bridge.
     await app.evaluate(({ BrowserWindow }) => {
@@ -73,14 +83,18 @@ async function main() {
     const smallBg = `data:image/png;base64,${(await sharp({ create: { width: 320, height: 180, channels: 3, background: '#314d40' } }).png().toBuffer()).toString('base64')}`;
     const customRender = await page.evaluate(request => window.kardsDesktop.renderDeckImage(request), { ...request, background: smallBg });
     assert.equal((await sharp(Buffer.from(customRender.split(',')[1], 'base64')).metadata()).width, 2304);
-    await page.getByRole('button', { name: '卡牌资料', exact: true }).click();
+    await page.getByRole('button', { name: '卡牌', exact: true }).click();
     await expect(page.getByText('本地目录 1,646 张 · 当前结果 1,646 张', { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: '卡组构筑', exact: true }).click();
+    await page.getByRole('button', { name: '卡组', exact: true }).click();
+    await page.getByRole('button', { name: '导入新卡组', exact: true }).click();
+    await page.getByRole('dialog').getByRole('textbox').last().fill('%%12|ZZ;;;');
+    await page.getByRole('button', { name: '确认导入', exact: true }).click();
+    await page.getByRole('button', { name: '编辑卡组', exact: true }).click();
     await page.getByLabel('导入卡组码', { exact: true }).fill('%%12|ZZ;;;');
     await page.getByRole('button', { name: '导入', exact: true }).click();
     await expect(page.getByText('未知卡牌 ZZ', { exact: true })).toBeVisible();
     await page.getByLabel('卡组名称', { exact: true }).fill('Desktop offline test');
-    await page.getByRole('button', { name: '保存卡组', exact: true }).click();
+    await page.getByRole('button', { name: '保存更改', exact: true }).click();
     await expect(page.getByLabel('管理卡组名称', { exact: true })).toHaveValue('Desktop offline test');
     await page.getByLabel('卡组备注', { exact: true }).fill('生产协议与离线存储测试');
     await page.getByRole('button', { name: '生成本地卡组图片', exact: true }).click();
@@ -99,6 +113,7 @@ async function main() {
     await page.getByRole('button', { name: '导出备份', exact: true }).click();
     await expect(page.getByText(`备份已导出：${backupPath}`, { exact: true })).toBeVisible();
     const backup = JSON.parse(await fs.readFile(backupPath, 'utf8'));
+    assert.equal(backup.app, 'kards-toolbox');
     assert.equal(backup.data.kards_decks[0].name, 'Desktop offline test');
     assert.ok(Object.keys(backup.data).some((key) => key.startsWith('deck_img_local_v1_')));
     await page.getByRole('button', { name: '导入备份', exact: true }).click();

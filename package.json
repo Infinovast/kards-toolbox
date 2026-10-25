@@ -1,8 +1,8 @@
 {
-  "name": "kards-local-tool",
+  "name": "kards-toolbox",
   "private": true,
-  "version": "0.2.0",
-  "description": "Local-first KARDS card library, deck builder and collection manager for Windows.",
+  "version": "0.2.1",
+  "description": "KARDS Toolbox — local-first card library and deck manager for Windows.",
   "type": "module",
   "main": "dist-electron/main.cjs",
   "scripts": {
@@ -28,12 +28,12 @@
     "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true});fs.rmSync('dist-electron',{recursive:true,force:true});fs.rmSync('release',{recursive:true,force:true})\"",
     "lint": "tsc --noEmit",
     "test:deck-import": "tsx src/lib/deckImport.test.ts",
-    "test": "npm run test:deck-import && tsx src/lib/deckCode.test.ts && tsx src/lib/backup.test.ts",
+    "test": "npm run test:deck-import && tsx src/lib/deckCode.test.ts && tsx src/lib/backup.test.ts && tsx electron/userDataPath.test.ts",
     "test:desktop": "node scripts/smoke-desktop.cjs"
   },
   "build": {
     "appId": "com.kards.localtool",
-    "productName": "KARDS Local Arsenal",
+    "productName": "KARDS Toolbox",
     "compression": "maximum",
     "electronDist": "node_modules/electron/dist",
     "npmRebuild": false,

@@ -1,7 +1,9 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, protocol } from 'electron';
 import fs from 'fs/promises';
+import { mkdirSync } from 'fs';
 import path from 'path';
 import { renderKardsmanDeck } from './deckRenderer';
+import { resolveUserDataPath } from './userDataPath';
 import type { DeckRenderRequest } from '../src/lib/deckRenderTypes';
 
 protocol.registerSchemesAsPrivileged([
@@ -20,7 +22,7 @@ app.commandLine.appendSwitch('disable-crash-reporter');
 
 const isDev = !app.isPackaged && process.env.KARDS_USE_DIST !== '1';
 const rendererUrl = process.env.ELECTRON_RENDERER_URL || 'http://127.0.0.1:5173';
-const appName = 'KARDS 本地军械库';
+const appName = 'KARDS Toolbox';
 let mainWindow: BrowserWindow | null = null;
 
 type BackupPayload = {
@@ -48,7 +50,7 @@ async function showLoadFailure(mainWindow: BrowserWindow, details: string) {
   const message = [
     '<!doctype html>',
     '<html><body style="font-family:Segoe UI,Arial,sans-serif;background:#151515;color:#eee;padding:32px;">',
-    '<h1>KARDS 本地军械库</h1>',
+    '<h1>KARDS 工具箱</h1>',
     '<p>The desktop renderer could not be loaded.</p>',
     `<pre style="white-space:pre-wrap;background:#242424;padding:16px;border:1px solid #444;">${details}</pre>`,
     '</body></html>',
@@ -143,11 +145,11 @@ function registerIpcHandlers() {
 
     const defaultPath = path.join(
       app.getPath('documents'),
-      `kards-local-backup-${new Date().toISOString().slice(0, 10)}.json`,
+      `kards-toolbox-backup-${new Date().toISOString().slice(0, 10)}.json`,
     );
 
     const result = await dialog.showSaveDialog({
-      title: 'Export KARDS backup',
+      title: '导出 KARDS 工具箱备份',
       defaultPath,
       filters: [{ name: 'KARDS backup', extensions: ['json'] }],
     });
@@ -162,7 +164,7 @@ function registerIpcHandlers() {
 
   ipcMain.handle('backup:open', async () => {
     const result = await dialog.showOpenDialog({
-      title: 'Import KARDS backup',
+      title: '导入 KARDS 工具箱备份',
       properties: ['openFile'],
       filters: [{ name: 'KARDS backup', extensions: ['json'] }],
     });
@@ -182,6 +184,14 @@ function registerIpcHandlers() {
 
 nativeTheme.on('updated', () => mainWindow?.setIcon(getIconPath()));
 app.setName(appName);
+// Reuse an existing profile after the rename; never move or overwrite user data.
+// Explicit test/portable profile overrides keep their original behavior.
+if (!app.commandLine.hasSwitch('user-data-dir')) {
+  const profilePath = resolveUserDataPath(app.getPath('appData'));
+  mkdirSync(profilePath, { recursive: true });
+  app.setPath('userData', profilePath);
+  app.setPath('sessionData', profilePath);
+}
 registerIpcHandlers();
 
 app.whenReady().then(async () => {

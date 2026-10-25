@@ -36,8 +36,8 @@ npm run dist:win:zip
 - `dist/`：渲染端生产资源，包含卡牌目录。
 - `dist-electron/`：主进程与 preload。
 - `release/`：打包结果；`dist:win:dir` 生成解包目录，`dist:win` 生成安装包和便携包。
-- 本轮已生成 `release/win-unpacked/KARDS Local Arsenal.exe`，可直接启动；移动时需保留整个 `win-unpacked` 文件夹。
-- ZIP 开发包为 `release/KARDS Local Arsenal-0.1.0-win.zip`，解压后启动其中的 EXE，运行无需 Node.js。
+- 本轮已生成 `release/win-unpacked/KARDS Toolbox.exe`，可直接启动；移动时需保留整个 `win-unpacked` 文件夹。
+- ZIP 开发包为 `release/KARDS Toolbox-0.2.1-win.zip`，解压后启动其中的 EXE，运行无需 Node.js。
 - 本地检查生产资源可运行 `$env:KARDS_USE_DIST='1'; node scripts/start-electron.cjs .`。
 
 打包配置复用 `node_modules/electron/dist` 的已安装运行时，避免 electron-builder 再次从 GitHub 下载。NSIS/portable 目标仍可能首次下载额外打包工具，本轮未验收单文件便携包。
@@ -53,7 +53,7 @@ npm run lint
 npm run test:desktop
 
 # 解包后的真实 EXE
-node scripts/smoke-desktop.cjs 'release/win-unpacked/KARDS Local Arsenal.exe'
+node scripts/smoke-desktop.cjs 'release/win-unpacked/KARDS Toolbox.exe'
 ```
 
 网页流程测试使用 Python Playwright。在一个终端启动 `npm run dev:renderer`，另一个终端运行：
@@ -62,6 +62,8 @@ node scripts/smoke-desktop.cjs 'release/win-unpacked/KARDS Local Arsenal.exe'
 python -m pip install playwright
 python -m playwright install chromium
 python scripts/smoke-ui.py
+python scripts/smoke-improvements.py
+python scripts/smoke-navigation.py
 ```
 
 网页测试会阻止所有外部网络请求，覆盖筛选、语言/历史图、卡组保存编辑、草稿、离线 PNG、备份边界与恢复；使用独立浏览器上下文。测试报告和下载产物写入 `test-results/`。桌面测试使用真实 preload/IPC/文件读写，仅替换系统文件选择器返回值，避免交互阻塞。

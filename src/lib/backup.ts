@@ -17,7 +17,7 @@ export type BackupKey = typeof BACKUP_KEYS[number] | `deck_img_${string}`;
 export interface KardsBackup {
   schemaVersion: number;
   exportedAt: string;
-  app: 'kards-local-tool' | 'kards-deck-collector';
+  app: 'kards-toolbox' | 'kards-local-tool' | 'kards-deck-collector';
   data: Partial<Record<BackupKey, unknown>>;
 }
 
@@ -37,7 +37,7 @@ export async function createBackup(): Promise<KardsBackup> {
   return {
     schemaVersion: BACKUP_SCHEMA_VERSION,
     exportedAt: new Date().toISOString(),
-    app: 'kards-local-tool',
+    app: 'kards-toolbox',
     data,
   };
 }
@@ -45,7 +45,7 @@ export async function createBackup(): Promise<KardsBackup> {
 export function parseBackup(content: string): KardsBackup {
   const parsed = JSON.parse(content) as KardsBackup;
 
-  if (!parsed || !['kards-local-tool', 'kards-deck-collector'].includes(parsed.app) || parsed.schemaVersion !== BACKUP_SCHEMA_VERSION || !parsed.data || Array.isArray(parsed.data) || typeof parsed.data !== 'object') {
+  if (!parsed || !['kards-toolbox', 'kards-local-tool', 'kards-deck-collector'].includes(parsed.app) || parsed.schemaVersion !== BACKUP_SCHEMA_VERSION || !parsed.data || Array.isArray(parsed.data) || typeof parsed.data !== 'object') {
     throw new Error('Unsupported or invalid KARDS backup file.');
   }
 

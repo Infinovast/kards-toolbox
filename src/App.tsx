@@ -10,7 +10,7 @@ import {
   Copy, 
   Star, 
   Settings, 
-  User, 
+  Info,
   Shield, 
   Sword, 
   Library, 
@@ -41,6 +41,8 @@ import ImageDownloadProgress from './components/ImageDownloadProgress';
 import { handleDialogKeys, useModalFocus } from './lib/dialogKeyboard';
 import CardLibrary from './components/CardLibrary';
 import DeckBuilder, { type BuilderDeck } from './components/DeckBuilder';
+import DeckFolders from './components/DeckFolders';
+import AboutPage from './components/AboutPage';
 import { cardTitle, loadCardDatabase, type KardsCardRecord } from './types/card';
 
 // --- Types ---
@@ -80,6 +82,7 @@ interface AppSettings {
   lightThemeColor: string;
   uiScale: number;
   deckGap: number;
+  showDeckFolders: boolean;
 }
 
 interface ClipboardDeckCandidate {
@@ -96,7 +99,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   displayMode: 'dark',
   lightThemeColor: '#dcd7c9',
   uiScale: 1.0,
-  deckGap: 0.5
+  deckGap: 0.5,
+  showDeckFolders: false
 };
 
 // --- Icons & Labels ---
@@ -265,7 +269,8 @@ export default function App() {
   const [clipboardDeckCandidate, setClipboardDeckCandidate] = useState<ClipboardDeckCandidate | null>(null);
   const lastClipboardPromptRef = useRef<string | null>(null);
   const [backupStatus, setBackupStatus] = useState<string | null>(null);
-  const [activeMenu, setActiveMenu] = useState('decks');
+  const [activeMenu, setActiveMenu] = useState<'decks' | 'cards' | 'builder' | 'about'>('decks');
+  const [aboutReturnMenu, setAboutReturnMenu] = useState<'decks' | 'cards' | 'builder'>('decks');
   const [builderDeck, setBuilderDeck] = useState<BuilderDeck | null>(null);
   const [builderRevision, setBuilderRevision] = useState(0);
   const [errorStatus, setErrorStatus] = useState<string | null>(null);
@@ -481,7 +486,6 @@ export default function App() {
 
   const [showTableclothModal, setShowTableclothModal] = useState(false);
   const [tableclothUploadError, setTableclothUploadError] = useState<string | null>(null);
-  const [expandedCollectionId, setExpandedCollectionId] = useState<string | null>(null);
   const [showAddDeckToCollectionModal, setShowAddDeckToCollectionModal] = useState<string | null>(null);
   const [showCreateCollectionModal, setShowCreateCollectionModal] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
@@ -528,6 +532,7 @@ export default function App() {
     setSelectedDeckId((loadedDecks || [])[0]?.id || null);
     setBuilderDeck(null);
     setBuilderRevision((revision) => revision + 1);
+    setActiveMenu('decks');
   };
 
   const handleExportBackup = async () => {
@@ -544,7 +549,7 @@ export default function App() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `kards-local-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      link.download = `kards-toolbox-backup-${new Date().toISOString().slice(0, 10)}.json`;
       link.click();
       URL.revokeObjectURL(url);
       setBackupStatus('备份已导出。');
@@ -736,12 +741,13 @@ export default function App() {
       ruleSet: built.ruleSet, customRules: built.customRules,
     };
     setDecks((current) => existing ? current.map((deck) => deck.id === existing.id ? savedDeck : deck) : [...current, savedDeck]);
-    setSelectedDeckId(savedDeck.id); setBuilderDeck(savedDeck); setActiveMenu('decks');
+    setSelectedDeckId(savedDeck.id); setBuilderDeck(null); setActiveMenu('decks');
     setSearchQuery(''); setFilterMainNation('All'); setFilterAllyNation('All'); setFilterTag('All');
   };
 
   const handleDeleteDeck = (id: string) => {
     setDecks(decks.filter(d => d.id !== id));
+    setCollections(current => current.map(folder => ({ ...folder, deckIds: folder.deckIds.filter(deckId => deckId !== id) })));
     if (selectedDeckId === id) setSelectedDeckId(decks[0]?.id || null);
   };
 
@@ -864,6 +870,12 @@ export default function App() {
   // Sort: favorites first
   const sortedDecks = filteredDecks.sort((a, b) => (b.isFavorite ? 1 : 0) - (a.isFavorite ? 1 : 0));
 
+  const openDeckEditor = (deck: Deck) => {
+    setBuilderDeck({ ...deck });
+    setBuilderRevision(revision => revision + 1);
+    setActiveMenu('builder');
+  };
+
   return (
     <div className="flex flex-col h-screen military-noise relative">
       {/* --- Top Bar --- */}
@@ -876,22 +888,21 @@ export default function App() {
               className="h-16 w-auto transition-opacity"
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
             />
-            <span className="text-xl font-bold tracking-widest text-kards-text sr-only">KARDS</span>
+            <span className="text-xl font-bold tracking-widest text-kards-text sr-only">KARDS Toolbox · KARDS 工具箱</span>
           </div>
           <nav className="flex items-center gap-6">
             <h1 className="text-kards-text font-bold border-l border-kards-border pl-6 cursor-default tracking-widest">
-              {activeMenu === 'collection' ? '合集管理' : activeMenu === 'cards' ? '卡牌资料库' : activeMenu === 'builder' ? '卡组构筑' : '卡组管理'}
+              {activeMenu === 'cards' ? '卡牌' : activeMenu === 'builder' ? '卡组构筑' : activeMenu === 'about' ? '关于' : '卡组'}
             </h1>
             <div className="flex items-center gap-3">
-              {(activeMenu === 'decks' || activeMenu === 'collection') && <>
+              {activeMenu === 'decks' && <>
               <input 
                 type="text" 
-                placeholder={activeMenu === 'collection' ? "搜索合集名称..." : "搜索卡组..."}
+                placeholder="搜索卡组..."
                 value={searchQuery || ''}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="bg-kards-gray-alt border border-kards-border text-kards-text text-sm px-3 py-1.5 focus:outline-none focus:border-kards-gold min-w-[200px] rounded transition-colors"
               />
-              {activeMenu !== 'collection' && (
                 <>
                   <select 
                     value={filterMainNation || 'All'}
@@ -918,7 +929,6 @@ export default function App() {
                     {allTags.map(tag => <option key={tag} value={tag}>{tag}</option>)}
                   </select>
                 </>
-              )}
               </>}
             </div>
           </nav>
@@ -932,8 +942,11 @@ export default function App() {
           >
             <Palette className="w-5 h-5 text-kards-text-muted group-hover:text-kards-gold" />
           </button>
-          <button className="p-2 hover:bg-kards-panel-hover transition-colors group">
-            <User className="w-5 h-5 text-kards-text-muted group-hover:text-kards-text" />
+          <button onClick={() => {
+            if (activeMenu !== 'about') setAboutReturnMenu(activeMenu);
+            setActiveMenu('about');
+          }} aria-label="关于" title="关于 KARDS Toolbox" className="p-2 hover:bg-kards-panel-hover transition-colors group">
+            <Info className="w-5 h-5 text-kards-text-muted group-hover:text-kards-text" />
           </button>
           <button 
             onClick={() => setShowSettingsModal(true)}
@@ -949,31 +962,9 @@ export default function App() {
       <div data-testid="workspace" className="relative flex min-h-0 flex-1 overflow-hidden" style={{ backgroundImage: selectedTablecloth ? `url("${selectedTablecloth}")` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' }}>
         
         {/* Left Sidebar */}
-        <aside className="glass-panel w-24 shrink-0 flex flex-col gap-1 p-1 z-10 border-r border-kards-border transition-colors duration-300">
-          <SidebarButton 
-            active={activeMenu === 'decks'} 
-            onClick={() => setActiveMenu('decks')}
-            icon={<Library className="w-8 h-8" />}
-            label="卡组列表"
-          />
-          <SidebarButton 
-            active={activeMenu === 'collection'} 
-            onClick={() => setActiveMenu('collection')}
-            icon={<Plus className="w-8 h-8" />}
-            label="卡组合集"
-          />
-          <SidebarButton
-            active={activeMenu === 'cards'}
-            onClick={() => setActiveMenu('cards')}
-            icon={<Library className="w-8 h-8" />}
-            label="卡牌资料"
-          />
-          <SidebarButton
-            active={activeMenu === 'builder'}
-            onClick={() => setActiveMenu('builder')}
-            icon={<Plus className="w-8 h-8" />}
-            label="卡组构筑"
-          />
+        <aside aria-label="主导航" className="glass-panel w-24 shrink-0 flex flex-col gap-1 p-1 z-10 border-r border-kards-border transition-colors duration-300">
+          <SidebarButton active={activeMenu === 'decks' || activeMenu === 'builder'} onClick={() => setActiveMenu('decks')} icon={<Library className="w-8 h-8" />} label="卡组" />
+          <SidebarButton active={activeMenu === 'cards'} onClick={() => setActiveMenu('cards')} icon={<Library className="w-8 h-8" />} label="卡牌" />
         </aside>
 
         {/* Center Grid */}
@@ -1032,8 +1023,16 @@ export default function App() {
             )}
             {activeMenu === 'builder' && cardDatabaseLoading && <p className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</p>}
             {activeMenu === 'builder' && cardDatabaseError && <p className="p-6 text-red-400">{cardDatabaseError}</p>}
-            {!cardDatabaseLoading && !cardDatabaseError && <div className={`h-full w-full max-w-[1800px] shrink-0 ${activeMenu === 'builder' ? '' : 'hidden'}`}><DeckBuilder active={activeMenu === 'builder'} key={builderRevision} cards={cardDatabase} initialDeck={builderDeck} onSave={handleSaveBuiltDeck} /></div>}
-            {activeMenu === 'decks' && (
+            {!cardDatabaseLoading && !cardDatabaseError && builderDeck && <div className={`h-full w-full max-w-[1800px] shrink-0 ${activeMenu === 'builder' ? '' : 'hidden'}`}><DeckBuilder active={activeMenu === 'builder'} key={builderRevision} cards={cardDatabase} initialDeck={builderDeck} onSave={handleSaveBuiltDeck} /></div>}
+            {activeMenu === 'about' && <AboutPage onBack={() => setActiveMenu(aboutReturnMenu)} />}
+            {activeMenu === 'decks' && <div className="mb-6 flex w-full max-w-7xl flex-wrap items-center justify-between gap-3">
+              <label className="flex cursor-pointer items-center gap-2 rounded glass-panel px-3 py-2 text-sm text-kards-text">
+                <input type="checkbox" role="switch" checked={settings.showDeckFolders} onChange={event => setSettings(current => ({ ...current, showDeckFolders: event.target.checked }))} className="h-4 w-4 accent-kards-accent" />
+                收藏夹显示
+              </label>
+              {settings.showDeckFolders && <button onClick={() => setShowImportModal(true)} className="flex items-center gap-2 rounded bg-kards-accent px-3 py-2 text-sm font-bold text-white"><Plus className="h-4 w-4" />导入新卡组</button>}
+            </div>}
+            {activeMenu === 'decks' && !settings.showDeckFolders && (
               <div 
                 style={{ 
                   display: 'grid',
@@ -1049,7 +1048,7 @@ export default function App() {
                     deck={deck}
                     selected={selectedDeckId === deck.id}
                     onClick={() => setSelectedDeckId(deck.id)}
-                    onDoubleClick={() => { setBuilderDeck({ ...deck }); setActiveMenu('builder'); }}
+                    onDoubleClick={() => openDeckEditor(deck)}
                     settings={settings}
                   />
                 ))}
@@ -1073,217 +1072,19 @@ export default function App() {
               </div>
             )}
 
-            {activeMenu === 'collection' && (
-              <div className="max-w-4xl w-full relative">
-                <div className="flex justify-between items-center mb-8">
-                  <h2 className="text-2xl font-bold tracking-widest text-kards-text flex items-center gap-3 bg-kards-panel/80 px-6 py-2 rounded-lg border border-kards-border/50 shadow-lg backdrop-blur-md">
-                    <Library className="w-8 h-8 text-kards-gold drop-shadow-md" /> 卡组合集
-                  </h2>
-                  <button 
-                    onClick={() => {
-                      setNewCollectionName('');
-                      setShowCreateCollectionModal(true);
-                    }}
-                    className="bg-kards-accent px-6 py-2 font-bold text-white hover:brightness-125 transition-all flex items-center gap-2 shadow-lg rounded-md"
-                  >
-                    <Plus className="w-5 h-5" /> 创建新合集
-                  </button>
-                </div>
-
-                <div className="space-y-1.5">
-                  {collections
-                    .filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()))
-                    .map((col, index) => (
-                    <motion.div 
-                      key={col.id} 
-                      layout
-                      drag={expandedCollectionId !== col.id ? "y" : false}
-                      dragConstraints={{ top: 0, bottom: 0 }}
-                      dragElastic={0.1}
-                      onDragEnd={(_, info) => {
-                        const threshold = 20;
-                        if (Math.abs(info.offset.y) > threshold) {
-                          const originalIndex = collections.findIndex(c => c.id === col.id);
-                          if (originalIndex === -1) return;
-                          
-                          const newIndex = info.offset.y > 0 ? originalIndex + 1 : originalIndex - 1;
-                          if (newIndex >= 0 && newIndex < collections.length) {
-                            const newCollections = [...collections];
-                            [newCollections[originalIndex], newCollections[newIndex]] = [newCollections[newIndex], newCollections[originalIndex]];
-                            setCollections(newCollections);
-                          }
-                        }
-                      }}
-                      className="border border-kards-border group/col relative overflow-hidden shadow-xl rounded-lg transition-colors"
-                      style={{ 
-                        backgroundColor: `rgba(var(--rgb-panel-overlay), ${settings.importBoxOpacity})`,
-                        backdropFilter: `blur(${settings.importBoxOpacity * 12}px)`,
-                        zIndex: expandedCollectionId === col.id ? 20 : 10 
-                      }}
-                    >
-                      <div 
-                        className={`p-4 flex items-center justify-between cursor-pointer hover:bg-kards-panel-hover transition-colors z-10 relative ${expandedCollectionId !== col.id ? 'active:bg-kards-panel active:cursor-move' : ''}`}
-                        style={{ 
-                          backgroundColor: `rgba(var(--rgb-panel-overlay-inv), ${settings.importBoxOpacity * 0.05})`,
-                        }}
-                        onClick={() => setExpandedCollectionId(expandedCollectionId === col.id ? null : col.id)}
-                      >
-                        <div className="flex items-center gap-4 pointer-events-none">
-                          <ChevronRight className={`w-5 h-5 text-kards-text-muted transition-transform ${expandedCollectionId === col.id ? 'rotate-90' : ''}`} />
-                          <div className="flex items-center gap-3">
-                            <span className="text-lg font-bold text-kards-text drop-shadow-md">{col.name}</span>
-                            <span className="text-xs text-kards-text-muted font-mono drop-shadow-sm">({col.deckIds.length} 个卡组)</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 opacity-0 group-hover/col:opacity-100 transition-opacity">
-                          {expandedCollectionId !== col.id && (
-                            <div className="text-[10px] text-kards-text-muted uppercase font-bold tracking-widest hidden sm:block pointer-events-none mr-2">拖动排序</div>
-                          )}
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setCollections(collections.map(c => c.id === col.id ? { ...c, isFavorite: !c.isFavorite } : c));
-                            }}
-                            className={`p-2 hover:bg-kards-panel-hover rounded transition-colors ${col.isFavorite ? 'text-kards-gold' : 'text-kards-text-muted'} pointer-events-auto`}
-                          >
-                            <Star className={`w-5 h-5 ${col.isFavorite ? 'fill-current' : ''}`} />
-                          </button>
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setCollectionToRename(col);
-                              setRenameCollectionName(col.name);
-                            }}
-                            className="p-2 hover:bg-kards-panel-hover text-kards-text-muted hover:text-kards-text rounded transition-colors pointer-events-auto"
-                          >
-                            <Edit2 className="w-5 h-5" />
-                          </button>
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setCollectionToDelete(col);
-                            }}
-                            className="p-2 hover:bg-red-500/20 text-kards-text-muted hover:text-red-500 rounded transition-colors pointer-events-auto"
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      <AnimatePresence>
-                        {expandedCollectionId === col.id && (
-                          <motion.div 
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            style={{ backgroundColor: `rgba(var(--rgb-panel-overlay-inv), ${settings.importBoxOpacity * 0.3})` }}
-                            className="transition-colors"
-                          >
-                            <div className="p-4 border-t border-kards-border space-y-2">
-                              {col.deckIds.length === 0 ? (
-                                <div className="text-center py-8 text-kards-text-muted italic text-sm">
-                                  合集为空，请添加卡组
-                                </div>
-                              ) : (
-                                <div className="space-y-1">
-                                  {col.deckIds.map((deckId, index) => {
-                                    const deck = decks.find(d => d.id === deckId);
-                                    if (!deck) return null;
-                                    return (
-                                      <motion.div 
-                                        layout
-                                        key={deck.id}
-                                        drag="y"
-                                        dragConstraints={{ top: 0, bottom: 0 }}
-                                        dragElastic={0.1}
-                                        onDragEnd={(_, info) => {
-                                          const threshold = 20;
-                                          if (Math.abs(info.offset.y) > threshold) {
-                                            const newIndex = info.offset.y > 0 ? index + 1 : index - 1;
-                                            if (newIndex >= 0 && newIndex < col.deckIds.length) {
-                                              const newIds = [...col.deckIds];
-                                              [newIds[index], newIds[newIndex]] = [newIds[newIndex], newIds[index]];
-                                              setCollections(collections.map(c => c.id === col.id ? { ...c, deckIds: newIds } : c));
-                                            }
-                                          }
-                                        }}
-                                        style={{ backgroundColor: `rgba(var(--rgb-panel-overlay-inv), ${settings.importBoxOpacity * 0.1})` }}
-                                        className="flex items-center justify-between p-3 hover:bg-kards-panel-hover transition-colors group/item cursor-move active:bg-kards-panel-border active:scale-[1.01] z-0 active:z-10 relative border-b border-kards-border"
-                                      >
-                                        <div className="flex items-center gap-4 flex-1 pointer-events-none">
-                                          <div className="flex flex-col gap-0.5">
-                                            <div className="flex items-center gap-1">
-                                              <img src={getFlagUrl(NATION_DATA[deck.mainNation].flag)} className="w-5 h-3.5 object-contain" alt="main" />
-                                              {deck.allyNation && <img src={getFlagUrl(NATION_DATA[deck.allyNation].flag)} className="w-4 h-3 object-contain opacity-70" alt="ally" />}
-                                            </div>
-                                          </div>
-                                          <div className="flex flex-col">
-                                            <span className="font-bold text-kards-text drop-shadow-sm">{deck.name}</span>
-                                            <span className="text-[10px] font-mono text-kards-text-muted drop-shadow-sm truncate max-w-[200px]">{deck.code}</span>
-                                          </div>
-                                        </div>
-                                        
-                                        <div className="flex items-center gap-2">
-                                          <div className="flex items-center gap-1 mr-4 opacity-0 group-hover/item:opacity-100 transition-opacity">
-                                            <div className="text-[10px] text-kards-text-muted uppercase font-bold tracking-widest hidden sm:block">拖动排序</div>
-                                          </div>
-                                          <button 
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleGetDeckImage(deck);
-                                            }}
-                                            className="p-2 text-kards-gold hover:text-kards-text transition-colors pointer-events-auto"
-                                            title="获取卡组图片"
-                                          >
-                                            <ImageIcon className="w-4 h-4" />
-                                          </button>
-                                          <button 
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setCollections(collections.map(c => c.id === col.id ? { ...c, deckIds: c.deckIds.filter(id => id !== deckId) } : c));
-                                            }}
-                                            className="p-2 text-kards-text-muted hover:text-red-500 transition-colors pointer-events-auto"
-                                            title="移出合集"
-                                          >
-                                            <X className="w-4 h-4" />
-                                          </button>
-                                        </div>
-                                      </motion.div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                              
-                              <button 
-                                onClick={() => setShowAddDeckToCollectionModal(col.id)}
-                                className="w-full py-3 mt-4 border border-dashed border-kards-border text-kards-text-muted hover:text-kards-gold hover:border-kards-gold transition-all text-sm font-bold flex items-center justify-center gap-2"
-                              >
-                                <Plus className="w-4 h-4" /> 添加卡组到此合集
-                              </button>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </motion.div>
-                  ))}
-                  
-                  {collections.length === 0 && (
-                    <div 
-                      style={{ 
-                        backgroundColor: `rgba(var(--rgb-panel-overlay), ${settings.importBoxOpacity})`,
-                        backdropFilter: `blur(${settings.importBoxOpacity * 10}px)`
-                      }}
-                      className="text-center py-24 military-border rounded-xl shadow-2xl relative overflow-hidden"
-                    >
-                      <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
-                      <Library className="w-16 h-16 text-kards-gold/30 mx-auto mb-6 relative z-10" />
-                      <p className="text-kards-text font-black tracking-[0.4em] text-2xl mb-3 relative z-10">暂无合集</p>
-                      <p className="text-kards-text-muted text-sm font-medium tracking-widest relative z-10">点击右上角按钮开始构筑您的卡组合集</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+            {activeMenu === 'decks' && settings.showDeckFolders && <DeckFolders
+              folders={collections}
+              decks={sortedDecks}
+              selectedDeckId={selectedDeckId}
+              onSelect={deck => setSelectedDeckId(deck.id)}
+              onEdit={deck => { const stored = decks.find(item => item.id === deck.id); if (stored) openDeckEditor(stored); }}
+              onCreate={() => { setNewCollectionName(''); setShowCreateCollectionModal(true); }}
+              onRename={folder => { const stored = collections.find(item => item.id === folder.id); if (stored) { setCollectionToRename(stored); setRenameCollectionName(stored.name); } }}
+              onDelete={folder => { const stored = collections.find(item => item.id === folder.id); if (stored) setCollectionToDelete(stored); }}
+              onAdd={folder => setShowAddDeckToCollectionModal(folder.id)}
+              onRemove={(folder, deck) => setCollections(current => current.map(item => item.id === folder.id ? { ...item, deckIds: item.deckIds.filter(id => id !== deck.id) } : item))}
+              onFavorite={folder => setCollections(current => current.map(item => item.id === folder.id ? { ...item, isFavorite: !item.isFavorite } : item))}
+            />}
           </div>
         </main>
 
@@ -1393,7 +1194,7 @@ export default function App() {
                   />
                 </div>
                 
-                <button onClick={() => { setBuilderDeck({ ...selectedDeck }); setActiveMenu('builder'); }} className="w-full bg-kards-text text-kards-bg font-bold py-3 uppercase tracking-widest text-sm hover:opacity-80 transition-colors flex items-center justify-center gap-2 rounded-md">
+                <button onClick={() => openDeckEditor(selectedDeck)} className="w-full bg-kards-text text-kards-bg font-bold py-3 uppercase tracking-widest text-sm hover:opacity-80 transition-colors flex items-center justify-center gap-2 rounded-md">
                   <Settings className="w-4 h-4" /> 编辑卡组
                 </button>
               </div>
@@ -1989,13 +1790,13 @@ export default function App() {
                     const col = collections.find(c => c.id === showAddDeckToCollectionModal);
                     return col && !col.deckIds.includes(d.id);
                   }).map(deck => (
-                    <div 
+                    <button type="button"
                       key={deck.id}
                       onClick={() => {
                         setCollections(collections.map(c => c.id === showAddDeckToCollectionModal ? { ...c, deckIds: [...c.deckIds, deck.id] } : c));
                         setShowAddDeckToCollectionModal(null);
                       }}
-                      className="flex items-center gap-4 p-4 bg-kards-panel hover:bg-kards-panel-hover transition-colors cursor-pointer group"
+                      className="flex w-full items-center gap-4 p-4 text-left bg-kards-panel hover:bg-kards-panel-hover transition-colors cursor-pointer group"
                     >
                       <div className="flex items-center gap-1">
                         <img src={getFlagUrl(NATION_DATA[deck.mainNation].flag)} className="w-6 h-4 object-contain" alt="main" />
@@ -2005,7 +1806,7 @@ export default function App() {
                         <span className="font-bold text-kards-text group-hover:text-kards-gold transition-colors">{deck.name}</span>
                         <span className="text-xs font-mono text-kards-text-muted">{deck.code}</span>
                       </div>
-                    </div>
+                    </button>
                   ))
                 )}
               </div>
@@ -2192,7 +1993,7 @@ export default function App() {
                 backdropFilter: `blur(${settings.importBoxOpacity * 10}px)`
               }}
             >
-              <h3 className="text-xl font-bold mb-4 text-kards-text tracking-widest">创建新合集</h3>
+              <h3 className="text-xl font-bold mb-4 text-kards-text tracking-widest">创建新收藏夹</h3>
               <input
                 type="text"
                 autoFocus
@@ -2211,7 +2012,7 @@ export default function App() {
                     setShowCreateCollectionModal(false);
                   }
                 }}
-                placeholder="请输入合集名称..."
+                placeholder="请输入收藏夹名称..."
                 className="w-full bg-kards-bg border border-kards-border text-kards-text p-3 mb-6 focus:outline-none focus:border-kards-gold"
               />
               <div className="flex gap-4">
@@ -2264,9 +2065,9 @@ export default function App() {
               className="glass-panel relative w-full max-w-sm bg-kards-gray-alt border-t-4 border-red-600 p-6 shadow-2xl flex flex-col items-center"
             >
               <Trash2 className="w-12 h-12 text-red-500 mb-4" />
-              <h3 className="text-lg font-bold mb-2 text-center text-kards-text">删除合集</h3>
+              <h3 className="text-lg font-bold mb-2 text-center text-kards-text">删除收藏夹</h3>
               <p className="text-kards-text-muted text-center mb-6 text-sm">
-                确定要删除合集 <span className="text-kards-text font-bold">"{collectionToDelete.name}"</span> 吗？此操作无法撤销。
+                确定要删除收藏夹 <span className="text-kards-text font-bold">"{collectionToDelete.name}"</span> 吗？卡组会保留，仅移除此收藏夹。
               </p>
               <div className="flex w-full gap-4">
                 <button 
@@ -2308,7 +2109,7 @@ export default function App() {
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               className="glass-panel relative w-full max-w-md bg-kards-gray military-border p-6 shadow-2xl flex flex-col"
             >
-              <h3 className="text-xl font-bold mb-4 text-kards-text tracking-widest">重命名合集</h3>
+              <h3 className="text-xl font-bold mb-4 text-kards-text tracking-widest">重命名收藏夹</h3>
               <input
                 type="text"
                 autoFocus
@@ -2323,7 +2124,7 @@ export default function App() {
                     setCollectionToRename(null);
                   }
                 }}
-                placeholder="请输入新的合集名称..."
+                placeholder="请输入新的收藏夹名称..."
                 className="w-full bg-kards-bg border border-kards-border text-kards-text p-3 mb-6 focus:outline-none focus:border-kards-gold"
               />
               <div className="flex gap-4">

@@ -32,13 +32,15 @@ React 19 + TypeScript + Vite + Tailwind CSS 4，Electron 桌面壳。保留 Deck
 ## 本地数据边界
 
 - `public/data/cards-v54.json`：只读首发文字快照；历史卡图版本不改变这份资料。
-- `kards_decks` / `kards_collections`：用户卡组及合集；新增 `notes`、规则集和自定义规则字段，兼容旧卡组。
+- `kards_decks` / `kards_collections`：用户卡组及收藏夹；保留旧合集的存储键和字段，界面改为列表内可展开分组。新增 `notes`、规则集和自定义规则字段，兼容旧卡组。
 - `kards_builder_draft`：当前构筑会话，自动保存，纳入用户备份。
 - `kards_settings`、`kards_custom_categories`、桌布键：继承的用户设置和图片。
 - `kards_card_image_v1_{version}_{language}_{importId}`：独立卡图缓存，不纳入用户备份。
 - `deck_img_local_v1_{code}`：本地卡组图片缓存，纳入备份。每次生成重新读取现有卡图，避免永远停留在缺图状态。
 
-用户备份格式仍采用 schemaVersion 1，接受原 `kards-deck-collector` 标记，新备份使用 `kards-local-tool`。卡牌库和普通卡图缓存不能由用户备份覆盖。
+用户备份格式仍采用 schemaVersion 1，接受原 `kards-deck-collector` 和 `kards-local-tool` 标记，新备份使用 `kards-toolbox`。卡牌库和普通卡图缓存不能由用户备份覆盖。
+
+应用对外名称为 KARDS Toolbox（KARDS 工具箱）；安装应用 ID 保持不变。默认用户目录使用新名称，但若旧中文/英文/包名目录已存有 IndexedDB 且新目录没有数据，会继续使用旧目录；显式 `--user-data-dir` 不受此兼容处理影响。
 
 ## 规则与卡组码
 

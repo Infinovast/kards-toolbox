@@ -104,7 +104,7 @@ export default function DeckBuilder({ cards, initialDeck, onSave, active = true 
   const importCode = () => {
     try {
       const decoded = decodeDeckCode(importText);
-      setMainNation(decoded.mainNation); setAllyNation(decoded.allyNation); setEntries(decoded.counts); setDeckId(undefined);
+      setMainNation(decoded.mainNation); setAllyNation(decoded.allyNation); setEntries(decoded.counts);
       const title = inferDeckTitleFromText(importText, extractDeckCodeFromText(importText));
       setDeckName(title || '导入的卡组');
       const unknown = [...decoded.counts.keys()].filter((id) => !cardsById.has(id));
@@ -132,7 +132,6 @@ export default function DeckBuilder({ cards, initialDeck, onSave, active = true 
         <select aria-label="主国" value={mainNation} onChange={(e) => setMainNation(e.target.value)} className={inputClass}>{CARD_FACTIONS.slice(0, 10).map((item) => <option key={item.id} value={item.id}>{item.label}主国</option>)}</select>
         <select aria-label="盟国" value={allyNation} onChange={(e) => setAllyNation(e.target.value)} className={inputClass}>{CARD_FACTIONS.slice(0, 10).map((item) => <option key={item.id} value={item.id}>{item.label}盟国</option>)}</select>
         <select aria-label="构筑规则" value={ruleSet} onChange={(e) => setRuleSet(e.target.value as DeckRuleSet)} className={inputClass}><option value="standard">标准构筑</option><option value="arena">竞技场</option><option value="custom">自定义规则</option></select>
-        <button onClick={() => { setEntries(new Map()); setDeckId(undefined); setDeckName('新卡组'); setMessage('已开始新卡组'); }} className="ml-auto px-2 py-2 text-sm text-kards-text-muted hover:text-kards-text">新建卡组</button>
         {ruleSet === 'custom' && <div className="flex w-full flex-wrap gap-3">
           {numericRules.map(([key, label]) => <label key={key} className="flex items-center gap-1 text-xs text-kards-text-muted">{label}<input type="number" min="1" max="999" value={customRules[key]} onChange={(e) => setCustomRules({ ...customRules, [key]: Math.max(1, Math.min(999, Number(e.target.value) || 1)) })} className={`${inputClass} w-16 !px-2 !py-1`} /></label>)}
           <label className="text-xs text-kards-text"><input type="checkbox" checked={customRules.allowReserved} onChange={(e) => setCustomRules({ ...customRules, allowReserved: e.target.checked })} /> 允许预备卡</label>
@@ -145,7 +144,7 @@ export default function DeckBuilder({ cards, initialDeck, onSave, active = true 
       </div>
       <div className="flex items-start gap-2"><textarea rows={1} aria-label="导入卡组码" onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && (e.ctrlKey || e.metaKey)) { e.preventDefault(); importCode(); } else if (e.key === 'Escape') { setImportText(''); e.stopPropagation(); } }} title="Ctrl+Enter 导入；Esc 清空" value={importText} onChange={(e) => setImportText(e.target.value)} placeholder="粘贴 %% 卡组码或完整分享文本" className={`${inputClass} max-h-32 min-w-0 flex-1 resize-y`} /><button onClick={importCode} className="flex items-center gap-1 rounded border border-kards-border px-3 py-2 text-sm text-kards-text hover:border-kards-gold"><Upload className="h-4 w-4" />导入</button></div>
       <p className="text-xs text-kards-text-muted">找到 {matchingCards.length} 张</p>
-      <div data-testid="builder-grid" className="card-gallery card-gallery-builder min-h-0 flex-1 overflow-y-auto pb-2">
+      <div data-testid="builder-grid" className="card-gallery card-gallery-builder custom-scrollbar min-h-0 flex-1 overflow-y-auto pb-2">
         {matchingCards.slice((page - 1) * 60, page * 60).map((card) => <div key={card.importId} className="card-tile">
           <button onClick={() => adjustCard(card.importId, 1)} onContextMenu={e => { e.preventDefault(); adjustCard(card.importId, -1); }} aria-label={`添加${cardTitle(card, 'zh-Hans')}`} title="单击加一张，右键减一张" className="group block w-full text-left">
             <CardFace card={card} enabled={active} />
@@ -161,16 +160,16 @@ export default function DeckBuilder({ cards, initialDeck, onSave, active = true 
       <div className="flex items-center justify-between"><h2 className="font-bold text-kards-text">{deckId ? '编辑卡组' : '当前卡组'}</h2><span className="text-lg font-bold tabular-nums text-kards-status">{totalCards} / {rules.deckSize}</span></div>
       <p className="text-xs text-kards-text-muted">可用牌张数，另含 1 张总部 · 草稿自动保存</p>
       <input value={deckName} onChange={(e) => setDeckName(e.target.value)} className={inputClass} aria-label="卡组名称" onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && entries.size) { e.preventDefault(); saveDeck(); } }} />
-      <div className="min-h-16 flex-1 space-y-1 overflow-y-auto">
+      <div className="custom-scrollbar min-h-16 flex-1 space-y-1 overflow-y-auto">
         {[...entries].map(([id, count]) => {
           const card = cardsById.get(id), title = card ? cardTitle(card, 'zh-Hans') : `未知卡牌 ${id}`;
           return <div key={id} className="flex items-center gap-2 border-b border-kards-border py-2 text-sm"><span className="min-w-0 flex-1 truncate text-kards-text" title={title}>{title}</span><button onClick={() => adjustCard(id, -1)} aria-label={`减少${title}`} className="rounded border border-kards-border p-1 text-kards-text"><Minus className="h-3 w-3" /></button><span className="w-6 text-center tabular-nums text-kards-text">{count}</span><button onClick={() => adjustCard(id, 1)} aria-label={`增加${title}`} className="rounded border border-kards-border p-1 text-kards-text"><Plus className="h-3 w-3" /></button></div>;
         })}
         {!entries.size && <p className="py-10 text-center text-sm text-kards-text-muted">从左侧选择卡牌开始构筑</p>}
       </div>
-      {warnings.length > 0 && <div className="max-h-28 shrink-0 overflow-y-auto rounded bg-kards-input-bg p-2 text-xs text-kards-text-muted"><div className="mb-1 font-bold text-kards-status">规则提示 · 允许保存与导出</div>{warnings.map((warning) => <p key={warning}>{warning}</p>)}</div>}
-      {message && <p role="status" className="max-h-16 shrink-0 overflow-y-auto text-xs text-kards-text-muted">{message}</p>}
-      <div className="grid shrink-0 grid-cols-2 gap-2"><button onClick={copyCode} disabled={!entries.size} className="flex items-center justify-center gap-2 rounded border border-kards-border px-2 py-2 text-sm text-kards-text disabled:opacity-40"><Copy className="h-4 w-4" />复制代码</button><button onClick={saveDeck} disabled={!entries.size} className="flex items-center justify-center gap-2 rounded bg-kards-accent px-2 py-2 text-sm font-bold text-white disabled:opacity-40"><Save className="h-4 w-4" />保存卡组</button><button onClick={exportImage} disabled={!entries.size || rendering} className="col-span-2 flex items-center justify-center gap-2 rounded border border-kards-border py-2 text-sm text-kards-text disabled:opacity-40"><ImageDown className="h-4 w-4" />{rendering ? '正在本地生成…' : '导出卡组图片'}</button></div>
+      {warnings.length > 0 && <div className="custom-scrollbar max-h-28 shrink-0 overflow-y-auto rounded bg-kards-input-bg p-2 text-xs text-kards-text-muted"><div className="mb-1 font-bold text-kards-status">规则提示 · 允许保存与导出</div>{warnings.map((warning) => <p key={warning}>{warning}</p>)}</div>}
+      {message && <p role="status" className="custom-scrollbar max-h-16 shrink-0 overflow-y-auto text-xs text-kards-text-muted">{message}</p>}
+      <div className="grid shrink-0 grid-cols-2 gap-2"><button onClick={copyCode} disabled={!entries.size} className="flex items-center justify-center gap-2 rounded border border-kards-border px-2 py-2 text-sm text-kards-text disabled:opacity-40"><Copy className="h-4 w-4" />复制代码</button><button onClick={saveDeck} disabled={!entries.size} className="flex items-center justify-center gap-2 rounded bg-kards-accent px-2 py-2 text-sm font-bold text-white disabled:opacity-40"><Save className="h-4 w-4" />保存更改</button><button onClick={exportImage} disabled={!entries.size || rendering} className="col-span-2 flex items-center justify-center gap-2 rounded border border-kards-border py-2 text-sm text-kards-text disabled:opacity-40"><ImageDown className="h-4 w-4" />{rendering ? '正在本地生成…' : '导出卡组图片'}</button></div>
     </aside>
   </div>;
 }

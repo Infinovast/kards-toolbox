@@ -1,5 +1,5 @@
 ---
-name: KARDS Local Arsenal
+name: KARDS Toolbox
 description: 记录 Deck Collector 延伸界面中实际使用的视觉系统
 colors:
   accent: "#8b201a"
@@ -51,7 +51,7 @@ components:
     padding: "8px 12px"
 ---
 
-# Design System: KARDS Local Arsenal
+# Design System: KARDS Toolbox
 
 ## Overview
 
@@ -71,7 +71,7 @@ components:
 
 ## Layout
 
-固定侧栏连接资料库、构筑和管理模块。工作区自行滚动，外层页面不滚动。最低桌面窗口为 980×640；资料库详情栏为 260px，宽屏为 300px；构筑侧栏为 300px，宽屏为 340px。宽屏断点为 1280px。
+固定侧栏仅连接“卡组”和“卡牌”；构筑作为卡组编辑子页面，保存后返回列表。收藏夹通过列表内默认关闭的开关显示为可折叠分组。工作区自行滚动，外层页面不滚动。最低桌面窗口为 980×640；资料库详情栏为 260px，宽屏为 300px；构筑侧栏为 300px，宽屏为 340px。宽屏断点为 1280px。
 
 资料库网格在可用宽度增加时显示更多列。主操作保持在构筑侧栏底部，卡牌清单独立滚动。管理备注固定三行，长内容在文本框内滚动，避免挤出编辑入口。
 
