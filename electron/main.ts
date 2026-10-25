@@ -1,9 +1,10 @@
-import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, protocol } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, net, protocol } from 'electron';
 import fs from 'fs/promises';
 import { mkdirSync } from 'fs';
 import path from 'path';
 import { renderKardsmanDeck } from './deckRenderer';
 import { resolveUserDataPath } from './userDataPath';
+import { fetchOfficialCardPage } from '../src/lib/cardData';
 import type { DeckRenderRequest } from '../src/lib/deckRenderTypes';
 
 protocol.registerSchemesAsPrivileged([
@@ -119,6 +120,7 @@ function registerAppProtocol() {
 }
 
 function registerIpcHandlers() {
+  ipcMain.handle('cards:fetch-page', (_event, offset: number) => fetchOfficialCardPage(offset, net.fetch as typeof fetch));
   ipcMain.handle('app:get-info', () => ({
     name: appName,
     version: app.getVersion(),

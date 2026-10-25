@@ -22,7 +22,7 @@ with sync_playwright() as p:
     page.wait_for_load_state("networkidle")
     expect(page).to_have_title("KARDS 工具箱")
     nav = page.get_by_role("complementary", name="主导航")
-    expect(nav.get_by_role("button")).to_have_count(2)
+    expect(nav.get_by_role("button")).to_have_count(4)
     expect(nav.get_by_role("button", name="卡组", exact=True)).to_be_visible()
     expect(nav.get_by_role("button", name="卡牌", exact=True)).to_be_visible()
     toggle = page.get_by_role("switch", name="收藏夹显示")
@@ -92,7 +92,7 @@ with sync_playwright() as p:
     page.get_by_role("button", name="关于", exact=True).click()
     expect(page.get_by_role("heading", name="KARDS Toolbox", exact=True)).to_be_visible()
     expect(page.get_by_text("KARDS 工具箱", exact=True)).to_be_visible()
-    expect(page.get_by_text("版本 0.2.1", exact=False)).to_be_visible()
+    expect(page.get_by_text("版本 0.3.0", exact=False)).to_be_visible()
     page.wait_for_timeout(350)  # allow the existing navigation/selection animation to settle
     page.screenshot(path=str(OUT / "about-desktop.png"))
     page.get_by_role("button", name="返回", exact=True).click()
@@ -106,7 +106,7 @@ with sync_playwright() as p:
     # Minimum desktop size keeps top actions and editor save button reachable.
     page.set_viewport_size({"width": 980, "height": 640})
     page.get_by_role("button", name="卡组", exact=True).click()
-    for name in ["切换桌布", "关于", "应用设置"]:
+    for name in ["桌布", "关于", "设置"]:
         box = page.get_by_role("button", name=name, exact=True).bounding_box()
         assert box["x"] + box["width"] <= 980, (name, box)
     page.wait_for_timeout(350)  # allow the existing navigation/selection animation to settle
@@ -125,9 +125,9 @@ with sync_playwright() as p:
     page.screenshot(path=str(OUT / "folders-min.png"))
     assert page.evaluate("document.documentElement.scrollWidth") == 980
     page.get_by_role("button", name="关于", exact=True).click()
-    page.get_by_role("button", name="应用设置", exact=True).click()
-    page.get_by_role("dialog").get_by_role("combobox").first.select_option("light")
-    page.get_by_role("button", name="保存并关闭", exact=True).click()
+    page.get_by_role("button", name="设置", exact=True).click()
+    page.get_by_test_id("settings-page").get_by_label("显示模式",exact=True).select_option("light")
+    page.get_by_role("button", name="保存并返回", exact=True).click()
     expect(page.get_by_alt_text("KARDS Logo", exact=True)).to_have_attribute("src", "/assets/kards_logos/Common/KardsLogoBlack.png")
     page.wait_for_timeout(350)
     page.screenshot(path=str(OUT / "about-light-min.png"))

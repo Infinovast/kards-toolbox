@@ -152,7 +152,7 @@ with sync_playwright() as p:
     saved_deck.press("Enter")
     expect(saved_deck).to_have_attribute("aria-pressed", "true")
     expect(page.get_by_label("管理卡组名称", exact=True)).to_have_value("Smoke edited")
-    page.get_by_role("button", name="应用设置", exact=True).click()
+    page.get_by_role("button", name="设置", exact=True).click()
     with page.expect_download() as download:
         page.get_by_role("button", name="导出备份", exact=True).click()
     backup_path = OUT / "backup.json"
@@ -162,7 +162,7 @@ with sync_playwright() as p:
     assert any(key.startswith("deck_img_local_v1_") for key in backup["data"])
     assert not any(key.startswith("kards_card_image_") for key in backup["data"])
     assert backup["data"]["kards_decks"][0]["notes"].startswith("离线测试备注")
-    page.get_by_role("button", name="保存并关闭", exact=True).click()
+    page.get_by_role("button", name="保存并返回", exact=True).click()
     page.get_by_role("button", name="编辑卡组", exact=True).click()
     page.get_by_label("导入卡组码", exact=True).fill("%%12|ZZ;;;")
     page.get_by_role("button", name="导入", exact=True).click()
@@ -178,12 +178,12 @@ with sync_playwright() as p:
     expect(page.get_by_label("卡组名称", exact=True)).to_have_value("Smoke edited")
 
     # UI restore must also replace an already-mounted builder's draft.
-    page.get_by_role("button", name="应用设置", exact=True).click()
+    page.get_by_role("button", name="设置", exact=True).click()
     with page.expect_file_chooser() as chooser:
         page.get_by_role("button", name="导入备份", exact=True).click()
     chooser.value.set_files(backup_path)
     expect(page.get_by_text("备份已导入，卡组、设置和构筑草稿已恢复。", exact=True)).to_be_visible()
-    page.get_by_role("button", name="保存并关闭", exact=True).click()
+    page.get_by_role("button", name="保存并返回", exact=True).click()
     expect(page.get_by_label("管理卡组名称", exact=True)).to_have_value("Smoke edited")
     expect(page.get_by_test_id("builder-grid")).to_have_count(0)
     assert not errors, errors

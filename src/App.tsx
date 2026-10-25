@@ -43,6 +43,7 @@ import CardLibrary from './components/CardLibrary';
 import DeckBuilder, { type BuilderDeck } from './components/DeckBuilder';
 import DeckFolders from './components/DeckFolders';
 import AboutPage from './components/AboutPage';
+import CardDataUpdater from './components/CardDataUpdater';
 import { cardTitle, loadCardDatabase, type KardsCardRecord } from './types/card';
 
 // --- Types ---
@@ -242,7 +243,6 @@ export default function App() {
   const [decks, setDecks] = useState<Deck[]>(INITIAL_DECKS);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [cardDatabase, setCardDatabase] = useState<KardsCardRecord[]>([]);
   const [cardDatabaseLoading, setCardDatabaseLoading] = useState(true);
   const [cardDatabaseError, setCardDatabaseError] = useState<string | null>(null);
@@ -269,8 +269,11 @@ export default function App() {
   const [clipboardDeckCandidate, setClipboardDeckCandidate] = useState<ClipboardDeckCandidate | null>(null);
   const lastClipboardPromptRef = useRef<string | null>(null);
   const [backupStatus, setBackupStatus] = useState<string | null>(null);
-  const [activeMenu, setActiveMenu] = useState<'decks' | 'cards' | 'builder' | 'about'>('decks');
-  const [aboutReturnMenu, setAboutReturnMenu] = useState<'decks' | 'cards' | 'builder'>('decks');
+  const [activeMenu, setActiveMenu] = useState<'decks' | 'cards' | 'builder' | 'about' | 'settings'>('decks');
+  const [aboutReturnMenu, setAboutReturnMenu] = useState<'decks' | 'cards' | 'builder' | 'settings'>('decks');
+  const [settingsReturnMenu, setSettingsReturnMenu] = useState<'decks' | 'cards' | 'builder' | 'about'>('decks');
+  const settingsPageRef = useRef<HTMLElement>(null);
+  useEffect(() => { if (activeMenu === 'settings') settingsPageRef.current?.focus(); }, [activeMenu]);
   const [builderDeck, setBuilderDeck] = useState<BuilderDeck | null>(null);
   const [builderRevision, setBuilderRevision] = useState(0);
   const [errorStatus, setErrorStatus] = useState<string | null>(null);
@@ -532,7 +535,8 @@ export default function App() {
     setSelectedDeckId((loadedDecks || [])[0]?.id || null);
     setBuilderDeck(null);
     setBuilderRevision((revision) => revision + 1);
-    setActiveMenu('decks');
+    setSettingsReturnMenu('decks');
+    setActiveMenu(current => current === 'settings' ? current : 'decks');
   };
 
   const handleExportBackup = async () => {
@@ -870,11 +874,228 @@ export default function App() {
   // Sort: favorites first
   const sortedDecks = filteredDecks.sort((a, b) => (b.isFavorite ? 1 : 0) - (a.isFavorite ? 1 : 0));
 
+  useEffect(() => {
+    if (!dataLoaded || !cardDatabase.length) return;
+    const cardsById = findCardsByImportId(cardDatabase);
+    setDecks(current => current.map(deck => {
+      try {
+        const ruleSet = deck.ruleSet || (deck.isArena ? 'arena' : 'standard');
+        const rules = ruleSet === 'custom' ? { ...DEFAULT_DECK_RULES.standard, ...deck.customRules } : DEFAULT_DECK_RULES[ruleSet];
+        const warnings = validateDeck(decodeDeckCode(deck.code).counts, cardsById, deck.mainNation, deck.allyNation, rules);
+        return JSON.stringify(warnings) === JSON.stringify(deck.warnings) ? deck : { ...deck, warnings };
+      } catch { return deck; }
+    }));
+  }, [cardDatabase, dataLoaded]);
+
+  const closeSettings = () => {
+    setActiveMenu(settingsReturnMenu);
+    requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('[aria-label="应用工具"] button:last-child')?.focus());
+  };
+
   const openDeckEditor = (deck: Deck) => {
     setBuilderDeck({ ...deck });
     setBuilderRevision(revision => revision + 1);
     setActiveMenu('builder');
   };
+
+  const settingsPage = <section ref={settingsPageRef} tabIndex={-1} onKeyDown={event => {
+    if (event.key === 'Escape' && !event.nativeEvent.isComposing && !event.defaultPrevented && !document.querySelector('[role="dialog"][aria-modal="true"]')) { event.preventDefault(); closeSettings(); }
+  }} aria-label="应用设置" data-testid="settings-page" className="w-full p-5 outline-none md:p-8">
+    <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+      <div><h2 className="text-2xl font-bold text-kards-text">设置</h2><p className="mt-2 text-sm text-kards-text-muted">管理卡牌数据、界面外观与本地备份。外观设置自动保存。</p></div>
+      <button onClick={closeSettings} className="rounded bg-kards-accent px-5 py-2 font-bold text-white">保存并返回</button>
+    </div>
+    <CardDataUpdater cards={cardDatabase} onApplied={cards => { setCardDatabase(cards); setCardDatabaseError(null); }} />
+    <section className="glass-panel rounded-lg p-5 md:p-6">
+      <h3 className="mb-6 text-lg font-bold text-kards-text">外观与本地数据</h3>
+      <div className="grid grid-cols-1 gap-x-12 gap-y-8 lg:grid-cols-2">
+                {/* Display Mode */}
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold text-kards-text tracking-wider">显示模式</span>
+                    <span className="text-[10px] text-kards-text-muted uppercase tracking-tighter">切换应用视觉主题</span>
+                  </div>
+                  <select
+                    aria-label="显示模式"
+                    value={settings.displayMode}
+                    onChange={(e) => setSettings(s => ({ ...s, displayMode: e.target.value as 'dark' | 'light' | 'system' }))}
+                    className="bg-kards-input-bg border border-kards-input-border text-kards-text text-sm px-3 py-1.5 focus:outline-none focus:border-kards-gold rounded transition-colors"
+                  >
+                    <option value="system">跟随系统</option>
+                    <option value="dark">深色模式</option>
+                    <option value="light">浅色模式</option>
+                  </select>
+                </div>
+
+                {/* Light Theme Color Picker (Only show if not dark) */}
+                {(!effectiveIsDarkMode) && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-kards-text tracking-wider">浅色主题色</span>
+                      <span className="text-[10px] text-kards-text-muted uppercase tracking-tighter">自定义背景色阶</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setSettings(s => ({ ...s, lightThemeColor: '#dcd7c9' }))}
+                        className="text-[10px] uppercase tracking-wider text-kards-text-muted hover:text-kards-text border border-kards-border px-2 py-1 rounded"
+                      >
+                        重置
+                      </button>
+                      <input
+                        type="color"
+                        value={settings.lightThemeColor || '#dcd7c9'}
+                        onChange={(e) => setSettings(s => ({ ...s, lightThemeColor: e.target.value }))}
+                        className="w-10 h-8 p-0 border-0 bg-transparent cursor-pointer rounded overflow-hidden shadow-sm"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Border Radius */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-kards-text tracking-wider">圆角程度</span>
+                    <span className="text-xs font-mono text-kards-gold">{settings.borderRadius}px</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="24"
+                    step="1"
+                    value={settings.borderRadius ?? DEFAULT_SETTINGS.borderRadius}
+                    onChange={e => setSettings(s => ({ ...s, borderRadius: parseInt(e.target.value) }))}
+                    className="w-full accent-kards-gold h-1.5 bg-kards-panel-alt rounded-lg appearance-none cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[10px] text-kards-text-muted font-bold uppercase tracking-widest">
+                    <span>Brutalist</span>
+                    <span>Modern</span>
+                  </div>
+                </div>
+
+                {/* Import Box Opacity */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-kards-text tracking-wider">UI组件透明度</span>
+                    <span className="text-xs font-mono text-kards-gold">{Math.round(settings.importBoxOpacity * 100)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={settings.importBoxOpacity ?? DEFAULT_SETTINGS.importBoxOpacity}
+                    onChange={e => setSettings(s => ({ ...s, importBoxOpacity: parseFloat(e.target.value) }))}
+                    className="w-full accent-kards-gold h-1.5 bg-kards-panel-alt rounded-lg appearance-none cursor-pointer"
+                  />
+                </div>
+
+                {/* UI Scale */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-kards-text tracking-wider">UI组件大小</span>
+                    <span className="text-xs font-mono text-kards-gold">{Math.round(settings.uiScale * 100)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="1.5"
+                    step="0.05"
+                    value={settings.uiScale ?? DEFAULT_SETTINGS.uiScale}
+                    onChange={e => setSettings(s => ({ ...s, uiScale: parseFloat(e.target.value) }))}
+                    className="w-full accent-kards-gold h-1.5 bg-kards-panel-alt rounded-lg appearance-none cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[10px] text-kards-text-muted font-bold uppercase tracking-widest">
+                    <span>精致</span>
+                    <span>巨大</span>
+                  </div>
+                </div>
+
+                {/* Deck Gap */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-kards-text tracking-wider">卡组间距</span>
+                    <span className="text-xs font-mono text-kards-gold">{settings.deckGap}rem</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="4"
+                    step="0.1"
+                    value={settings.deckGap ?? DEFAULT_SETTINGS.deckGap}
+                    onChange={e => setSettings(s => ({ ...s, deckGap: parseFloat(e.target.value) }))}
+                    className="w-full accent-kards-gold h-1.5 bg-kards-panel-alt rounded-lg appearance-none cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[10px] text-kards-text-muted font-bold uppercase tracking-widest">
+                    <span>紧凑</span>
+                    <span>宽松</span>
+                  </div>
+                </div>
+
+                {/* Logo Size */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-kards-text tracking-wider">背景Logo大小</span>
+                    <span className="text-xs font-mono text-kards-gold">{settings.logoSize}px</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="200"
+                    max="800"
+                    step="10"
+                    value={settings.logoSize ?? DEFAULT_SETTINGS.logoSize}
+                    onChange={e => setSettings(s => ({ ...s, logoSize: parseInt(e.target.value) }))}
+                    className="w-full accent-kards-gold h-1.5 bg-kards-panel-alt rounded-lg appearance-none cursor-pointer"
+                  />
+                </div>
+
+                {/* Logo Opacity */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-kards-text tracking-wider">背景Logo透明度</span>
+                    <span className="text-xs font-mono text-kards-gold">{Math.round(settings.logoOpacity * 100)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={settings.logoOpacity ?? DEFAULT_SETTINGS.logoOpacity}
+                    onChange={e => setSettings(s => ({ ...s, logoOpacity: parseFloat(e.target.value) }))}
+                    className="w-full accent-kards-gold h-1.5 bg-kards-panel-alt rounded-lg appearance-none cursor-pointer"
+                  />
+                </div>
+
+                <div className="space-y-3 pt-2 border-t border-kards-border">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-sm font-bold text-kards-text tracking-wider">数据备份</span>
+                    <span className="text-[10px] text-kards-text-muted uppercase tracking-tighter">导出或导入桌面版数据</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={handleExportBackup}
+                      className="bg-kards-panel border border-kards-border text-kards-text text-xs font-bold tracking-widest py-2 hover:border-kards-gold hover:text-kards-gold transition-colors"
+                    >
+                      导出备份
+                    </button>
+                    <button
+                      onClick={handleImportBackup}
+                      className="bg-kards-panel border border-kards-border text-kards-text text-xs font-bold tracking-widest py-2 hover:border-kards-gold hover:text-kards-gold transition-colors"
+                    >
+                      导入备份
+                    </button>
+                  </div>
+                  {backupStatus && (
+                    <p className="text-[11px] text-kards-text-muted break-all">{backupStatus}</p>
+                  )}
+                </div>
+
+                <p className="border-t border-kards-border pt-4 text-xs leading-relaxed text-kards-text-muted">卡组图片完全在本机生成。已缓存的卡图离线可用，未缓存的卡图使用文字占位。牌库同步不会在后台自动执行。</p>
+      </div>
+      <div className="mt-6 border-t border-kards-border pt-4">
+        <button onClick={() => setSettings(DEFAULT_SETTINGS)} className="rounded border border-kards-border px-4 py-2 text-sm text-kards-text hover:border-kards-gold">重置外观默认值</button>
+      </div>
+    </section>
+  </section>;
 
   return (
     <div className="flex flex-col h-screen military-noise relative">
@@ -892,7 +1113,7 @@ export default function App() {
           </div>
           <nav className="flex items-center gap-6">
             <h1 className="text-kards-text font-bold border-l border-kards-border pl-6 cursor-default tracking-widest">
-              {activeMenu === 'cards' ? '卡牌' : activeMenu === 'builder' ? '卡组构筑' : activeMenu === 'about' ? '关于' : '卡组'}
+              {activeMenu === 'cards' ? '卡牌' : activeMenu === 'builder' ? '卡组构筑' : activeMenu === 'about' ? '关于' : activeMenu === 'settings' ? '设置' : '卡组'}
             </h1>
             <div className="flex items-center gap-3">
               {activeMenu === 'decks' && <>
@@ -935,26 +1156,13 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button 
-            onClick={() => setShowTableclothModal(true)}
-            className="p-2 hover:bg-kards-panel-hover transition-colors group relative"
-            title="切换桌布"
-          >
-            <Palette className="w-5 h-5 text-kards-text-muted group-hover:text-kards-gold" />
-          </button>
           <button onClick={() => {
             if (activeMenu !== 'about') setAboutReturnMenu(activeMenu);
             setActiveMenu('about');
           }} aria-label="关于" title="关于 KARDS Toolbox" className="p-2 hover:bg-kards-panel-hover transition-colors group">
             <Info className="w-5 h-5 text-kards-text-muted group-hover:text-kards-text" />
           </button>
-          <button 
-            onClick={() => setShowSettingsModal(true)}
-            className="p-2 hover:bg-kards-panel-hover transition-colors group"
-            title="应用设置"
-          >
-            <Settings className="w-5 h-5 text-kards-text-muted group-hover:text-kards-gold" />
-          </button>
+
         </div>
       </header>
 
@@ -965,6 +1173,10 @@ export default function App() {
         <aside aria-label="主导航" className="glass-panel w-24 shrink-0 flex flex-col gap-1 p-1 z-10 border-r border-kards-border transition-colors duration-300">
           <SidebarButton active={activeMenu === 'decks' || activeMenu === 'builder'} onClick={() => setActiveMenu('decks')} icon={<Library className="w-8 h-8" />} label="卡组" />
           <SidebarButton active={activeMenu === 'cards'} onClick={() => setActiveMenu('cards')} icon={<Library className="w-8 h-8" />} label="卡牌" />
+          <div aria-label="应用工具" className="mt-auto flex flex-col gap-1 border-t border-kards-border pt-1">
+            <SidebarButton active={showTableclothModal} onClick={() => setShowTableclothModal(true)} icon={<Palette className="w-6 h-6" />} label="桌布" />
+            <SidebarButton active={activeMenu === 'settings'} onClick={() => { if (activeMenu !== 'settings') setSettingsReturnMenu(activeMenu); setActiveMenu('settings'); }} icon={<Settings className="w-6 h-6" />} label="设置" />
+          </div>
         </aside>
 
         {/* Center Grid */}
@@ -1015,7 +1227,7 @@ export default function App() {
           </div>
 
           {/* Scrollable Content Container */}
-          <div className={`h-full w-full overflow-y-auto no-scrollbar relative z-10 flex flex-col items-center ${activeMenu === 'cards' || activeMenu === 'builder' ? '' : 'p-12'}`}>
+          <div className={`h-full w-full overflow-y-auto no-scrollbar relative z-10 flex flex-col items-center ${activeMenu === 'cards' || activeMenu === 'builder' || activeMenu === 'settings' ? '' : 'p-12'}`}>
             {activeMenu === 'cards' && (
               cardDatabaseLoading ? <div className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</div>
                 : cardDatabaseError ? <div className="max-w-xl rounded border border-red-500/40 bg-red-500/10 p-6 text-red-300">{cardDatabaseError}</div>
@@ -1024,6 +1236,7 @@ export default function App() {
             {activeMenu === 'builder' && cardDatabaseLoading && <p className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</p>}
             {activeMenu === 'builder' && cardDatabaseError && <p className="p-6 text-red-400">{cardDatabaseError}</p>}
             {!cardDatabaseLoading && !cardDatabaseError && builderDeck && <div className={`h-full w-full max-w-[1800px] shrink-0 ${activeMenu === 'builder' ? '' : 'hidden'}`}><DeckBuilder active={activeMenu === 'builder'} key={builderRevision} cards={cardDatabase} initialDeck={builderDeck} onSave={handleSaveBuiltDeck} /></div>}
+            {activeMenu === 'settings' && settingsPage}
             {activeMenu === 'about' && <AboutPage onBack={() => setActiveMenu(aboutReturnMenu)} />}
             {activeMenu === 'decks' && <div className="mb-6 flex w-full max-w-7xl flex-wrap items-center justify-between gap-3">
               <label className="flex cursor-pointer items-center gap-2 rounded glass-panel px-3 py-2 text-sm text-kards-text">
@@ -2207,241 +2420,7 @@ export default function App() {
           </div>
         )}
       </AnimatePresence>
-      {/* --- Settings Modal --- */}
-      <AnimatePresence>
-        {showSettingsModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              data-dialog-cancel onClick={() => setShowSettingsModal(false)}
-              className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-md"
-            />
-            <motion.div 
-              role="dialog" aria-modal="true" tabIndex={-1} onKeyDown={handleDialogKeys}
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="glass-panel relative w-full max-w-md military-border shadow-2xl flex flex-col transition-all max-h-[90vh] overflow-hidden"
-              style={{ 
-                backgroundColor: `rgba(var(--rgb-panel-overlay), ${settings.importBoxOpacity})`,
-                backdropFilter: `blur(${settings.importBoxOpacity * 10}px)`
-              }}
-            >
-              {/* Header - Fixed */}
-              <div className="flex items-center justify-between border-b border-kards-border p-8 pb-4">
-                <h3 className="text-xl font-bold tracking-[0.2em] text-kards-text flex items-center gap-3 decoration-kards-gold/50 underline-offset-8 underline">
-                  <Settings className="w-6 h-6 text-kards-gold" /> 全局设置
-                </h3>
-                <button data-dialog-cancel onClick={() => setShowSettingsModal(false)} className="text-kards-text-muted hover:text-kards-text transition-colors">
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
 
-              {/* Content - Scrollable */}
-              <div className="flex-1 overflow-y-auto p-8 py-6 space-y-8 custom-scrollbar">
-                {/* Display Mode */}
-                <div className="flex items-center justify-between">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-bold text-kards-text tracking-wider">显示模式</span>
-                    <span className="text-[10px] text-kards-text-muted uppercase tracking-tighter">切换应用视觉主题</span>
-                  </div>
-                  <select
-                    value={settings.displayMode}
-                    onChange={(e) => setSettings(s => ({ ...s, displayMode: e.target.value as 'dark' | 'light' | 'system' }))}
-                    className="bg-kards-input-bg border border-kards-input-border text-kards-text text-sm px-3 py-1.5 focus:outline-none focus:border-kards-gold rounded transition-colors"
-                  >
-                    <option value="system">跟随系统</option>
-                    <option value="dark">深色模式</option>
-                    <option value="light">浅色模式</option>
-                  </select>
-                </div>
-
-                {/* Light Theme Color Picker (Only show if not dark) */}
-                {(!effectiveIsDarkMode) && (
-                  <div className="flex items-center justify-between">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-kards-text tracking-wider">浅色主题色</span>
-                      <span className="text-[10px] text-kards-text-muted uppercase tracking-tighter">自定义背景色阶</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => setSettings(s => ({ ...s, lightThemeColor: '#dcd7c9' }))}
-                        className="text-[10px] uppercase tracking-wider text-kards-text-muted hover:text-kards-text border border-kards-border px-2 py-1 rounded"
-                      >
-                        重置
-                      </button>
-                      <input 
-                        type="color"
-                        value={settings.lightThemeColor || '#dcd7c9'}
-                        onChange={(e) => setSettings(s => ({ ...s, lightThemeColor: e.target.value }))}
-                        className="w-10 h-8 p-0 border-0 bg-transparent cursor-pointer rounded overflow-hidden shadow-sm"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Border Radius */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-kards-text tracking-wider">圆角程度</span>
-                    <span className="text-xs font-mono text-kards-gold">{settings.borderRadius}px</span>
-                  </div>
-                  <input 
-                    type="range"
-                    min="0"
-                    max="24"
-                    step="1"
-                    value={settings.borderRadius ?? DEFAULT_SETTINGS.borderRadius}
-                    onChange={e => setSettings(s => ({ ...s, borderRadius: parseInt(e.target.value) }))}
-                    className="w-full accent-kards-gold h-1.5 bg-kards-panel-alt rounded-lg appearance-none cursor-pointer"
-                  />
-                  <div className="flex justify-between text-[10px] text-kards-text-muted font-bold uppercase tracking-widest">
-                    <span>Brutalist</span>
-                    <span>Modern</span>
-                  </div>
-                </div>
-
-                {/* Import Box Opacity */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-kards-text tracking-wider">UI组件透明度</span>
-                    <span className="text-xs font-mono text-kards-gold">{Math.round(settings.importBoxOpacity * 100)}%</span>
-                  </div>
-                  <input 
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={settings.importBoxOpacity ?? DEFAULT_SETTINGS.importBoxOpacity}
-                    onChange={e => setSettings(s => ({ ...s, importBoxOpacity: parseFloat(e.target.value) }))}
-                    className="w-full accent-kards-gold h-1.5 bg-kards-panel-alt rounded-lg appearance-none cursor-pointer"
-                  />
-                </div>
-
-                {/* UI Scale */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-kards-text tracking-wider">UI组件大小</span>
-                    <span className="text-xs font-mono text-kards-gold">{Math.round(settings.uiScale * 100)}%</span>
-                  </div>
-                  <input 
-                    type="range"
-                    min="0.5"
-                    max="1.5"
-                    step="0.05"
-                    value={settings.uiScale ?? DEFAULT_SETTINGS.uiScale}
-                    onChange={e => setSettings(s => ({ ...s, uiScale: parseFloat(e.target.value) }))}
-                    className="w-full accent-kards-gold h-1.5 bg-kards-panel-alt rounded-lg appearance-none cursor-pointer"
-                  />
-                  <div className="flex justify-between text-[10px] text-kards-text-muted font-bold uppercase tracking-widest">
-                    <span>精致</span>
-                    <span>巨大</span>
-                  </div>
-                </div>
-
-                {/* Deck Gap */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-kards-text tracking-wider">卡组间距</span>
-                    <span className="text-xs font-mono text-kards-gold">{settings.deckGap}rem</span>
-                  </div>
-                  <input 
-                    type="range"
-                    min="0"
-                    max="4"
-                    step="0.1"
-                    value={settings.deckGap ?? DEFAULT_SETTINGS.deckGap}
-                    onChange={e => setSettings(s => ({ ...s, deckGap: parseFloat(e.target.value) }))}
-                    className="w-full accent-kards-gold h-1.5 bg-kards-panel-alt rounded-lg appearance-none cursor-pointer"
-                  />
-                  <div className="flex justify-between text-[10px] text-kards-text-muted font-bold uppercase tracking-widest">
-                    <span>紧凑</span>
-                    <span>宽松</span>
-                  </div>
-                </div>
-
-                {/* Logo Size */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-kards-text tracking-wider">背景Logo大小</span>
-                    <span className="text-xs font-mono text-kards-gold">{settings.logoSize}px</span>
-                  </div>
-                  <input 
-                    type="range"
-                    min="200"
-                    max="800"
-                    step="10"
-                    value={settings.logoSize ?? DEFAULT_SETTINGS.logoSize}
-                    onChange={e => setSettings(s => ({ ...s, logoSize: parseInt(e.target.value) }))}
-                    className="w-full accent-kards-gold h-1.5 bg-kards-panel-alt rounded-lg appearance-none cursor-pointer"
-                  />
-                </div>
-
-                {/* Logo Opacity */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-kards-text tracking-wider">背景Logo透明度</span>
-                    <span className="text-xs font-mono text-kards-gold">{Math.round(settings.logoOpacity * 100)}%</span>
-                  </div>
-                  <input 
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={settings.logoOpacity ?? DEFAULT_SETTINGS.logoOpacity}
-                    onChange={e => setSettings(s => ({ ...s, logoOpacity: parseFloat(e.target.value) }))}
-                    className="w-full accent-kards-gold h-1.5 bg-kards-panel-alt rounded-lg appearance-none cursor-pointer"
-                  />
-                </div>
-
-                <div className="space-y-3 pt-2 border-t border-kards-border">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-sm font-bold text-kards-text tracking-wider">数据备份</span>
-                    <span className="text-[10px] text-kards-text-muted uppercase tracking-tighter">导出或导入桌面版数据</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      onClick={handleExportBackup}
-                      className="bg-kards-panel border border-kards-border text-kards-text text-xs font-bold tracking-widest py-2 hover:border-kards-gold hover:text-kards-gold transition-colors"
-                    >
-                      导出备份
-                    </button>
-                    <button
-                      onClick={handleImportBackup}
-                      className="bg-kards-panel border border-kards-border text-kards-text text-xs font-bold tracking-widest py-2 hover:border-kards-gold hover:text-kards-gold transition-colors"
-                    >
-                      导入备份
-                    </button>
-                  </div>
-                  {backupStatus && (
-                    <p className="text-[11px] text-kards-text-muted break-all">{backupStatus}</p>
-                  )}
-                </div>
-
-                <p className="border-t border-kards-border pt-4 text-xs leading-relaxed text-kards-text-muted">卡组图片完全在本机生成。已缓存的卡图离线可用，未缓存的卡图使用文字占位。牌库同步不会在后台自动执行。</p>
-              </div>
-
-              {/* Footer - Fixed */}
-              <div className="p-8 pt-4 border-t border-kards-border flex gap-4">
-                <button 
-                  onClick={() => setSettings(DEFAULT_SETTINGS)}
-                  className="flex-1 py-3 text-xs font-bold uppercase tracking-widest text-kards-text-muted hover:text-kards-text transition-colors"
-                >
-                  重置默认
-                </button>
-                <button data-dialog-confirm
-                  data-dialog-cancel onClick={() => setShowSettingsModal(false)}
-                  className="flex-1 bg-kards-accent py-3 font-bold text-white shadow-lg hover:brightness-110 active:scale-[0.98] transition-all rounded-sm"
-                >
-                  保存并关闭
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

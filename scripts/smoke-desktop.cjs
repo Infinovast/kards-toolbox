@@ -27,16 +27,16 @@ async function main() {
     await page.waitForURL('kards://app/index.html');
     await expect(page.getByRole('heading', { name: '卡组', exact: true })).toBeVisible();
     const info = await page.evaluate(() => window.kardsDesktop.getAppInfo());
-    assert.equal(info.version, '0.2.1');
+    assert.equal(info.version, '0.3.0');
     assert.equal(info.name, 'KARDS Toolbox');
     assert.equal(path.resolve(info.userDataPath), profile, 'explicit test profile remains authoritative');
     await expect(page).toHaveTitle('KARDS 工具箱');
     assert.equal(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getTitle()), 'KARDS 工具箱');
-    await expect(page.getByRole('complementary', { name: '主导航' }).getByRole('button')).toHaveCount(2);
+    await expect(page.getByRole('complementary', { name: '主导航' }).getByRole('button')).toHaveCount(4);
     await expect(page.getByRole('switch', { name: '收藏夹显示' })).not.toBeChecked();
     await page.getByRole('button', { name: '关于', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'KARDS Toolbox', exact: true })).toBeVisible();
-    await expect(page.getByText('版本 0.2.1 · Windows 桌面版', { exact: true })).toBeVisible();
+    await expect(page.getByText('版本 0.3.0 · Windows 桌面版', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: '返回', exact: true }).click();
     assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
     // Observe actual native setIcon calls while exercising the preload theme bridge.
@@ -104,16 +104,51 @@ async function main() {
     await page.getByText('Desktop offline test', { exact: true }).click();
     await expect(page.getByLabel('卡组备注', { exact: true })).toHaveValue('生产协议与离线存储测试');
 
+    // Exercise the real fixed-endpoint IPC and parser, stubbing only the HTTP boundary.
+    await app.evaluate(({ net }, cards) => {
+      global.__cardRequests = [];
+      const original = net.fetch.bind(net);
+      net.fetch = async (url, options) => {
+        if (url === 'https://herokuapi.kards.com/graphql') {
+          global.__cardRequests.push(JSON.parse(options.body));
+          return new Response(JSON.stringify({ data: { cards: { pageInfo: { count: cards.length, hasNextPage: false }, edges: cards.map(node => ({ node })) } } }), { status: 200 });
+        }
+        return original(url, options);
+      };
+    }, records.slice(0, 2));
+    await assert.rejects(() => page.evaluate(() => window.kardsDesktop.fetchCardDataPage(-1)), /分页参数/);
+    page.on('dialog', dialog => dialog.accept());
+    await page.getByRole('button', { name: '设置', exact: true }).click();
+    await expect(page.getByTestId('settings-page')).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await page.getByRole('button', { name: '获取最新卡牌数据', exact: true }).click();
+    await expect(page.getByText('新旧数据对比', { exact: true })).toBeVisible();
+    const dataRequests = await app.evaluate(() => global.__cardRequests);
+    assert.equal(dataRequests.length, 1);
+    assert.equal(dataRequests[0].variables.offset, 0);
+    assert.ok(dataRequests[0].variables.showReserved && dataRequests[0].variables.showSpawnables);
+    assert.ok(!dataRequests[0].query.includes('image('));
+    await page.getByRole('button', { name: '应用更新', exact: true }).click();
+    await expect(page.getByText('更新已应用，卡牌库和构筑已使用新数据。卡图缓存未改变。', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: '卡牌', exact: true }).click();
+    await expect(page.getByText('本地目录 2 张 · 当前结果 2 张', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: '设置', exact: true }).click();
+    await page.getByRole('button', { name: '回退上次数据', exact: true }).click();
+    await expect(page.getByText('已回退至上次卡牌数据，用户卡组和卡图缓存未改变。', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: '卡牌', exact: true }).click();
+    await expect(page.getByText('本地目录 1,646 张 · 当前结果 1,646 张', { exact: true })).toBeVisible();
+
     // Stub only OS file picking; exercise the real preload, IPC and filesystem.
     await app.evaluate(({ dialog }, filePath) => {
       dialog.showSaveDialog = async () => ({ canceled: false, filePath });
       dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [filePath] });
     }, backupPath);
-    await page.getByRole('button', { name: '应用设置', exact: true }).click();
+    await page.getByRole('button', { name: '设置', exact: true }).click();
     await page.getByRole('button', { name: '导出备份', exact: true }).click();
     await expect(page.getByText(`备份已导出：${backupPath}`, { exact: true })).toBeVisible();
     const backup = JSON.parse(await fs.readFile(backupPath, 'utf8'));
     assert.equal(backup.app, 'kards-toolbox');
+    assert.ok(!('kards_card_database_v1' in backup.data));
     assert.equal(backup.data.kards_decks[0].name, 'Desktop offline test');
     assert.ok(Object.keys(backup.data).some((key) => key.startsWith('deck_img_local_v1_')));
     await page.getByRole('button', { name: '导入备份', exact: true }).click();
@@ -123,7 +158,7 @@ async function main() {
       status: 'passed', packaged: info.packaged, version: info.version, url: page.url(), pageErrors: errors,
       checks: ['production kards protocol', 'bundled database', 'preload IPC', 'Node isolation',
         'offline PNG', 'real artwork Sharp composition', 'small custom wallpaper', 'native theme icon switching',
-        'IndexedDB reload', 'native backup save/open (file dialogs stubbed)'],
+        'IndexedDB reload', 'full-width settings', 'manual card-data preview/apply/rollback IPC (HTTP stubbed)', 'card-data backup boundary', 'native backup save/open (file dialogs stubbed)'],
     }, null, 2));
     console.log('Desktop smoke passed: production resources, offline data/PNG, preload and backup IPC');
   } finally {

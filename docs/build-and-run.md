@@ -33,11 +33,17 @@ npm run build:desktop
 npm run dist:win:zip
 ```
 
+默认打包到 `release/`。若旧版正在运行并占用该目录，可在完成桌面构建后使用独立输出目录：
+
+```powershell
+node node_modules/electron-builder/cli.js --win zip --x64 '--config.win.signAndEditExecutable=false' '--config.directories.output=release/0.3.0'
+```
+
 - `dist/`：渲染端生产资源，包含卡牌目录。
 - `dist-electron/`：主进程与 preload。
 - `release/`：打包结果；`dist:win:dir` 生成解包目录，`dist:win` 生成安装包和便携包。
-- 本轮已生成 `release/win-unpacked/KARDS Toolbox.exe`，可直接启动；移动时需保留整个 `win-unpacked` 文件夹。
-- ZIP 开发包为 `release/KARDS Toolbox-0.2.1-win.zip`，解压后启动其中的 EXE，运行无需 Node.js。
+- 本轮已生成 `release/0.3.0/win-unpacked/KARDS Toolbox.exe`，可直接启动；移动时需保留整个 `win-unpacked` 文件夹。
+- ZIP 开发包为 `release/0.3.0/KARDS Toolbox-0.3.0-win.zip`，解压后启动其中的 EXE，运行无需 Node.js。旧版运行时占用原输出目录，本轮使用独立版本目录。
 - 本地检查生产资源可运行 `$env:KARDS_USE_DIST='1'; node scripts/start-electron.cjs .`。
 
 打包配置复用 `node_modules/electron/dist` 的已安装运行时，避免 electron-builder 再次从 GitHub 下载。NSIS/portable 目标仍可能首次下载额外打包工具，本轮未验收单文件便携包。
@@ -53,7 +59,7 @@ npm run lint
 npm run test:desktop
 
 # 解包后的真实 EXE
-node scripts/smoke-desktop.cjs 'release/win-unpacked/KARDS Toolbox.exe'
+node scripts/smoke-desktop.cjs 'release/0.3.0/win-unpacked/KARDS Toolbox.exe'
 ```
 
 网页流程测试使用 Python Playwright。在一个终端启动 `npm run dev:renderer`，另一个终端运行：
@@ -64,26 +70,28 @@ python -m playwright install chromium
 python scripts/smoke-ui.py
 python scripts/smoke-improvements.py
 python scripts/smoke-navigation.py
+python scripts/smoke-card-data.py
 ```
 
-网页测试会阻止所有外部网络请求，覆盖筛选、语言/历史图、卡组保存编辑、草稿、离线 PNG、备份边界与恢复；使用独立浏览器上下文。测试报告和下载产物写入 `test-results/`。桌面测试使用真实 preload/IPC/文件读写，仅替换系统文件选择器返回值，避免交互阻塞。
+网页测试会阻止未替换的外部网络请求，覆盖筛选、语言/历史图、卡组保存编辑、草稿、离线 PNG、备份边界与恢复；牌库更新脚本用固定官方接口响应测试差异预览、应用/回退、持久化、写入失败及图片缓存隔离。均使用独立浏览器上下文，报告和产物写入 `test-results/`。桌面测试使用真实 preload/IPC/文件读写，替换系统文件选择器返回值和牌库请求的 HTTP 边界，避免交互与线上数据波动。
 
 ## 数据与离线使用
 
 首发卡牌快照位于 `public/data/cards-v54.json`，复制自参考项目，1,646 条记录；它是仓库快照，不保证与当前线上游戏同步。
 
-用户数据与图片通过 localforage 保存到 Chromium IndexedDB。桌面设置中可导出/导入 JSON 用户备份。开发 Vite、可选 Web 入口和打包后的 `kards://app` 属于不同 origin，测试它们时数据互相独立；开发数据不会自动迁移到便携包，可通过备份迁移。
+用户数据与图片通过 localforage 保存到 Chromium IndexedDB。左侧栏底部“设置”打开全宽页面，可导出/导入 JSON 用户备份、手动获取并更新牌库。开发 Vite、可选 Web 入口和打包后的 `kards://app` 属于不同 origin，测试它们时数据互相独立；开发数据不会自动迁移到便携包，可通过备份迁移用户数据，牌库需单独获取。
 
 - 初次载入卡牌文字、构筑、管理及本地图片生成均可离线。
 - 选择未缓存的卡图会访问官方卡图代理并缓存；失败显示占位，不更改卡牌目录。
 - 本地 PNG 导出仅读取简体中文 v54 卡图缓存；缺图仍能导出。
 - 历史图 URL 不保证每张卡/每个语言都存在，缺图不会使用旧版属性替换现行资料。
-- 当前尚无同步界面，不能通过应用更新卡牌目录。
+- 设置中点击“获取最新卡牌数据”，完整分页获取后对比新增、修改和移除；展开卡牌查看字段差异，再点击“应用更新”。总数相同也会检查文字/属性变化；可回退上次数据。
+- 打开设置不联网，获取期间允许切换页面。取消、请求错误或不完整数据不替换当前牌库。更新牌库不下载、清空或替换已有卡图。
 - 便携 EXE 的应用数据仍使用 Electron 用户目录，不意味着数据保存在 EXE 旁。
 
 ## 常见问题
 
-- 新卡不在目录：当前保留未知卡 ID，后续阶段实现用户手动同步，不会静默补卡。
+- 新卡不在目录：在设置中手动获取并应用最新官方数据；卡组中的未知编号与数量保留。按 ID 补全尚未实现，不会静默补卡。
 - 卡组规则提示：属于允许保存和导出的提醒；游戏是否接受以游戏内规则为准。
 - 无卡图：联网查看对应语言/版本后可缓存；卡牌本身的文字仍然可查。
 - 备份不包含普通卡图缓存或首发牌库，它们与用户数据分开维护。

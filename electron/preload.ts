@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('kardsDesktop', {
+  fetchCardDataPage: (offset: number) => ipcRenderer.invoke('cards:fetch-page', offset),
   renderDeckImage: (request: unknown) => ipcRenderer.invoke('deck:render', request),
   setTheme: (mode: string) => ipcRenderer.invoke('app:set-theme', mode),
   getAppInfo: () => ipcRenderer.invoke('app:get-info'),

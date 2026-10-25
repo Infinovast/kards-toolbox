@@ -128,10 +128,10 @@ with sync_playwright() as p:
     saved.dblclick()
     expect(page.get_by_role("heading", name="编辑卡组", exact=True)).to_be_visible()
     # All modal panels expose frosted glass, Escape, and focus restoration.
-    settings = page.get_by_role("button", name="应用设置", exact=True)
+    settings = page.get_by_role("button", name="设置", exact=True)
     settings.click()
-    modal = page.get_by_role("dialog", name="").last
-    assert modal.evaluate("el => getComputedStyle(el).backdropFilter") != "none"
+    expect(page.get_by_test_id("settings-page")).to_be_visible()
+    expect(page.get_by_role("dialog")).to_have_count(0)
     page.keyboard.press("Escape")
     expect(page.get_by_role("dialog")).to_have_count(0)
     expect(settings).to_be_focused()
