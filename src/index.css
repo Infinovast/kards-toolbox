@@ -1,0 +1,144 @@
+@import "tailwindcss";
+
+@theme {
+  --color-kards-bg: #dcd7c9;
+  --color-kards-panel: #e8e4d9;
+  --color-kards-panel-alt: #dfdacd;
+  --color-kards-panel-hover: #d2cebf;
+  --color-kards-panel-border: rgba(0, 0, 0, 0.15);
+  --color-kards-gray: var(--color-kards-panel);
+  --color-kards-gray-alt: var(--color-kards-panel-alt);
+  --color-kards-accent: #8b201a;
+  --color-kards-gold: #c5a059;
+  --color-kards-status: #785a24;
+  --color-kards-paper: #e1dcc5;
+  --color-kards-text: #2f2a24;
+  --color-kards-text-muted: #5e574c;
+  --color-kards-border: rgba(0, 0, 0, 0.15);
+  --color-kards-input-bg: #f4f1ea;
+  --color-kards-input-border: rgba(0, 0, 0, 0.2);
+  --color-kards-modal-bg: #e8e4d9;
+  --color-kards-modal-overlay: rgba(220, 215, 201, 0.85);
+  
+  --rgb-panel-overlay: 255, 255, 255;
+  --rgb-panel-overlay-inv: 0, 0, 0;
+
+  --shadow-military-inset: rgba(0, 0, 0, 0.1);
+  --shadow-military-rim: rgba(255, 255, 255, 0.8);
+  
+  --scrollbar-track: rgba(0, 0, 0, 0.05);
+  --scrollbar-thumb: rgba(0, 0, 0, 0.2);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.4);
+  
+  --font-tactical: "Inter", ui-sans-serif, system-ui, sans-serif;
+  
+  --radius-base: 6px;
+  --radius-xs: calc(var(--radius-base) * 0.5);
+  --radius-sm: calc(var(--radius-base) * 0.75);
+  --radius-md: var(--radius-base);
+  --radius-lg: calc(var(--radius-base) * 1.5);
+  --radius-xl: calc(var(--radius-base) * 2);
+  --radius-2xl: calc(var(--radius-base) * 3);
+  --radius-3xl: calc(var(--radius-base) * 4);
+}
+
+@layer base {
+  :root, .light {
+    --bg-pattern: radial-gradient(circle at center, #e8e4d9 0%, #dcd7c9 100%);
+  }
+
+  .dark {
+    --color-kards-status: #c5a059;
+    --color-kards-bg: #0a0a0a;
+    --color-kards-panel: #151515;
+    --color-kards-panel-alt: #0d0d0d;
+    --color-kards-panel-hover: #222222;
+    --color-kards-panel-border: rgba(255, 255, 255, 0.08);
+    --color-kards-text: #e0e0e0;
+    --color-kards-text-muted: #a0a0a0;
+    --color-kards-border: rgba(255, 255, 255, 0.08);
+    --color-kards-input-bg: #050505;
+    --color-kards-input-border: rgba(255, 255, 255, 0.15);
+    --color-kards-modal-bg: #151515;
+    --color-kards-modal-overlay: rgba(0, 0, 0, 0.85);
+
+    --rgb-panel-overlay: 15, 15, 15;
+    --rgb-panel-overlay-inv: 255, 255, 255;
+
+    --shadow-military-inset: rgba(0, 0, 0, 0.5);
+    --shadow-military-rim: rgba(255, 255, 255, 0.05);
+    
+    --scrollbar-track: rgba(255, 255, 255, 0.02);
+    --scrollbar-thumb: rgba(255, 255, 255, 0.15);
+    --scrollbar-thumb-hover: rgba(255, 255, 255, 0.3);
+
+    --bg-pattern: radial-gradient(circle at center, #1a1a1a 0%, #050505 100%);
+  }
+
+  body {
+    @apply bg-kards-bg text-kards-text font-tactical overflow-hidden transition-colors duration-300;
+    background-image: var(--bg-pattern);
+  }
+}
+
+.rounded-base {
+  border-radius: var(--radius-base);
+}
+
+/* 噪点纹理滤镜 */
+.military-noise::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: none;
+  opacity: 0.05;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* 旧纸张纹理 */
+.paper-texture {
+  background-image: none;
+  background-color: var(--color-kards-paper);
+}
+
+/* 军事金属边框 */
+.military-border {
+  border: 2px solid var(--color-kards-border);
+  border-radius: var(--radius-base);
+  box-shadow: inset 0 0 10px var(--shadow-military-inset), 1px 1px 0 var(--shadow-military-rim);
+  transition: border-radius 0.2s ease, border-color 0.2s ease;
+}
+
+/* 隐藏滚动条但保留功能 */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+::selection { background: var(--color-kards-accent); color: #fff; }
+:focus-visible { outline: 2px solid var(--color-kards-gold); outline-offset: 3px; }
+input, textarea { caret-color: var(--color-kards-gold); }

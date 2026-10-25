@@ -1,0 +1,115 @@
+{
+  "name": "kards-local-tool",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Local-first KARDS card library, deck builder and collection manager for Windows.",
+  "type": "module",
+  "main": "dist-electron/main.cjs",
+  "scripts": {
+    "dev": "tsx server.ts",
+    "dev:web": "tsx server.ts",
+    "dev:renderer": "vite --host 127.0.0.1",
+    "dev:desktop": "concurrently -k \"npm:dev:renderer\" \"npm:dev:electron:wait\"",
+    "dev:electron:wait": "wait-on tcp:5173 && npm run build:electron && node scripts/start-electron.cjs . --disable-crash-reporter",
+    "build": "npm run build:web && npm run build:server",
+    "build:web": "vite build",
+    "build:server": "esbuild server.ts --bundle --platform=node --format=cjs --outfile=dist/server.cjs --external:express",
+    "build:electron": "node scripts/build-electron.cjs",
+    "build:electron:dev": "node -e \"process.env.KARDS_ENABLE_DEVELOPER_OPTIONS='true'; require('./scripts/build-electron.cjs')\"",
+    "build:desktop": "npm run build:web && npm run build:electron",
+    "build:desktop:dev": "npm run build:web && npm run build:electron:dev",
+    "dist:win": "npm run build:desktop && electron-builder --win --x64",
+    "dist:win:dir": "npm run build:desktop && electron-builder --win --x64 --dir -c.win.signAndEditExecutable=false",
+    "dist:win:zip": "npm run build:desktop && electron-builder --win zip --x64 -c.win.signAndEditExecutable=false",
+    "dist:win:portable": "npm run build:desktop && electron-builder --win portable --x64 -c.win.signAndEditExecutable=false",
+    "dist:win:portable:dev": "npm run build:desktop:dev && electron-builder --win portable --x64 -c.win.signAndEditExecutable=false",
+    "start": "node dist/server.cjs",
+    "preview": "vite preview",
+    "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true});fs.rmSync('dist-electron',{recursive:true,force:true});fs.rmSync('release',{recursive:true,force:true})\"",
+    "lint": "tsc --noEmit",
+    "test:deck-import": "tsx src/lib/deckImport.test.ts",
+    "test": "npm run test:deck-import && tsx src/lib/deckCode.test.ts && tsx src/lib/backup.test.ts",
+    "test:desktop": "node scripts/smoke-desktop.cjs"
+  },
+  "build": {
+    "appId": "com.kards.localtool",
+    "productName": "KARDS Local Arsenal",
+    "compression": "maximum",
+    "electronDist": "node_modules/electron/dist",
+    "npmRebuild": false,
+    "buildDependenciesFromSource": false,
+    "afterPack": "scripts/prune-electron-package.cjs",
+    "electronLanguages": [
+      "en-US",
+      "zh-CN"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json",
+      "THIRD_PARTY_NOTICES.md",
+      "third-party/**/*",
+      "!node_modules/**/*",
+      "!src/**/*",
+      "!electron/**/*",
+      "!openspec/**/*",
+      "!public/**/*",
+      "!release/**/*",
+      "!*.log"
+    ],
+    "extraMetadata": {
+      "main": "dist-electron/main.cjs"
+    },
+    "win": {
+      "signAndEditExecutable": true,
+      "target": [
+        "nsis",
+        "portable",
+        "dir"
+      ],
+      "icon": "public/assets/kards_logos/Common/KardsLogoBlack.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.1.14",
+    "@vitejs/plugin-react": "^5.0.4",
+    "dotenv": "^17.2.3",
+    "esbuild": "^0.28.0",
+    "express": "^4.21.2",
+    "express-rate-limit": "^8.5.1",
+    "localforage": "^1.10.0",
+    "lucide-react": "^0.546.0",
+    "motion": "^12.23.24",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-easy-crop": "^5.5.7",
+    "vite": "^6.2.0"
+  },
+  "devDependencies": {
+    "@rollup/rollup-win32-x64-msvc": "^4.60.3",
+    "@tailwindcss/oxide-win32-x64-msvc": "^4.2.4",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "autoprefixer": "^10.4.21",
+    "concurrently": "^9.2.1",
+    "electron": "^38.2.0",
+    "electron-builder": "^26.0.12",
+    "lightningcss-win32-x64-msvc": "^1.32.0",
+    "playwright": "^1.64.1",
+    "tailwindcss": "^4.1.14",
+    "tsx": "^4.21.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0",
+    "wait-on": "^8.0.4"
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-25T20:57:00+08:00",
+  "title": "Design System: KARDS Local Arsenal",
+  "extensions": {
+    "motion": [
+      { "name": "theme-transition", "value": "300ms", "purpose": "现有主题及卡牌状态颜色过渡。" }
+    ],
+    "breakpoints": [
+      { "name": "desktop-minimum", "value": "980px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "主操作",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "构筑中的保存操作。",
+      "html": "<button class=\"ds-primary\">保存卡组</button>",
+      "css": ".ds-primary{background:var(--color-kards-accent,#8b201a);color:#fff;border:0;border-radius:4px;padding:8px;font:700 14px/20px system-ui;cursor:pointer}.ds-primary:disabled{opacity:.4}.ds-primary:focus-visible{outline:2px solid var(--color-kards-gold,#c5a059);outline-offset:3px}"
+    },
+    {
+      "name": "次要操作",
+      "kind": "button",
+      "description": "复制和导出等显式操作。",
+      "html": "<button class=\"ds-secondary\">复制代码</button>",
+      "css": ".ds-secondary{background:transparent;color:var(--color-kards-text,#2f2a24);border:1px solid var(--color-kards-border,rgba(0,0,0,.15));border-radius:4px;padding:8px;font:14px/20px system-ui;cursor:pointer}.ds-secondary:disabled{opacity:.4}.ds-secondary:focus-visible{outline:2px solid var(--color-kards-gold,#c5a059);outline-offset:3px}"
+    },
+    {
+      "name": "输入框",
+      "kind": "input",
+      "refersTo": "field-light",
+      "description": "卡名、卡组名和筛选字段。",
+      "html": "<input class=\"ds-input\" aria-label=\"卡组名称\" placeholder=\"新卡组\">",
+      "css": ".ds-input{background:var(--color-kards-input-bg,#f4f1ea);color:var(--color-kards-text,#2f2a24);border:1px solid var(--color-kards-border,rgba(0,0,0,.15));border-radius:4px;padding:8px 12px;font:14px/20px system-ui;caret-color:var(--color-kards-gold,#c5a059)}.ds-input:focus-visible{outline:2px solid var(--color-kards-gold,#c5a059);outline-offset:3px}"
+    },
+    {
+      "name": "模块导航",
+      "kind": "nav",
+      "description": "侧栏当前模块的状态。",
+      "html": "<button class=\"ds-nav\" aria-current=\"page\">卡组构筑</button>",
+      "css": ".ds-nav{background:var(--color-kards-accent,#8b201a);color:#fff;border:0;padding:12px 8px;font:700 10px/15px system-ui;cursor:pointer}.ds-nav:focus-visible{outline:2px solid var(--color-kards-gold,#c5a059);outline-offset:3px}"
+    },
+    {
+      "name": "用户标签",
+      "kind": "chip",
+      "description": "卡组详情中的用户标签。",
+      "html": "<span class=\"ds-tag\">用户标签</span>",
+      "css": ".ds-tag{display:inline-flex;background:var(--color-kards-panel,#e8e4d9);color:var(--color-kards-text,#2f2a24);border:1px solid var(--color-kards-border,rgba(0,0,0,.15));border-radius:4px;padding:4px 8px;font:12px/16px system-ui}"
+    },
+    {
+      "name": "资料面板",
+      "kind": "card",
+      "description": "单卡详情和当前构筑的主题面板。",
+      "html": "<section class=\"ds-panel\"><strong>当前卡组</strong></section>",
+      "css": ".ds-panel{background:var(--color-kards-panel,#e8e4d9);color:var(--color-kards-text,#2f2a24);border:1px solid var(--color-kards-border,rgba(0,0,0,.15));border-radius:9px;padding:16px;font:14px/20px system-ui}"
+    }
+  ]
+}

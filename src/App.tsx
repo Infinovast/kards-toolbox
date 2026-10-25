@@ -1,0 +1,2797 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Plus, 
+  Trash2, 
+  Copy, 
+  Star, 
+  Settings, 
+  User, 
+  Shield, 
+  Sword, 
+  Library, 
+  X,
+  ChevronRight,
+  Flame,
+  Zap,
+  Anchor,
+  Upload,
+  Image as ImageIcon,
+  FolderPlus,
+  Check,
+  Edit2,
+  ArrowRightLeft,
+  Palette
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import localforage from 'localforage';
+import Cropper from 'react-easy-crop';
+import getCroppedImg from './lib/cropImage';
+import { createBackup, parseBackup, restoreBackup } from './lib/backup';
+import { generateLightModeColors } from './lib/colorUtils';
+import { renderDeckImage, downloadDeckImage } from './lib/deckRenderer';
+import { decodeDeckCode, findCardsByImportId } from './lib/deckCode';
+import { DEFAULT_DECK_RULES, validateDeck, type DeckRuleSet, type DeckRules } from './lib/deckRules';
+import { extractDeckCodeFromText, inferDeckTitleFromText } from './lib/deckImport';
+import CardLibrary from './components/CardLibrary';
+import DeckBuilder, { type BuilderDeck } from './components/DeckBuilder';
+import { loadCardDatabase, type KardsCardRecord } from './types/card';
+
+// --- Types ---
+type Nation = 'Germany' | 'Soviet' | 'USA' | 'Japan' | 'Britain' | 'Finland' | 'Italy' | 'France' | 'Poland' | 'Anzac';
+
+interface Deck {
+  id: string;
+  name: string;
+  mainNation: Nation;
+  allyNation?: Nation;
+  code: string;
+  isFavorite: boolean;
+  cardBackUrl?: string;
+  totalCards: number;
+  warnings: string[];
+  isArena: boolean;
+  tags?: string[];
+  notes?: string;
+  ruleSet?: DeckRuleSet;
+  customRules?: DeckRules;
+}
+
+interface Collection {
+  id: string;
+  name: string;
+  deckIds: string[];
+  isFavorite: boolean;
+  createdAt: number;
+}
+
+interface AppSettings {
+  borderRadius: number;
+  importBoxOpacity: number;
+  logoSize: number;
+  logoOpacity: number;
+  displayMode: 'dark' | 'light' | 'system';
+  lightThemeColor: string;
+  uiScale: number;
+  deckGap: number;
+}
+
+interface ClipboardDeckCandidate {
+  sourceText: string;
+  code: string;
+  name: string;
+}
+
+const DEFAULT_SETTINGS: AppSettings = {
+  borderRadius: 6,
+  importBoxOpacity: 0.6,
+  logoSize: 450,
+  logoOpacity: 0.25,
+  displayMode: 'dark',
+  lightThemeColor: '#dcd7c9',
+  uiScale: 1.0,
+  deckGap: 0.5
+};
+
+// --- Icons & Labels ---
+const ID_TO_NATION: Record<number, Nation> = {
+  1: 'Germany',
+  2: 'Britain',
+  3: 'Japan',
+  4: 'Soviet',
+  5: 'USA',
+  6: 'France',
+  7: 'Italy',
+  8: 'Poland',
+  9: 'Finland',
+  10: 'Anzac'
+};
+
+const ERROR_LOCALE: Record<string, string> = {
+  EMPTY_INPUT: '卡组代码不能为空',
+  INVALID_TYPE: '无效的传入类型',
+  INVALID_PREFIX: '未找到 %% 前缀或前缀错误',
+  INVALID_COUNTRY_HEADER: '非法的国家头部格式',
+  INVALID_COUNTRY_CODE: '非法的国家代码数字',
+  UNKNOWN_COUNTRY: '未知的国家代码',
+  MISSING_SEPARATOR: '缺少分隔符 |',
+  EXTRA_SEPARATOR: '包含多个分隔符 |',
+  INVALID_GROUP_COUNT: '卡牌分组格式错误（应有3个分号）',
+  INVALID_CARD_ID_LENGTH: '卡牌ID长度错误',
+  INVALID_WHITESPACE: '卡牌片段不能包含空格或换行等',
+  DUPLICATE_CARD_ID: '存在重复的卡牌ID',
+  CARD_COUNT_EXCEEDS_4: '同一张卡牌累计超过 4 张',
+};
+
+const NATION_DATA: Record<Nation, { label: string, color: string, flag: string, isMainAllowed: boolean, icon: string, defaultBack: string, veteranBack?: string }> = {
+  Germany: { 
+    label: '德', color: '#3d3d3d', flag: 'de', isMainAllowed: true,
+    icon: '/assets/icons/Germany/German.png', defaultBack: '/assets/cardbacks/Germany/GermanDefault.jpg', veteranBack: '/assets/cardbacks/Germany/GermanDefault.jpg'
+  },
+  Britain: { 
+    label: '英', color: '#002366', flag: 'gb', isMainAllowed: true,
+    icon: '/assets/icons/Britain/Britain.png', defaultBack: '/assets/cardbacks/Britain/BritainDefault.jpg', veteranBack: '/assets/cardbacks/Britain/BritianVeteran.jpg'
+  },
+  Japan: { 
+    label: '日', color: '#bc002d', flag: 'jp', isMainAllowed: true,
+    icon: '/assets/icons/Japan/Japan.png', defaultBack: '/assets/cardbacks/Japan/JapanDefault.jpg', veteranBack: '/assets/cardbacks/Japan/JapanVeteran.jpg'
+  },
+  Soviet: { 
+    label: '苏', color: '#cc0000', flag: 'su', isMainAllowed: true,
+    icon: '/assets/icons/Soviet/Soviet.png', defaultBack: '/assets/cardbacks/Soviet/SovietDefault.jpg', veteranBack: '/assets/cardbacks/Soviet/SovietVeteran.jpg'
+  },
+  USA: { 
+    label: '美', color: '#3c3b6e', flag: 'us', isMainAllowed: true,
+    icon: '/assets/icons/USA/Usa.png', defaultBack: '/assets/cardbacks/USA/UsaDefault.jpg', veteranBack: '/assets/cardbacks/USA/UsaVeteran.jpg'
+  },
+  France: { label: '法', color: '#0055A4', flag: 'fr', isMainAllowed: false, icon: '/assets/icons/France/France.png', defaultBack: '/assets/cardbacks/Common/BasicBeta.jpg', veteranBack: '' },
+  Italy: { label: '意', color: '#008C45', flag: 'it', isMainAllowed: false, icon: '/assets/icons/Italy/Italy.png', defaultBack: '/assets/cardbacks/Common/BasicBeta.jpg', veteranBack: '' },
+  Poland: { label: '波', color: '#DC143C', flag: 'pl', isMainAllowed: false, icon: '/assets/icons/Poland/Poland.jpg', defaultBack: '/assets/cardbacks/Common/BasicBeta.jpg', veteranBack: '' },
+  Finland: { label: '芬', color: '#003580', flag: 'fi', isMainAllowed: false, icon: '/assets/icons/Finland/Finland.png', defaultBack: '/assets/cardbacks/Common/BasicBeta.jpg', veteranBack: '' },
+  Anzac: { label: '澳', color: '#9E6F34', flag: 'an', isMainAllowed: false, icon: '/assets/icons/ANZAC/Anzac.png', defaultBack: '/assets/cardbacks/Common/BasicBeta.jpg', veteranBack: '' },
+};
+
+const NATION_FLAG_ASSETS: Record<string, string> = {
+  de: '/assets/flags/Germany.svg',
+  gb: '/assets/flags/Britain.svg',
+  jp: '/assets/flags/Japan.svg',
+  su: '/assets/flags/Soviet.svg',
+  us: '/assets/flags/USA.svg',
+  fr: '/assets/flags/France.svg',
+  it: '/assets/flags/Italy.svg',
+  pl: '/assets/flags/Poland.svg',
+  fi: '/assets/flags/Finland.svg',
+  an: '/assets/flags/anzac.svg',
+};
+
+const BUILT_IN_TABLECLOTHS = Array.from({ length: 21 }, (_, i) => `/assets/tablecloths/tablecloth (${i + 1}).jpeg`);
+
+const getFlagUrl = (nationCode: string) => {
+  return NATION_FLAG_ASSETS[nationCode] || NATION_FLAG_ASSETS.de;
+};
+
+const parseDeck = (code: string) => {
+  const decoded = decodeDeckCode(code);
+  const mainNation = decoded.mainNation as Nation, allyNation = decoded.allyNation as Nation;
+  const totalCards = [...decoded.counts.values()].reduce((sum, count) => sum + count, 0);
+  const isArena = mainNation === allyNation;
+  const warnings = totalCards === 39 ? [] : [`可用牌当前 ${totalCards} 张，默认要求 39 张（另含总部）`];
+  if (!NATION_DATA[mainNation].isMainAllowed) warnings.push('所选主国不在五个主要国家中');
+  const defaultName = isArena ? '竞技场卡组' : `${NATION_DATA[mainNation].label}${NATION_DATA[allyNation].label}卡组`;
+  return { mainNation, allyNation, totalCards, warnings, isArena, defaultName };
+};
+
+const CARD_BACK_CATEGORIES = [
+  {
+    name: '通用',
+    backs: [
+      { id: 'common_basic', url: '/assets/cardbacks/Common/BasicBeta.jpg', name: '基本测试版' }
+    ]
+  },
+  {
+    name: '德国',
+    backs: [
+      { id: 'ger_def', url: '/assets/cardbacks/Germany/GermanDefault.jpg', name: '德国默认' }
+    ]
+  },
+  {
+    name: '英国',
+    backs: [
+      { id: 'gbr_def', url: '/assets/cardbacks/Britain/BritainDefault.jpg', name: '英国默认' },
+      { id: 'gbr_vet', url: '/assets/cardbacks/Britain/BritianVeteran.jpg', name: '英国老兵' }
+    ]
+  },
+  {
+    name: '日本',
+    backs: [
+      { id: 'jpn_def', url: '/assets/cardbacks/Japan/JapanDefault.jpg', name: '日本默认' },
+      { id: 'jpn_vet', url: '/assets/cardbacks/Japan/JapanVeteran.jpg', name: '日本老兵' }
+    ]
+  },
+  {
+    name: '苏联',
+    backs: [
+      { id: 'sov_def', url: '/assets/cardbacks/Soviet/SovietDefault.jpg', name: '苏联默认' },
+      { id: 'sov_vet', url: '/assets/cardbacks/Soviet/SovietVeteran.jpg', name: '苏联老兵' }
+    ]
+  },
+  {
+    name: '美国',
+    backs: [
+      { id: 'usa_def', url: '/assets/cardbacks/USA/UsaDefault.jpg', name: '美国默认' },
+      { id: 'usa_vet', url: '/assets/cardbacks/USA/UsaVeteran.jpg', name: '美国老兵' }
+    ]
+  }
+];
+
+const INITIAL_DECKS: Deck[] = [];
+
+export default function App() {
+  const [dataLoaded, setDataLoaded] = useState(false);
+  const [decks, setDecks] = useState<Deck[]>(INITIAL_DECKS);
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [cardDatabase, setCardDatabase] = useState<KardsCardRecord[]>([]);
+  const [cardDatabaseLoading, setCardDatabaseLoading] = useState(true);
+  const [cardDatabaseError, setCardDatabaseError] = useState<string | null>(null);
+
+  // --- State for Preloading ---
+  useEffect(() => {
+    Object.values(NATION_DATA).forEach(data => {
+      const img = new Image();
+      img.src = data.icon;
+    });
+  }, []);
+
+  useEffect(() => {
+    loadCardDatabase()
+      .then((loadedCards) => setCardDatabase(loadedCards))
+      .catch((error) => setCardDatabaseError(error instanceof Error ? error.message : '本地卡牌目录加载失败'))
+      .finally(() => setCardDatabaseLoading(false));
+  }, []);
+
+  const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importCode, setImportCode] = useState('');
+  const [importName, setImportName] = useState('');
+  const [clipboardDeckCandidate, setClipboardDeckCandidate] = useState<ClipboardDeckCandidate | null>(null);
+  const lastClipboardPromptRef = useRef<string | null>(null);
+  const [backupStatus, setBackupStatus] = useState<string | null>(null);
+  const [activeMenu, setActiveMenu] = useState('decks');
+  const [builderDeck, setBuilderDeck] = useState<BuilderDeck | null>(null);
+  const [builderRevision, setBuilderRevision] = useState(0);
+  const [errorStatus, setErrorStatus] = useState<string | null>(null);
+  const [showCardBackModal, setShowCardBackModal] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [addingTagToDeckId, setAddingTagToDeckId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterMainNation, setFilterMainNation] = useState<Nation | 'All'>('All');
+  const [filterAllyNation, setFilterAllyNation] = useState<Nation | 'All'>('All');
+  const [filterTag, setFilterTag] = useState<string | 'All'>('All');
+  
+  const [customCategories, setCustomCategories] = useState<{id: string, name: string, backs: {id: string, url: string, name: string}[]}[]>([]);
+
+  useEffect(() => {
+    const readClipboardText = async () => {
+      if (window.kardsDesktop?.readClipboardText) {
+        return window.kardsDesktop.readClipboardText();
+      }
+
+      if (navigator.clipboard?.readText) {
+        return navigator.clipboard.readText();
+      }
+
+      return '';
+    };
+
+    const detectClipboardDeck = async () => {
+      if (!document.hasFocus()) return;
+
+      try {
+        const clipboardText = await readClipboardText();
+        if (!clipboardText.trim()) return;
+
+        const deckCode = extractDeckCodeFromText(clipboardText);
+        if (!deckCode || deckCode === lastClipboardPromptRef.current) return;
+
+        const dismissedCode = sessionStorage.getItem('kards_dismissed_clipboard_deck_code');
+        if (dismissedCode === deckCode) return;
+
+        const { defaultName } = parseDeck(deckCode);
+        const inferredName = inferDeckTitleFromText(clipboardText, deckCode);
+        lastClipboardPromptRef.current = deckCode;
+        setClipboardDeckCandidate({
+          sourceText: clipboardText,
+          code: deckCode,
+          name: inferredName || defaultName,
+        });
+      } catch {
+        // Clipboard access can fail in browsers without permission; ignore silently.
+      }
+    };
+
+    detectClipboardDeck();
+    window.addEventListener('focus', detectClipboardDeck);
+
+    return () => {
+      window.removeEventListener('focus', detectClipboardDeck);
+    };
+  }, []);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const getOrMigrate = async <T,>(key: string, defaultVal: T): Promise<T> => {
+           let val = await localforage.getItem<T>(key);
+           if (val !== null) return val;
+           // Fallback to localStorage
+           const lsVal = localStorage.getItem(key);
+           if (lsVal !== null) {
+              if (key === 'kards_selected_tablecloth') return lsVal as unknown as T;
+              try {
+                return JSON.parse(lsVal) as T;
+              } catch {
+                return defaultVal;
+              }
+           }
+           return defaultVal;
+        };
+
+        const loadedDecks = await getOrMigrate<Deck[]>('kards_decks', INITIAL_DECKS);
+        const loadedCollections = await getOrMigrate<Collection[]>('kards_collections', []);
+        const loadedCategories = await getOrMigrate<any[]>('kards_custom_categories', []);
+        const loadedSelectedTablecloth = await getOrMigrate<string | null>('kards_selected_tablecloth', null);
+        const loadedCustomTablecloths = await getOrMigrate<string[]>('kards_custom_tablecloths', []);
+        const loadedSettingsRaw = await getOrMigrate<any>('kards_settings', DEFAULT_SETTINGS);
+        if (loadedSettingsRaw.isDarkMode !== undefined && loadedSettingsRaw.displayMode === undefined) {
+          loadedSettingsRaw.displayMode = loadedSettingsRaw.isDarkMode ? 'dark' : 'light';
+          delete loadedSettingsRaw.isDarkMode;
+        }
+
+        setDecks(loadedDecks);
+        setCollections(loadedCollections);
+        setCustomCategories(loadedCategories);
+        setSelectedTablecloth(loadedSelectedTablecloth);
+        setCustomTablecloths(loadedCustomTablecloths);
+        setSettings({ ...DEFAULT_SETTINGS, ...loadedSettingsRaw });
+        setDataLoaded(true);
+      } catch (e) {
+        console.error("Failed to load data", e);
+        setDataLoaded(true);
+      }
+    };
+    loadData();
+  }, []);
+
+  useEffect(() => {
+    if (!dataLoaded) return;
+    localforage.setItem('kards_decks', decks).catch(console.error);
+  }, [decks, dataLoaded]);
+
+  useEffect(() => {
+    if (!dataLoaded) return;
+    localforage.setItem('kards_collections', collections).catch(console.error);
+  }, [collections, dataLoaded]);
+
+  useEffect(() => {
+    if (!dataLoaded) return;
+    localforage.setItem('kards_custom_categories', customCategories).catch(console.error);
+  }, [customCategories, dataLoaded]);
+
+  const [effectiveIsDarkMode, setEffectiveIsDarkMode] = useState(true);
+
+  useEffect(() => {
+    if (!dataLoaded) return;
+    localforage.setItem('kards_settings', settings).catch(console.error);
+
+    let isDark = true;
+    if (settings.displayMode === 'system') {
+      isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    } else {
+      isDark = settings.displayMode === 'dark';
+    }
+    
+    setEffectiveIsDarkMode(isDark);
+
+    if (isDark) {
+      document.body.classList.add('dark');
+      document.body.classList.remove('light');
+      document.documentElement.classList.add('dark');
+      document.documentElement.classList.remove('light');
+      
+      // Clear inline variables to allow .dark CSS rules to apply
+      const varsToRemove = [
+        '--color-kards-bg', '--color-kards-panel', '--color-kards-panel-alt',
+        '--color-kards-panel-hover', '--color-kards-input-bg', '--color-kards-modal-bg',
+        '--color-kards-modal-overlay', '--bg-pattern', '--rgb-panel-overlay', '--rgb-panel-overlay-inv'
+      ];
+      varsToRemove.forEach(v => document.documentElement.style.removeProperty(v));
+    } else {
+      document.body.classList.remove('dark');
+      document.body.classList.add('light');
+      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.add('light');
+      
+      // Apply custom light mode colors
+      const lightVars = generateLightModeColors(settings.lightThemeColor || '#dcd7c9');
+      Object.entries(lightVars).forEach(([key, value]) => {
+        document.documentElement.style.setProperty(key, value);
+      });
+    }
+
+    // Apply border radius CSS variable
+    document.documentElement.style.setProperty('--radius-base', `${settings.borderRadius}px`);
+  }, [settings, dataLoaded]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = (e: MediaQueryListEvent) => {
+      if (settings.displayMode === 'system') {
+        const isDark = e.matches;
+        setEffectiveIsDarkMode(isDark);
+        if (isDark) {
+          document.body.classList.add('dark');
+          document.body.classList.remove('light');
+          document.documentElement.classList.add('dark');
+          document.documentElement.classList.remove('light');
+          
+          const varsToRemove = [
+            '--color-kards-bg', '--color-kards-panel', '--color-kards-panel-alt',
+            '--color-kards-panel-hover', '--color-kards-input-bg', '--color-kards-modal-bg',
+            '--color-kards-modal-overlay', '--bg-pattern', '--rgb-panel-overlay', '--rgb-panel-overlay-inv'
+          ];
+          varsToRemove.forEach(v => document.documentElement.style.removeProperty(v));
+        } else {
+          document.body.classList.remove('dark');
+          document.body.classList.add('light');
+          document.documentElement.classList.remove('dark');
+          document.documentElement.classList.add('light');
+          
+          const lightVars = generateLightModeColors(settings.lightThemeColor || '#dcd7c9');
+          Object.entries(lightVars).forEach(([key, value]) => {
+            document.documentElement.style.setProperty(key, value);
+          });
+        }
+      }
+    };
+    mediaQuery.addEventListener('change', onChange);
+    return () => mediaQuery.removeEventListener('change', onChange);
+  }, [settings.displayMode, settings.lightThemeColor]);
+
+  const [addingCategory, setAddingCategory] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [uploadCategory, setUploadCategory] = useState('');
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [movingCardInfo, setMovingCardInfo] = useState<{catId: string, backId: string} | null>(null);
+  const [editingCardInfo, setEditingCardInfo] = useState<{catId: string, backId: string} | null>(null);
+  const [editingCardName, setEditingCardName] = useState('');
+
+  const [selectedTablecloth, setSelectedTablecloth] = useState<string | null>(null);
+
+  const [customTablecloths, setCustomTablecloths] = useState<string[]>([]);
+
+  const [showTableclothModal, setShowTableclothModal] = useState(false);
+  const [tableclothUploadError, setTableclothUploadError] = useState<string | null>(null);
+  const [expandedCollectionId, setExpandedCollectionId] = useState<string | null>(null);
+  const [showAddDeckToCollectionModal, setShowAddDeckToCollectionModal] = useState<string | null>(null);
+  const [showCreateCollectionModal, setShowCreateCollectionModal] = useState(false);
+  const [newCollectionName, setNewCollectionName] = useState('');
+  const [collectionToDelete, setCollectionToDelete] = useState<Collection | null>(null);
+  const [collectionToRename, setCollectionToRename] = useState<Collection | null>(null);
+  const [renameCollectionName, setRenameCollectionName] = useState('');
+  const [deckImageModal, setDeckImageModal] = useState<{show: boolean, deck: Deck | null, loading: boolean, imageUrl: string | null, error: string | null}>({show: false, deck: null, loading: false, imageUrl: null, error: null});
+
+  const [cropQueue, setCropQueue] = useState<{ url: string, type: 'tablecloth' | 'cardback', category?: string, name?: string }[]>([]);
+  const [cropState, setCropState] = useState<{ crop: { x: number, y: number }, zoom: number }>({ crop: { x: 0, y: 0 }, zoom: 1 });
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'tablecloth' | 'cardback', id: string, catId?: string } | null>(null);
+
+  const getOrGenerateDeckImage = async (deck: Deck) => {
+    const imageData = await renderDeckImage(deck.code, cardDatabase, deck.name);
+    await localforage.setItem(`deck_img_local_v1_${deck.code}`, imageData);
+    return imageData;
+  };
+
+  const handleGetDeckImage = async (deck: Deck) => {
+    setDeckImageModal({ show: true, deck, loading: true, imageUrl: null, error: null });
+    try {
+      const imageData = await getOrGenerateDeckImage(deck);
+      setDeckImageModal({ show: true, deck, loading: false, imageUrl: imageData, error: null });
+    } catch (err: any) {
+      setDeckImageModal({ show: true, deck, loading: false, imageUrl: null, error: err.message });
+    }
+  };
+
+  const refreshAfterBackupImport = async () => {
+    const loadedDecks = await localforage.getItem<Deck[]>('kards_decks');
+    const loadedCollections = await localforage.getItem<Collection[]>('kards_collections');
+    const loadedCategories = await localforage.getItem<typeof customCategories>('kards_custom_categories');
+    const loadedSelectedTablecloth = await localforage.getItem<string | null>('kards_selected_tablecloth');
+    const loadedCustomTablecloths = await localforage.getItem<string[]>('kards_custom_tablecloths');
+    const loadedSettings = await localforage.getItem<AppSettings>('kards_settings');
+
+    setDecks(loadedDecks || INITIAL_DECKS);
+    setCollections(loadedCollections || []);
+    setCustomCategories(loadedCategories || []);
+    setSelectedTablecloth(loadedSelectedTablecloth || null);
+    setCustomTablecloths(loadedCustomTablecloths || []);
+    setSettings({ ...DEFAULT_SETTINGS, ...(loadedSettings || {}) });
+    setSelectedDeckId((loadedDecks || [])[0]?.id || null);
+    setBuilderDeck(null);
+    setBuilderRevision((revision) => revision + 1);
+  };
+
+  const handleExportBackup = async () => {
+    try {
+      const backup = await createBackup();
+
+      if (window.kardsDesktop?.saveBackup) {
+        const result = await window.kardsDesktop.saveBackup(backup);
+        setBackupStatus(result.canceled ? '已取消导出。' : `备份已导出：${result.filePath}`);
+        return;
+      }
+
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `kards-local-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setBackupStatus('备份已导出。');
+    } catch (err: any) {
+      setBackupStatus(err.message || '导出失败。');
+    }
+  };
+
+  const handleImportBackup = async () => {
+    try {
+      let content: string | undefined;
+
+      if (window.kardsDesktop?.openBackup) {
+        const result = await window.kardsDesktop.openBackup();
+        if (result.canceled) {
+          setBackupStatus('已取消导入。');
+          return;
+        }
+        content = result.content;
+      } else {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'application/json,.json';
+        content = await new Promise<string | undefined>((resolve) => {
+          input.onchange = () => {
+            const file = input.files?.[0];
+            if (!file) return resolve(undefined);
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = () => resolve(undefined);
+            reader.readAsText(file);
+          };
+          input.click();
+        });
+      }
+
+      if (!content) return;
+
+      const backup = parseBackup(content);
+      await restoreBackup(backup);
+      await refreshAfterBackupImport();
+      setBackupStatus('备份已导入，卡组、设置和构筑草稿已恢复。');
+    } catch (err: any) {
+      setBackupStatus(err.message || '导入失败，请检查备份文件和本地存储空间。');
+    }
+  };
+
+  useEffect(() => {
+    if (!dataLoaded) return;
+    if (selectedTablecloth) {
+      localforage.setItem('kards_selected_tablecloth', selectedTablecloth).catch(console.error);
+    } else {
+      localforage.removeItem('kards_selected_tablecloth').catch(console.error);
+    }
+  }, [selectedTablecloth, dataLoaded]);
+
+  useEffect(() => {
+    if (!dataLoaded) return;
+    localforage.setItem('kards_custom_tablecloths', customTablecloths).catch(console.error);
+  }, [customTablecloths, dataLoaded]);
+
+  const handleTableclothUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setTableclothUploadError('仅支持 JPG, PNG, WEBP 格式');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+      setCropQueue(prev => [...prev, { url: result, type: 'tablecloth' }]);
+      // setCustomTablecloths(prev => [...prev, result]);
+      // setSelectedTablecloth(result);
+      setTableclothUploadError(null);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = ''; // Reset input
+  };
+
+  const allCategories = React.useMemo(() => {
+    const merged = CARD_BACK_CATEGORIES.map(c => ({
+      id: c.name,
+      name: c.name,
+      isCustom: false,
+      backs: c.backs.map(b => ({ ...b, isCustomCard: false }))
+    }));
+
+    customCategories.forEach(cc => {
+      const existing = merged.find(m => m.id === cc.id);
+      if (existing) {
+        existing.backs.push(...cc.backs.map(b => ({ ...b, isCustomCard: true })));
+      } else {
+        merged.push({
+          id: cc.id,
+          name: cc.name,
+          isCustom: true,
+          backs: cc.backs.map(b => ({ ...b, isCustomCard: true }))
+        });
+      }
+    });
+
+    return merged;
+  }, [customCategories]);
+
+  const selectedDeck = decks.find(d => d.id === selectedDeckId);
+
+  const handleCloseImportModal = () => {
+    setShowImportModal(false);
+    setImportCode('');
+    setImportName('');
+    setErrorStatus(null);
+  };
+
+  const handleDismissClipboardDeck = () => {
+    if (clipboardDeckCandidate) {
+      sessionStorage.setItem('kards_dismissed_clipboard_deck_code', clipboardDeckCandidate.code);
+    }
+    setClipboardDeckCandidate(null);
+  };
+
+  const handleImportClipboardDeck = () => {
+    if (!clipboardDeckCandidate) return;
+
+    setImportCode(clipboardDeckCandidate.sourceText);
+    setImportName(currentName => currentName || clipboardDeckCandidate.name);
+    setErrorStatus(null);
+    setShowImportModal(true);
+    setClipboardDeckCandidate(null);
+  };
+
+  const handleAddDeck = () => {
+    if (!importCode.trim()) return;
+    
+    try {
+      const deckCode = extractDeckCodeFromText(importCode);
+      const inferredName = inferDeckTitleFromText(importCode, deckCode);
+      const { mainNation, allyNation, totalCards, warnings, isArena, defaultName } = parseDeck(deckCode);
+      
+      const newDeck: Deck = {
+        id: Date.now().toString(),
+        name: importName.trim() || inferredName || defaultName,
+        mainNation,
+        allyNation,
+        code: deckCode,
+        isFavorite: false,
+        totalCards,
+        warnings: validateDeck(decodeDeckCode(deckCode).counts, findCardsByImportId(cardDatabase), mainNation, allyNation, DEFAULT_DECK_RULES[isArena ? 'arena' : 'standard']),
+        isArena
+      };
+      
+      setDecks([...decks, newDeck]);
+      setSelectedDeckId(newDeck.id);
+      setImportCode('');
+      setImportName('');
+      setShowImportModal(false);
+      setErrorStatus(null);
+      
+      // Reset filters so the newly added deck is visible
+      setSearchQuery('');
+      setFilterMainNation('All');
+      setFilterAllyNation('All');
+      setFilterTag('All');
+
+    } catch (e: any) {
+      setErrorStatus(ERROR_LOCALE[e.message] || e.message || '格式错误');
+    }
+  };
+
+  const handleSaveBuiltDeck = (built: BuilderDeck, warnings: string[]) => {
+    const parsed = parseDeck(built.code);
+    const existing = decks.find((deck) => deck.id === built.id);
+    const savedDeck: Deck = {
+      ...existing,
+      id: existing?.id || crypto.randomUUID(),
+      name: built.name, mainNation: parsed.mainNation, allyNation: parsed.allyNation,
+      code: built.code, isFavorite: existing?.isFavorite || false,
+      totalCards: parsed.totalCards, warnings, isArena: built.ruleSet === 'arena',
+      ruleSet: built.ruleSet, customRules: built.customRules,
+    };
+    setDecks((current) => existing ? current.map((deck) => deck.id === existing.id ? savedDeck : deck) : [...current, savedDeck]);
+    setSelectedDeckId(savedDeck.id); setBuilderDeck(savedDeck); setActiveMenu('decks');
+    setSearchQuery(''); setFilterMainNation('All'); setFilterAllyNation('All'); setFilterTag('All');
+  };
+
+  const handleDeleteDeck = (id: string) => {
+    setDecks(decks.filter(d => d.id !== id));
+    if (selectedDeckId === id) setSelectedDeckId(decks[0]?.id || null);
+  };
+
+  const handleCopyCode = async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      alert('卡组码已复制！');
+    } catch {
+      window.prompt('剪贴板不可用，请手动复制卡组码：', code);
+    }
+  };
+
+  const toggleFavorite = (id: string) => {
+    setDecks(decks.map(d => d.id === id ? { ...d, isFavorite: !d.isFavorite } : d));
+  };
+
+  const handleNameChange = (id: string, newName: string) => {
+    setDecks(decks.map(d => d.id === id ? { ...d, name: newName } : d));
+  };
+
+  const handleMultiFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from<File>(e.target.files as unknown as Iterable<File> || []);
+    if (!files.length) return;
+
+    if (!uploadCategory) {
+      setUploadError('请先选择一个分类');
+      return;
+    }
+
+    const validFiles = files.filter(f => f.type.startsWith('image/'));
+    if (validFiles.length !== files.length) {
+      setUploadError(`跳过了 ${files.length - validFiles.length} 个格式有误的文件`);
+    } else {
+      setUploadError(null);
+    }
+    
+    if (validFiles.length === 0) return;
+
+    validFiles.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        setCropQueue(prev => [...prev, { url: result, type: 'cardback', category: uploadCategory, name: file.name }]);
+      };
+      reader.readAsDataURL(file);
+    });
+    
+    setShowUploadModal(false);
+    e.target.value = ''; // Reset input
+  };
+
+  const handleCropComplete = React.useCallback((croppedArea: any, croppedAreaPixels: any) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
+
+  const handleNextCrop = async () => {
+    if (cropQueue.length === 0) return;
+    const currentCrop = cropQueue[0];
+    
+    try {
+      const croppedImage = await getCroppedImg(
+        currentCrop.url,
+        croppedAreaPixels
+      );
+
+      if (currentCrop.type === 'tablecloth') {
+        setCustomTablecloths(prev => [...prev, croppedImage]);
+        setSelectedTablecloth(croppedImage);
+      } else if (currentCrop.type === 'cardback' && currentCrop.category) {
+        setCustomCategories(prev => {
+          const newCatId = currentCrop.category!;
+          const catExists = prev.some(c => c.id === newCatId);
+          if (catExists) {
+             return prev.map(c => 
+               c.id === newCatId ? { ...c, backs: [...c.backs, { id: Date.now().toString() + Math.random(), url: croppedImage, name: currentCrop.name || 'Custom', isCustomCard: true }] } : c
+             );
+          } else {
+             const builtIn = CARD_BACK_CATEGORIES.find(c => c.name === newCatId);
+             return [...prev, { id: newCatId, name: builtIn ? builtIn.name : newCatId, backs: [{ id: Date.now().toString() + Math.random(), url: croppedImage, name: currentCrop.name || 'Custom', isCustomCard: true }] }];
+          }
+        });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
+    setCropQueue(prev => prev.slice(1));
+    setCropState({ crop: { x: 0, y: 0 }, zoom: 1 });
+  };
+
+  const handleCancelCrop = () => {
+    setCropQueue(prev => prev.slice(1));
+    setCropState({ crop: { x: 0, y: 0 }, zoom: 1 });
+  };
+
+  const allTags = React.useMemo(() => {
+    const tags = new Set<string>();
+    decks.forEach(d => {
+      if (d.tags) d.tags.forEach(tag => tags.add(tag));
+    });
+    return Array.from(tags).sort();
+  }, [decks]);
+
+  let filteredDecks = [...decks];
+  if (searchQuery) {
+    filteredDecks = filteredDecks.filter(d => 
+      d.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }
+  if (filterMainNation !== 'All') {
+    filteredDecks = filteredDecks.filter(d => d.mainNation === filterMainNation);
+  }
+  if (filterAllyNation !== 'All') {
+    filteredDecks = filteredDecks.filter(d => d.allyNation === filterAllyNation);
+  }
+  if (filterTag !== 'All') {
+    filteredDecks = filteredDecks.filter(d => d.tags && d.tags.includes(filterTag));
+  }
+
+  // Sort: favorites first
+  const sortedDecks = filteredDecks.sort((a, b) => (b.isFavorite ? 1 : 0) - (a.isFavorite ? 1 : 0));
+
+  return (
+    <div className="flex flex-col h-screen military-noise relative">
+      {/* --- Top Bar --- */}
+      <header className="h-14 bg-kards-gray flex items-center justify-between px-6 border-b border-kards-border z-20 transition-colors duration-300">
+        <div className="flex items-center gap-8">
+          <div className="flex items-center gap-3">
+            <img 
+              src={effectiveIsDarkMode ? "/assets/kards_logos/Common/KardsLogoBeige.png" : "/assets/kards_logos/Common/KardsLogoBlack.png"} 
+              alt="KARDS Logo" 
+              className="h-16 w-auto transition-opacity"
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            />
+            <span className="text-xl font-bold tracking-widest text-kards-text sr-only">KARDS</span>
+          </div>
+          <nav className="flex items-center gap-6">
+            <h1 className="text-kards-text font-bold border-l border-kards-border pl-6 cursor-default tracking-widest">
+              {activeMenu === 'collection' ? '合集管理' : activeMenu === 'cards' ? '卡牌资料库' : activeMenu === 'builder' ? '卡组构筑' : '卡组管理'}
+            </h1>
+            <div className="flex items-center gap-3">
+              {(activeMenu === 'decks' || activeMenu === 'collection') && <>
+              <input 
+                type="text" 
+                placeholder={activeMenu === 'collection' ? "搜索合集名称..." : "搜索卡组..."}
+                value={searchQuery || ''}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="bg-kards-gray-alt border border-kards-border text-kards-text text-sm px-3 py-1.5 focus:outline-none focus:border-kards-gold min-w-[200px] rounded transition-colors"
+              />
+              {activeMenu !== 'collection' && (
+                <>
+                  <select 
+                    value={filterMainNation || 'All'}
+                    onChange={e => setFilterMainNation(e.target.value as Nation | 'All')}
+                    className="bg-kards-gray-alt border border-kards-border text-kards-text text-sm px-2 py-1.5 focus:outline-none focus:border-kards-gold rounded transition-colors"
+                  >
+                    <option value="All">主国：全部</option>
+                    {Object.entries(NATION_DATA).map(([key, data]) => data.isMainAllowed && <option key={key} value={key}>{data.label}</option>)}
+                  </select>
+                  <select 
+                    value={filterAllyNation || 'All'}
+                    onChange={e => setFilterAllyNation(e.target.value as Nation | 'All')}
+                    className="bg-kards-gray-alt border border-kards-border text-kards-text text-sm px-2 py-1.5 focus:outline-none focus:border-kards-gold rounded transition-colors"
+                  >
+                    <option value="All">盟国：全部</option>
+                    {Object.keys(NATION_DATA).map(key => <option key={key} value={key}>{NATION_DATA[key as Nation].label}</option>)}
+                  </select>
+                  <select 
+                    value={filterTag || 'All'}
+                    onChange={e => setFilterTag(e.target.value)}
+                    className="bg-kards-gray-alt border border-kards-border text-kards-text text-sm px-2 py-1.5 focus:outline-none focus:border-kards-gold max-w-[120px] rounded transition-colors"
+                  >
+                    <option value="All">标签：全部</option>
+                    {allTags.map(tag => <option key={tag} value={tag}>{tag}</option>)}
+                  </select>
+                </>
+              )}
+              </>}
+            </div>
+          </nav>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setShowTableclothModal(true)}
+            className="p-2 hover:bg-kards-panel-hover transition-colors group relative"
+            title="切换桌布"
+          >
+            <Palette className="w-5 h-5 text-kards-text-muted group-hover:text-kards-gold" />
+          </button>
+          <button className="p-2 hover:bg-kards-panel-hover transition-colors group">
+            <User className="w-5 h-5 text-kards-text-muted group-hover:text-kards-text" />
+          </button>
+          <button 
+            onClick={() => setShowSettingsModal(true)}
+            className="p-2 hover:bg-kards-panel-hover transition-colors group"
+            title="应用设置"
+          >
+            <Settings className="w-5 h-5 text-kards-text-muted group-hover:text-kards-gold" />
+          </button>
+        </div>
+      </header>
+
+      {/* --- Main Layout --- */}
+      <div className="flex flex-1 overflow-hidden">
+        
+        {/* Left Sidebar */}
+        <aside className="w-24 bg-kards-gray flex flex-col gap-1 p-1 z-10 border-r border-kards-border transition-colors duration-300">
+          <SidebarButton 
+            active={activeMenu === 'decks'} 
+            onClick={() => setActiveMenu('decks')}
+            icon={<Library className="w-8 h-8" />}
+            label="卡组列表"
+          />
+          <SidebarButton 
+            active={activeMenu === 'collection'} 
+            onClick={() => setActiveMenu('collection')}
+            icon={<Plus className="w-8 h-8" />}
+            label="卡组合集"
+          />
+          <SidebarButton
+            active={activeMenu === 'cards'}
+            onClick={() => setActiveMenu('cards')}
+            icon={<Library className="w-8 h-8" />}
+            label="卡牌资料"
+          />
+          <SidebarButton
+            active={activeMenu === 'builder'}
+            onClick={() => setActiveMenu('builder')}
+            icon={<Plus className="w-8 h-8" />}
+            label="卡组构筑"
+          />
+        </aside>
+
+        {/* Center Grid */}
+        <main className="flex-1 bg-kards-bg overflow-hidden relative transition-colors duration-300">
+          {/* Fixed Background Layer */}
+          <div 
+            className="absolute inset-0 pointer-events-none z-0"
+            style={{
+              backgroundImage: selectedTablecloth ? `url("${selectedTablecloth}")` : undefined,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundColor: !selectedTablecloth ? 'rgba(255,255,255,0.02)' : undefined
+            }}
+          />
+
+          {/* Nation Background Overlay - Fixed to viewport */}
+          <div className="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none z-0">
+            <div className="absolute inset-0 bg-black/20" />
+            <AnimatePresence>
+              {selectedDeck && activeMenu === 'decks' && (
+                <motion.div 
+                  key={selectedDeck.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="absolute inset-0 flex items-center justify-center"
+                >
+                  {!selectedDeck.isArena && selectedDeck.allyNation ? (
+                    <div className="flex items-center justify-center gap-32 w-full">
+                      <div className="flex-1 flex justify-end">
+                        <img 
+                          src={NATION_DATA[selectedDeck.mainNation].icon} 
+                          style={{ width: settings.logoSize, height: settings.logoSize, opacity: settings.logoOpacity * (selectedTablecloth ? 1.2 : 0.8) }}
+                          className="object-contain transition-all duration-300" 
+                          alt="main"
+                        />
+                      </div>
+                      <div className="flex-1 flex justify-start">
+                        <img 
+                          src={NATION_DATA[selectedDeck.allyNation].icon} 
+                          style={{ width: settings.logoSize * 0.77, height: settings.logoSize * 0.77, opacity: settings.logoOpacity * (selectedTablecloth ? 1 : 0.6) }}
+                          className="object-contain transition-all duration-300" 
+                          alt="ally"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <img 
+                      src={NATION_DATA[selectedDeck.mainNation].icon} 
+                      style={{ width: settings.logoSize * 1.1, height: settings.logoSize * 1.1, opacity: settings.logoOpacity * (selectedTablecloth ? 1.2 : 0.8) }}
+                      className="object-contain transition-all duration-300" 
+                      alt="nation"
+                    />
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Scrollable Content Container */}
+          <div className={`h-full w-full overflow-y-auto no-scrollbar relative z-10 flex flex-col items-center ${activeMenu === 'cards' || activeMenu === 'builder' ? '' : 'p-12'}`}>
+            {activeMenu === 'cards' && (
+              cardDatabaseLoading ? <div className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</div>
+                : cardDatabaseError ? <div className="max-w-xl rounded border border-red-500/40 bg-red-500/10 p-6 text-red-300">{cardDatabaseError}</div>
+                  : <div className="h-full w-full max-w-[1800px]"><CardLibrary cards={cardDatabase} /></div>
+            )}
+            {activeMenu === 'builder' && cardDatabaseLoading && <p className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</p>}
+            {activeMenu === 'builder' && cardDatabaseError && <p className="p-6 text-red-400">{cardDatabaseError}</p>}
+            {!cardDatabaseLoading && !cardDatabaseError && <div className={`h-full w-full max-w-[1800px] shrink-0 ${activeMenu === 'builder' ? '' : 'hidden'}`}><DeckBuilder key={builderRevision} cards={cardDatabase} initialDeck={builderDeck} onSave={handleSaveBuiltDeck} /></div>}
+            {activeMenu === 'decks' && (
+              <div 
+                style={{ 
+                  display: 'grid',
+                  gridTemplateColumns: `repeat(auto-fill, minmax(${10 * settings.uiScale}rem, 1fr))`,
+                  gap: `${settings.deckGap * settings.uiScale}rem`,
+                  justifyItems: 'center'
+                }}
+                className="max-w-7xl w-full relative"
+              >
+                {sortedDecks.map((deck) => (
+                  <DeckCard 
+                    key={deck.id}
+                    deck={deck}
+                    selected={selectedDeckId === deck.id}
+                    onClick={() => setSelectedDeckId(deck.id)}
+                    settings={settings}
+                  />
+                ))}
+
+                {/* Add Deck Placeholder */}
+                <button 
+                  onClick={() => setShowImportModal(true)}
+                  className="flex flex-col items-center group flex-shrink-0"
+                >
+                  <div 
+                    style={{ 
+                      backgroundColor: `rgba(var(--rgb-panel-overlay), ${settings.importBoxOpacity})`,
+                      width: `${10 * settings.uiScale}rem`
+                    }}
+                    className="aspect-[5/7] military-border backdrop-blur-sm flex items-center justify-center group-hover:border-kards-gold transition-all rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.3)]"
+                  >
+                    <Plus style={{ width: `${3 * settings.uiScale}rem`, height: `${3 * settings.uiScale}rem` }} className="text-kards-text-muted group-hover:text-kards-gold transition-colors" />
+                  </div>
+                  <span className="mt-4 text-sm font-bold text-kards-text-muted bg-kards-panel/80 px-4 py-1 rounded shadow-md border border-kards-border/50 backdrop-blur-md group-hover:text-kards-gold group-hover:border-kards-gold/50 group-hover:shadow-kards-gold/20 transition-all" style={{ fontSize: `${0.875 * settings.uiScale}rem` }}>导入新卡组</span>
+                </button>
+              </div>
+            )}
+
+            {activeMenu === 'collection' && (
+              <div className="max-w-4xl w-full relative">
+                <div className="flex justify-between items-center mb-8">
+                  <h2 className="text-2xl font-bold tracking-widest text-kards-text flex items-center gap-3 bg-kards-panel/80 px-6 py-2 rounded-lg border border-kards-border/50 shadow-lg backdrop-blur-md">
+                    <Library className="w-8 h-8 text-kards-gold drop-shadow-md" /> 卡组合集
+                  </h2>
+                  <button 
+                    onClick={() => {
+                      setNewCollectionName('');
+                      setShowCreateCollectionModal(true);
+                    }}
+                    className="bg-kards-accent px-6 py-2 font-bold text-white hover:brightness-125 transition-all flex items-center gap-2 shadow-lg rounded-md"
+                  >
+                    <Plus className="w-5 h-5" /> 创建新合集
+                  </button>
+                </div>
+
+                <div className="space-y-1.5">
+                  {collections
+                    .filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .map((col, index) => (
+                    <motion.div 
+                      key={col.id} 
+                      layout
+                      drag={expandedCollectionId !== col.id ? "y" : false}
+                      dragConstraints={{ top: 0, bottom: 0 }}
+                      dragElastic={0.1}
+                      onDragEnd={(_, info) => {
+                        const threshold = 20;
+                        if (Math.abs(info.offset.y) > threshold) {
+                          const originalIndex = collections.findIndex(c => c.id === col.id);
+                          if (originalIndex === -1) return;
+                          
+                          const newIndex = info.offset.y > 0 ? originalIndex + 1 : originalIndex - 1;
+                          if (newIndex >= 0 && newIndex < collections.length) {
+                            const newCollections = [...collections];
+                            [newCollections[originalIndex], newCollections[newIndex]] = [newCollections[newIndex], newCollections[originalIndex]];
+                            setCollections(newCollections);
+                          }
+                        }
+                      }}
+                      className="border border-kards-border group/col relative overflow-hidden shadow-xl rounded-lg transition-colors"
+                      style={{ 
+                        backgroundColor: `rgba(var(--rgb-panel-overlay), ${settings.importBoxOpacity})`,
+                        backdropFilter: `blur(${settings.importBoxOpacity * 12}px)`,
+                        zIndex: expandedCollectionId === col.id ? 20 : 10 
+                      }}
+                    >
+                      <div 
+                        className={`p-4 flex items-center justify-between cursor-pointer hover:bg-kards-panel-hover transition-colors z-10 relative ${expandedCollectionId !== col.id ? 'active:bg-kards-panel active:cursor-move' : ''}`}
+                        style={{ 
+                          backgroundColor: `rgba(var(--rgb-panel-overlay-inv), ${settings.importBoxOpacity * 0.05})`,
+                        }}
+                        onClick={() => setExpandedCollectionId(expandedCollectionId === col.id ? null : col.id)}
+                      >
+                        <div className="flex items-center gap-4 pointer-events-none">
+                          <ChevronRight className={`w-5 h-5 text-kards-text-muted transition-transform ${expandedCollectionId === col.id ? 'rotate-90' : ''}`} />
+                          <div className="flex items-center gap-3">
+                            <span className="text-lg font-bold text-kards-text drop-shadow-md">{col.name}</span>
+                            <span className="text-xs text-kards-text-muted font-mono drop-shadow-sm">({col.deckIds.length} 个卡组)</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 opacity-0 group-hover/col:opacity-100 transition-opacity">
+                          {expandedCollectionId !== col.id && (
+                            <div className="text-[10px] text-kards-text-muted uppercase font-bold tracking-widest hidden sm:block pointer-events-none mr-2">拖动排序</div>
+                          )}
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCollections(collections.map(c => c.id === col.id ? { ...c, isFavorite: !c.isFavorite } : c));
+                            }}
+                            className={`p-2 hover:bg-kards-panel-hover rounded transition-colors ${col.isFavorite ? 'text-kards-gold' : 'text-kards-text-muted'} pointer-events-auto`}
+                          >
+                            <Star className={`w-5 h-5 ${col.isFavorite ? 'fill-current' : ''}`} />
+                          </button>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCollectionToRename(col);
+                              setRenameCollectionName(col.name);
+                            }}
+                            className="p-2 hover:bg-kards-panel-hover text-kards-text-muted hover:text-kards-text rounded transition-colors pointer-events-auto"
+                          >
+                            <Edit2 className="w-5 h-5" />
+                          </button>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCollectionToDelete(col);
+                            }}
+                            className="p-2 hover:bg-red-500/20 text-kards-text-muted hover:text-red-500 rounded transition-colors pointer-events-auto"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <AnimatePresence>
+                        {expandedCollectionId === col.id && (
+                          <motion.div 
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            style={{ backgroundColor: `rgba(var(--rgb-panel-overlay-inv), ${settings.importBoxOpacity * 0.3})` }}
+                            className="transition-colors"
+                          >
+                            <div className="p-4 border-t border-kards-border space-y-2">
+                              {col.deckIds.length === 0 ? (
+                                <div className="text-center py-8 text-kards-text-muted italic text-sm">
+                                  合集为空，请添加卡组
+                                </div>
+                              ) : (
+                                <div className="space-y-1">
+                                  {col.deckIds.map((deckId, index) => {
+                                    const deck = decks.find(d => d.id === deckId);
+                                    if (!deck) return null;
+                                    return (
+                                      <motion.div 
+                                        layout
+                                        key={deck.id}
+                                        drag="y"
+                                        dragConstraints={{ top: 0, bottom: 0 }}
+                                        dragElastic={0.1}
+                                        onDragEnd={(_, info) => {
+                                          const threshold = 20;
+                                          if (Math.abs(info.offset.y) > threshold) {
+                                            const newIndex = info.offset.y > 0 ? index + 1 : index - 1;
+                                            if (newIndex >= 0 && newIndex < col.deckIds.length) {
+                                              const newIds = [...col.deckIds];
+                                              [newIds[index], newIds[newIndex]] = [newIds[newIndex], newIds[index]];
+                                              setCollections(collections.map(c => c.id === col.id ? { ...c, deckIds: newIds } : c));
+                                            }
+                                          }
+                                        }}
+                                        style={{ backgroundColor: `rgba(var(--rgb-panel-overlay-inv), ${settings.importBoxOpacity * 0.1})` }}
+                                        className="flex items-center justify-between p-3 hover:bg-kards-panel-hover transition-colors group/item cursor-move active:bg-kards-panel-border active:scale-[1.01] z-0 active:z-10 relative border-b border-kards-border"
+                                      >
+                                        <div className="flex items-center gap-4 flex-1 pointer-events-none">
+                                          <div className="flex flex-col gap-0.5">
+                                            <div className="flex items-center gap-1">
+                                              <img src={getFlagUrl(NATION_DATA[deck.mainNation].flag)} className="w-5 h-3.5 object-contain" alt="main" />
+                                              {deck.allyNation && <img src={getFlagUrl(NATION_DATA[deck.allyNation].flag)} className="w-4 h-3 object-contain opacity-70" alt="ally" />}
+                                            </div>
+                                          </div>
+                                          <div className="flex flex-col">
+                                            <span className="font-bold text-kards-text drop-shadow-sm">{deck.name}</span>
+                                            <span className="text-[10px] font-mono text-kards-text-muted drop-shadow-sm truncate max-w-[200px]">{deck.code}</span>
+                                          </div>
+                                        </div>
+                                        
+                                        <div className="flex items-center gap-2">
+                                          <div className="flex items-center gap-1 mr-4 opacity-0 group-hover/item:opacity-100 transition-opacity">
+                                            <div className="text-[10px] text-kards-text-muted uppercase font-bold tracking-widest hidden sm:block">拖动排序</div>
+                                          </div>
+                                          <button 
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleGetDeckImage(deck);
+                                            }}
+                                            className="p-2 text-kards-gold hover:text-kards-text transition-colors pointer-events-auto"
+                                            title="获取卡组图片"
+                                          >
+                                            <ImageIcon className="w-4 h-4" />
+                                          </button>
+                                          <button 
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setCollections(collections.map(c => c.id === col.id ? { ...c, deckIds: c.deckIds.filter(id => id !== deckId) } : c));
+                                            }}
+                                            className="p-2 text-kards-text-muted hover:text-red-500 transition-colors pointer-events-auto"
+                                            title="移出合集"
+                                          >
+                                            <X className="w-4 h-4" />
+                                          </button>
+                                        </div>
+                                      </motion.div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                              
+                              <button 
+                                onClick={() => setShowAddDeckToCollectionModal(col.id)}
+                                className="w-full py-3 mt-4 border border-dashed border-kards-border text-kards-text-muted hover:text-kards-gold hover:border-kards-gold transition-all text-sm font-bold flex items-center justify-center gap-2"
+                              >
+                                <Plus className="w-4 h-4" /> 添加卡组到此合集
+                              </button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  ))}
+                  
+                  {collections.length === 0 && (
+                    <div 
+                      style={{ 
+                        backgroundColor: `rgba(var(--rgb-panel-overlay), ${settings.importBoxOpacity})`,
+                        backdropFilter: `blur(${settings.importBoxOpacity * 10}px)`
+                      }}
+                      className="text-center py-24 military-border rounded-xl shadow-2xl relative overflow-hidden"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
+                      <Library className="w-16 h-16 text-kards-gold/30 mx-auto mb-6 relative z-10" />
+                      <p className="text-kards-text font-black tracking-[0.4em] text-2xl mb-3 relative z-10">暂无合集</p>
+                      <p className="text-kards-text-muted text-sm font-medium tracking-widest relative z-10">点击右上角按钮开始构筑您的卡组合集</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </main>
+
+        {/* Right Details Panel */}
+        {activeMenu === 'decks' && (
+          <aside 
+            className="w-[320px] border-l border-kards-border flex flex-col z-10 overflow-hidden transition-colors"
+            style={{ 
+              backgroundColor: `rgba(var(--rgb-panel-overlay), ${settings.importBoxOpacity})` 
+            }}
+          >
+            {selectedDeck ? (
+              <motion.div 
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                key={selectedDeck.id}
+                className="flex flex-col h-full"
+              >
+              <div className="p-6 flex-1 overflow-y-auto no-scrollbar min-h-0 w-full">
+                <input 
+                  type="text"
+                  value={selectedDeck.name || ''}
+                  aria-label="管理卡组名称"
+                  onChange={(e) => handleNameChange(selectedDeck.id, e.target.value)}
+                  className="text-xl font-bold tracking-tight mb-4 text-center bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-kards-gold/30 rounded w-full"
+                />
+                
+                <div className="flex flex-col items-center">
+                  <div 
+                    className="w-48 aspect-[5/7] military-border overflow-hidden relative group cursor-pointer bg-kards-gray-alt flex items-center justify-center shrink-0 shadow-2xl"
+                    onClick={() => setShowCardBackModal(selectedDeck.id)}
+                  >
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity z-20 flex items-center justify-center backdrop-blur-sm rounded-md">
+                        <span className="text-kards-text font-bold tracking-widest text-sm flex items-center gap-2">
+                          <ImageIcon className="w-4 h-4" />
+                          更换卡背
+                        </span>
+                      </div>
+                      <img 
+                        src={selectedDeck.cardBackUrl || NATION_DATA[selectedDeck.mainNation].defaultBack || '/assets/cardbacks/Common/BasicBeta.jpg'} 
+                        alt={selectedDeck.name}
+                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 pointer-events-none select-none rounded-md"
+                        onError={(e) => { 
+                          if (e.currentTarget.getAttribute('data-error')) return;
+                          e.currentTarget.setAttribute('data-error', 'true');
+                          e.currentTarget.src = '/assets/cardbacks/Common/BasicBeta.jpg'; 
+                        }}
+                      />
+                    
+                    {/* Small flags at the bottom left */}
+                    <div className="absolute bottom-1.5 left-1.5 flex items-end gap-1 bg-black/70 p-1 rounded-sm backdrop-blur-sm border border-kards-border z-10">
+                      <img src={getFlagUrl(NATION_DATA[selectedDeck.mainNation].flag)} className="w-5 h-3.5 object-contain" alt="main" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                      {selectedDeck.allyNation && (
+                        <div className="flex items-end gap-1">
+                           <div className="w-[1px] h-3 bg-white/20" />
+                           <img src={getFlagUrl(NATION_DATA[selectedDeck.allyNation].flag)} className="w-3.5 h-2.5 object-contain opacity-80" alt="ally" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 pt-4 border-t border-kards-border bg-kards-gray space-y-4 shrink-0 w-full min-w-0 transition-colors">
+                <div className="flex gap-2 items-center overflow-x-auto py-2 w-full max-w-[280px] custom-scrollbar">
+                  <div className="flex-shrink-0 flex items-center gap-2">
+                    {addingTagToDeckId === selectedDeck.id ? (
+                      <input 
+                        type="text"
+                        autoFocus
+                        className="bg-black border border-kards-gold px-2 py-1 text-xs text-kards-text max-w-[100px] focus:outline-none"
+                        placeholder="输入标签..."
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const newTag = e.currentTarget.value.trim();
+                            if (newTag) {
+                              setDecks(decks.map(d => d.id === selectedDeck.id ? { ...d, tags: Array.from(new Set([...(d.tags || []), newTag])) } : d));
+                            }
+                            setAddingTagToDeckId(null);
+                          } else if (e.key === 'Escape') {
+                            setAddingTagToDeckId(null);
+                          }
+                        }}
+                        onBlur={() => setAddingTagToDeckId(null)}
+                      />
+                    ) : (
+                      <button 
+                        onClick={() => setAddingTagToDeckId(selectedDeck.id)}
+                        className="flex items-center gap-1 bg-kards-panel hover:bg-kards-panel-hover border border-kards-border text-kards-text text-xs px-2 py-1 rounded text-kards-text-muted font-bold"
+                      >
+                        <Plus className="w-3 h-3" /> 添加标签
+                      </button>
+                    )}
+                  </div>
+                  {selectedDeck.tags?.map(tag => (
+                    <div key={tag} className="flex flex-shrink-0 items-center gap-1 bg-kards-panel border border-kards-border text-xs px-2 py-1 rounded text-kards-text whitespace-nowrap">
+                      <span>{tag}</span>
+                      <button 
+                        onClick={() => {
+                          setDecks(decks.map(d => d.id === selectedDeck.id ? { ...d, tags: d.tags?.filter(t => t !== tag) } : d));
+                        }}
+                        className="hover:text-red-400 transition-colors ml-1"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <label className="block text-xs text-kards-text-muted">卡组备注
+                  <textarea aria-label="卡组备注" rows={3} value={selectedDeck.notes || ''} onChange={(e) => setDecks((current) => current.map((deck) => deck.id === selectedDeck.id ? { ...deck, notes: e.target.value } : deck))} placeholder="记录对局思路、换牌和调整计划" className="mt-2 w-full resize-none rounded border border-kards-border bg-kards-input-bg px-3 py-2 text-sm text-kards-text" />
+                </label>
+                <div className="flex gap-2">
+                  <ActionButton 
+                    label="删除卡组"
+                    onClick={() => handleDeleteDeck(selectedDeck.id)}
+                    icon={<Trash2 className="w-5 h-5" />}
+                    className="bg-kards-panel hover:bg-kards-accent text-white border border-kards-border hover:text-white"
+                  />
+                  <ActionButton 
+                    label="复制卡组码"
+                    onClick={() => handleCopyCode(selectedDeck.code)}
+                    icon={<Copy className="w-5 h-5" />}
+                    className="bg-kards-panel hover:bg-kards-panel-hover border border-kards-border text-kards-text"
+                  />
+                  <ActionButton 
+                    label="生成本地卡组图片"
+                    onClick={() => handleGetDeckImage(selectedDeck)}
+                    icon={<ImageIcon className="w-5 h-5" />}
+                    className="bg-kards-panel hover:bg-kards-panel-hover border border-kards-border text-kards-text text-kards-gold"
+                  />
+                  <ActionButton 
+                    label={selectedDeck.isFavorite ? '取消收藏卡组' : '收藏卡组'}
+                    onClick={() => toggleFavorite(selectedDeck.id)}
+                    icon={<Star className={`w-5 h-5 ${selectedDeck.isFavorite ? 'fill-kards-gold text-kards-gold' : ''}`} />}
+                    className="bg-kards-panel hover:bg-kards-panel-hover border border-kards-border text-kards-text"
+                  />
+                </div>
+                
+                <button onClick={() => { setBuilderDeck({ ...selectedDeck }); setActiveMenu('builder'); }} className="w-full bg-kards-text text-kards-bg font-bold py-3 uppercase tracking-widest text-sm hover:opacity-80 transition-colors flex items-center justify-center gap-2 rounded-md">
+                  <Settings className="w-4 h-4" /> 编辑卡组
+                </button>
+              </div>
+            </motion.div>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-kards-text-muted">
+              请选择一个卡组
+            </div>
+          )}
+        </aside>
+      )}
+    </div>
+
+      {/* --- Clipboard Import Prompt --- */}
+      <AnimatePresence>
+        {clipboardDeckCandidate && !showImportModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={handleDismissClipboardDeck}
+              className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 18 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 18 }}
+              className="relative w-full max-w-md military-border p-6 shadow-2xl transition-all"
+              style={{
+                backgroundColor: `rgba(var(--rgb-panel-overlay), ${settings.importBoxOpacity})`,
+                backdropFilter: `blur(${settings.importBoxOpacity * 10}px)`
+              }}
+            >
+              <button
+                onClick={handleDismissClipboardDeck}
+                className="absolute top-4 right-4 text-kards-text-muted hover:text-kards-text"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-kards-text">
+                <Copy className="w-5 h-5 text-kards-gold" /> 检测到剪贴板卡组码
+              </h3>
+
+              <div className="space-y-3">
+                <p className="text-sm text-kards-text-muted">
+                  是否导入剪贴板中的卡组？
+                </p>
+                <div className="bg-kards-input-bg border border-kards-border rounded-md p-3">
+                  <p className="text-sm font-bold text-kards-text truncate">{clipboardDeckCandidate.name}</p>
+                  <p className="text-xs font-mono text-kards-gold break-all mt-1">{clipboardDeckCandidate.code}</p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-5">
+                <button
+                  onClick={handleDismissClipboardDeck}
+                  className="flex-1 border border-kards-border py-3 font-bold hover:bg-kards-panel-hover transition-colors rounded-md"
+                >
+                  暂不导入
+                </button>
+                <button
+                  onClick={handleImportClipboardDeck}
+                  className="flex-1 bg-kards-accent py-3 font-bold text-white hover:brightness-125 transition-all shadow-lg rounded-md"
+                >
+                  导入
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* --- Import Modal --- */}
+      <AnimatePresence>
+        {showImportModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={handleCloseImportModal}
+              className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative w-full max-w-md military-border p-8 shadow-2xl transition-all"
+              style={{ 
+                backgroundColor: `rgba(var(--rgb-panel-overlay), ${settings.importBoxOpacity})`,
+                backdropFilter: `blur(${settings.importBoxOpacity * 10}px)`
+              }}
+            >
+              <button 
+                onClick={handleCloseImportModal}
+                className="absolute top-4 right-4 text-kards-text-muted hover:text-kards-text"
+              >
+                <X className="w-6 h-6" />
+              </button>
+              
+              <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+                <Plus className="w-5 h-5 text-kards-gold" /> 导入新卡组
+              </h3>
+              
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-xs uppercase tracking-wider text-kards-text-muted mb-2 font-bold">卡组名称（选填）</label>
+                  <input 
+                    type="text" 
+                    value={importName || ''}
+                    onChange={(e) => setImportName(e.target.value)}
+                    placeholder="输入卡组名称，留空则使用默认名称"
+                    className="w-full bg-kards-input-bg border border-kards-border px-4 py-3 text-kards-text focus:outline-none focus:border-kards-gold transition-colors mb-4 rounded-md"
+                  />
+                  <label className="block text-xs uppercase tracking-wider text-kards-text-muted mb-2 font-bold">输入卡组码</label>
+                  <textarea
+                    value={importCode || ''}
+                    onChange={(e) => {
+                      setImportCode(e.target.value);
+                      setErrorStatus(null);
+                    }}
+                    placeholder="例如: %%53|5ucCbn;5W6L... 或直接粘贴游戏内复制的整段卡组列表"
+                    className={`w-full min-h-32 resize-y bg-kards-input-bg border ${errorStatus ? 'border-red-500' : 'border-kards-border'} px-4 py-3 text-kards-gold font-mono focus:outline-none focus:border-kards-gold transition-colors rounded-md`}
+                    autoFocus
+                  />
+                  {errorStatus && (
+                    <p className="text-red-500 text-xs mt-2 font-bold flex items-center gap-1">
+                      <Zap className="w-3 h-3" /> {errorStatus}
+                    </p>
+                  )}
+                </div>
+                
+                <div className="flex gap-4 pt-4">
+                  <button 
+                    onClick={handleCloseImportModal}
+                    className="flex-1 border border-kards-border py-3 font-bold hover:bg-kards-panel-hover transition-colors rounded-md"
+                  >
+                    取消
+                  </button>
+                  <button 
+                    onClick={handleAddDeck}
+                    className="flex-1 bg-kards-accent py-3 font-bold text-white hover:brightness-125 transition-all shadow-lg rounded-md"
+                  >
+                    确认导入
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* --- Tablecloth Modal --- */}
+      <AnimatePresence>
+        {showTableclothModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowTableclothModal(false)}
+              className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative w-full max-w-4xl max-h-[80vh] military-border p-8 shadow-2xl flex flex-col z-50 rounded-xl transition-colors"
+              style={{ 
+                backgroundColor: `rgba(var(--rgb-panel-overlay), ${settings.importBoxOpacity})` 
+              }}
+            >
+              <button 
+                onClick={() => setShowTableclothModal(false)}
+                className="absolute top-4 right-4 text-kards-text-muted hover:text-kards-text"
+              >
+                <X className="w-6 h-6" />
+              </button>
+              
+              <div className="flex items-center justify-between mb-6 border-b border-kards-border pb-4">
+                <h3 className="text-2xl font-bold flex items-center gap-3">
+                  <Palette className="w-6 h-6 text-kards-gold" /> 切换桌布
+                </h3>
+                
+                <label className="flex items-center gap-2 bg-kards-accent px-4 py-2 font-bold cursor-pointer hover:brightness-125 transition-all text-sm text-white">
+                  <Upload className="w-4 h-4" /> 上传自定义桌布
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept="image/*"
+                    onChange={handleTableclothUpload}
+                  />
+                </label>
+              </div>
+
+              {tableclothUploadError && (
+                <div className="mb-4 bg-red-500/20 border border-red-500 p-3 flex items-center gap-2 text-red-500 text-sm font-bold">
+                  <Zap className="w-4 h-4" /> {tableclothUploadError}
+                </div>
+              )}
+              
+              <div className="flex-1 overflow-y-auto w-full no-scrollbar pr-2 pb-8">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {/* Default / Empty Option */}
+                  <div 
+                    onClick={() => setSelectedTablecloth(null)}
+                    className={`aspect-video military-border flex flex-col items-center justify-center cursor-pointer transition-all ${!selectedTablecloth ? 'border-kards-gold bg-kards-gold/10' : 'bg-kards-bg hover:bg-kards-panel-hover opacity-60 hover:opacity-100'}`}
+                  >
+                    <ImageIcon className="w-8 h-8 mb-2 text-kards-text-muted" />
+                    <span className="text-xs font-bold uppercase tracking-widest">默认桌布</span>
+                  </div>
+
+                  {/* Custom Uploads */}
+                  {customTablecloths.map((url, idx) => (
+                    <div 
+                      key={`custom-${idx}`}
+                      onClick={() => setSelectedTablecloth(url)}
+                      className={`aspect-video military-border overflow-hidden cursor-pointer group relative ${selectedTablecloth === url ? 'ring-2 ring-kards-gold' : 'hover:brightness-110 opacity-80 hover:opacity-100'}`}
+                    >
+                      <img src={url} className="w-full h-full object-cover" alt={`Custom ${idx}`} />
+                      <div className="absolute top-1 right-1 opacity-80 group-hover:opacity-100 transition-opacity z-20">
+                        {deleteConfirm?.id === `tc-${idx}` ? (
+                          <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteConfirm(null);
+                              }}
+                              className="px-2 py-1 bg-kards-panel-alt text-kards-text text-[10px] font-bold rounded-sm uppercase tracking-tighter hover:bg-kards-panel-alt"
+                            >取消</button>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCustomTablecloths(prev => prev.filter((_, i) => i !== idx));
+                                if (selectedTablecloth === url) setSelectedTablecloth(null);
+                                setDeleteConfirm(null);
+                              }}
+                              className="px-2 py-1 bg-red-600 text-white text-[10px] font-bold rounded-sm uppercase tracking-tighter hover:bg-red-500"
+                            >确认</button>
+                          </div>
+                        ) : (
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteConfirm({ type: 'tablecloth', id: `tc-${idx}` });
+                            }}
+                            className="p-1.5 bg-kards-modal-overlay hover:bg-red-600 rounded-sm text-red-500 hover:text-white transition-colors"
+                            title="删除桌布"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      <div className="absolute inset-0 pointer-events-none bg-kards-gold/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Check className={`w-6 h-6 text-kards-text ${selectedTablecloth === url ? 'opacity-100' : 'opacity-0'}`} />
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Built-in Tablecloths */}
+                  {BUILT_IN_TABLECLOTHS.map((url, idx) => (
+                    <div 
+                      key={`builtin-${idx}`}
+                      onClick={() => setSelectedTablecloth(url)}
+                      className={`aspect-video military-border overflow-hidden cursor-pointer group relative ${selectedTablecloth === url ? 'ring-2 ring-kards-gold' : 'hover:brightness-110 opacity-80 hover:opacity-100'}`}
+                    >
+                      <img src={url} className="w-full h-full object-cover" alt={`Tablecloth ${idx + 1}`} />
+                      <div className="absolute inset-0 bg-kards-gold/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Check className={`w-6 h-6 text-kards-text ${selectedTablecloth === url ? 'opacity-100' : 'opacity-0'}`} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showCardBackModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowCardBackModal(null)}
+              className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative w-full max-w-4xl max-h-[80vh] bg-kards-gray military-border p-8 shadow-2xl flex flex-col"
+            >
+              <button 
+                onClick={() => setShowCardBackModal(null)}
+                className="absolute top-4 right-4 text-kards-text-muted hover:text-kards-text"
+              >
+                <X className="w-6 h-6" />
+              </button>
+              
+              <div className="flex items-center justify-between mb-6 border-b border-kards-border pb-4">
+                <h3 className="text-2xl font-bold flex items-center gap-3">
+                  <ImageIcon className="w-6 h-6 text-kards-gold" /> 更换卡背
+                </h3>
+                
+                <div className="flex gap-4">
+                  {addingCategory ? (
+                    <div className="flex items-center gap-2">
+                       <input 
+                         type="text"
+                         value={newCatName || ''}
+                         onChange={e => setNewCatName(e.target.value)}
+                         placeholder="分类名称..."
+                         className="bg-kards-input-bg border border-kards-border px-3 py-1 text-sm focus:outline-none focus:border-kards-gold text-kards-text w-32"
+                         autoFocus
+                         onKeyDown={e => {
+                           if (e.key === 'Enter') {
+                             if (!newCatName.trim()) return;
+                             setCustomCategories(prev => [...prev, { id: 'cat_' + Date.now().toString(), name: newCatName.trim(), backs: [] }]);
+                             setNewCatName('');
+                             setAddingCategory(false);
+                           } else if (e.key === 'Escape') {
+                             setAddingCategory(false);
+                           }
+                         }}
+                       />
+                       <button 
+                         onClick={() => {
+                           if (!newCatName.trim()) return;
+                           setCustomCategories(prev => [...prev, { id: 'cat_' + Date.now().toString(), name: newCatName.trim(), backs: [] }]);
+                           setNewCatName('');
+                           setAddingCategory(false);
+                         }}
+                         className="bg-green-600 hover:bg-green-500 text-white px-2 py-1 flex items-center gap-1 text-sm"
+                       ><Check className="w-4 h-4" /></button>
+                       <button onClick={() => setAddingCategory(false)} className="bg-red-600 hover:bg-red-500 text-white px-2 py-1"><X className="w-4 h-4" /></button>
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={() => setAddingCategory(true)}
+                      className="flex items-center gap-2 text-sm text-kards-text-muted hover:text-kards-text transition-colors"
+                    >
+                      <FolderPlus className="w-4 h-4" /> 添加分类
+                    </button>
+                  )}
+
+                  <button 
+                    onClick={() => {
+                      setUploadError(null);
+                      setUploadCategory(allCategories.length > 0 ? allCategories[0].id : '');
+                      setShowUploadModal(true);
+                    }}
+                    className="flex items-center gap-2 bg-kards-accent px-4 py-2 font-bold hover:brightness-125 transition-all"
+                  >
+                    <Upload className="w-4 h-4" /> 上传卡背
+                  </button>
+                </div>
+              </div>
+
+              {uploadError && (
+                <div className="mb-4 bg-red-500/20 border border-red-500 p-3 flex items-center gap-2 text-red-500 text-sm font-bold">
+                  <Zap className="w-4 h-4" /> {uploadError}
+                </div>
+              )}
+              
+              <div className="flex-1 overflow-y-auto w-full no-scrollbar pr-2 pb-8">
+                {allCategories.map(category => (
+                  <div key={category.id} className="mb-8 relative auto-animate">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-sm font-bold text-kards-text-muted uppercase tracking-widest flex items-center gap-2">
+                        <span className="w-4 h-[1px] bg-kards-panel-alt" />
+                        {category.name} {category.isCustom && <span className="text-xs font-normal text-kards-gold border border-kards-gold px-1 rounded-sm ml-2">自定义</span>}
+                        <span className="flex-1 h-[1px] bg-kards-panel-alt" />
+                      </h4>
+                      {category.isCustom && (
+                        <button 
+                          onClick={() => {
+                            if (window.confirm(`确定要删除分类“${category.name}”及其包含的文件吗？`)) {
+                              setCustomCategories(prev => prev.filter(c => c.id !== category.id));
+                            }
+                          }}
+                          className="text-xs text-red-500 hover:text-red-400 flex items-center gap-1 opacity-50 hover:opacity-100 transition-opacity"
+                        >
+                          删除分类
+                        </button>
+                      )}
+                    </div>
+                    {category.backs.length === 0 ? (
+                      <div className="text-center py-8 text-kards-text-muted text-sm italic bg-black/20 border border-kards-border">
+                        暂无自定义卡背
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        {category.backs.map((back: any) => (
+                          <div 
+                            key={back.id}
+                            className={`flex flex-col items-center group relative ${deleteConfirm?.id === back.id ? '' : 'cursor-pointer'}`}
+                            onClick={() => {
+                              if (deleteConfirm?.id === back.id) return;
+                              setDecks(decks.map(d => d.id === showCardBackModal ? { ...d, cardBackUrl: back.url } : d));
+                              setShowCardBackModal(null);
+                            }}
+                          >
+                            <div className="w-full aspect-[5/7] military-border overflow-hidden bg-kards-input-bg group-hover:border-kards-gold transition-colors relative shadow-black/50 shadow-lg">
+                              <img 
+                                src={back.url} 
+                                alt={back.name} 
+                                className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                                onError={(e) => {
+                                  e.currentTarget.src = '/assets/cardbacks/Common/BasicBeta.jpg';
+                                }}
+                              />
+                              <div className="absolute inset-0 pointer-events-none bg-kards-gold/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              
+                              {back.isCustomCard && (
+                                <div className="absolute top-1 right-1 flex gap-1 opacity-80 group-hover:opacity-100 transition-opacity z-20">
+                                  {deleteConfirm?.id === back.id ? (
+                                    <div className="flex gap-1 bg-kards-modal-overlay p-1 rounded-sm shadow-xl border border-kards-border" onClick={e => e.stopPropagation()}>
+                                      <button 
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setDeleteConfirm(null);
+                                        }}
+                                        className="px-1.5 py-0.5 bg-kards-panel-alt text-kards-text text-[10px] font-bold rounded-sm hover:bg-kards-panel-alt"
+                                      >取消</button>
+                                      <button 
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setCustomCategories(prev => prev.map(c => 
+                                            c.id === category.id ? { ...c, backs: c.backs.filter((b: any) => b.id !== back.id) } : c
+                                          ));
+                                          setDeleteConfirm(null);
+                                        }}
+                                        className="px-1.5 py-0.5 bg-red-600 text-white text-[10px] font-bold outline outline-1 outline-white/20 rounded-sm hover:bg-red-500"
+                                      >删除</button>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      {customCategories.length > 0 && (
+                                        <button 
+                                          className="p-1 bg-kards-modal-overlay hover:bg-kards-accent text-white"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setMovingCardInfo({catId: category.id, backId: back.id});
+                                          }}
+                                        >
+                                          <ArrowRightLeft className="w-4 h-4" />
+                                        </button>
+                                      )}
+                                      <button 
+                                        className="p-1 bg-kards-modal-overlay hover:bg-green-600 text-white"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setEditingCardInfo({catId: category.id, backId: back.id});
+                                          setEditingCardName(back.name);
+                                        }}
+                                      >
+                                        <Edit2 className="w-4 h-4" />
+                                      </button>
+                                      <button 
+                                        className="p-1 bg-kards-modal-overlay hover:bg-red-600 text-red-500 hover:text-white"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setDeleteConfirm({ type: 'cardback', id: back.id, catId: category.id });
+                                        }}
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              )}
+
+                              {movingCardInfo?.backId === back.id && back.isCustomCard && (
+                                <div className="absolute inset-0 z-30 bg-kards-modal-overlay flex flex-col items-center justify-center p-2" onClick={e => e.stopPropagation()}>
+                                  <span className="text-kards-text text-xs mb-2">移动至...</span>
+                                  <select 
+                                    className="w-full bg-black border border-kards-border0 text-kards-text text-xs p-2 mb-2 focus:outline-none"
+                                    onChange={(e) => {
+                                      if(e.target.value) {
+                                        const newCatId = e.target.value;
+                                        setCustomCategories(prev => {
+                                           const oldCat = prev.find(c => c.id === category.id);
+                                           const b = oldCat?.backs.find((bk: any) => bk.id === back.id);
+                                           if (!b) return prev;
+                                           return prev.map(c => {
+                                               if (c.id === category.id) return { ...c, backs: c.backs.filter((bk: any) => bk.id !== back.id) };
+                                               if (c.id === newCatId) return { ...c, backs: [...c.backs, b] };
+                                               return c;
+                                           });
+                                        });
+                                        setMovingCardInfo(null);
+                                      }
+                                    }}
+                                    defaultValue=""
+                                  >
+                                    <option value="" disabled>选择分类</option>
+                                    {allCategories.filter(c => c.id !== category.id).map(c => (
+                                      <option key={c.id} value={c.id}>{c.name}</option>
+                                    ))}
+                                  </select>
+                                  <button className="text-kards-gold hover:text-kards-text text-xs" onClick={() => setMovingCardInfo(null)}>取消</button>
+                                </div>
+                              )}
+                            </div>
+                            {editingCardInfo?.backId === back.id && back.isCustomCard ? (
+                               <div className="mt-2 w-full flex items-center px-2 z-40" onClick={e => e.stopPropagation()}>
+                                  <input 
+                                     autoFocus
+                                     className="w-full bg-black border border-kards-gold text-kards-text text-xs px-1 py-0.5 focus:outline-none"
+                                     value={editingCardName || ''}
+                                     onChange={e => setEditingCardName(e.target.value)}
+                                     onKeyDown={e => {
+                                        if (e.key === 'Enter') {
+                                           if (!editingCardName.trim()) return;
+                                           setCustomCategories(prev => prev.map(c => c.id === category.id ? {
+                                              ...c,
+                                              backs: c.backs.map((b: any) => b.id === back.id ? { ...b, name: editingCardName.trim() } : b)
+                                           } : c));
+                                           setEditingCardInfo(null);
+                                        } else if (e.key === 'Escape') {
+                                           setEditingCardInfo(null);
+                                        }
+                                     }}
+                                     onBlur={() => {
+                                         if (!editingCardName.trim()) return;
+                                         setCustomCategories(prev => prev.map(c => c.id === category.id ? {
+                                            ...c,
+                                            backs: c.backs.map((b: any) => b.id === back.id ? { ...b, name: editingCardName.trim() } : b)
+                                         } : c));
+                                         setEditingCardInfo(null);
+                                     }}
+                                  />
+                               </div>
+                            ) : (
+                               <span className="mt-2 text-xs text-center truncate w-full px-2 text-kards-text-muted group-hover:text-kards-text transition-colors">{back.name}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showAddDeckToCollectionModal && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowAddDeckToCollectionModal(null)}
+              className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-2xl military-border shadow-2xl flex flex-col max-h-[70vh] transition-all"
+              style={{ 
+                backgroundColor: `rgba(var(--rgb-panel-overlay), ${settings.importBoxOpacity})`,
+                backdropFilter: `blur(${settings.importBoxOpacity * 10}px)`
+              }}
+            >
+              <div className="p-6 border-b border-kards-border flex items-center justify-between">
+                <h3 className="text-xl font-bold tracking-widest text-kards-text">选择要添加的卡组</h3>
+                <button onClick={() => setShowAddDeckToCollectionModal(null)} className="text-kards-text-muted hover:text-kards-text"><X className="w-6 h-6" /></button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar">
+                {decks.filter(d => {
+                  const col = collections.find(c => c.id === showAddDeckToCollectionModal);
+                  return col && !col.deckIds.includes(d.id);
+                }).length === 0 ? (
+                  <div className="text-center py-10 text-kards-text-muted">没有可选的卡组</div>
+                ) : (
+                  decks.filter(d => {
+                    const col = collections.find(c => c.id === showAddDeckToCollectionModal);
+                    return col && !col.deckIds.includes(d.id);
+                  }).map(deck => (
+                    <div 
+                      key={deck.id}
+                      onClick={() => {
+                        setCollections(collections.map(c => c.id === showAddDeckToCollectionModal ? { ...c, deckIds: [...c.deckIds, deck.id] } : c));
+                        setShowAddDeckToCollectionModal(null);
+                      }}
+                      className="flex items-center gap-4 p-4 bg-kards-panel hover:bg-kards-panel-hover transition-colors cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-1">
+                        <img src={getFlagUrl(NATION_DATA[deck.mainNation].flag)} className="w-6 h-4 object-contain" alt="main" />
+                        {deck.allyNation && <img src={getFlagUrl(NATION_DATA[deck.allyNation].flag)} className="w-5 h-3.5 object-contain opacity-70" alt="ally" />}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-bold text-kards-text group-hover:text-kards-gold transition-colors">{deck.name}</span>
+                        <span className="text-xs font-mono text-kards-text-muted">{deck.code}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* --- Crop Modal --- */}
+      <AnimatePresence>
+        {cropQueue.length > 0 && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative w-full max-w-2xl bg-kards-gray-alt military-border p-6 shadow-2xl flex flex-col items-center"
+            >
+              <h3 className="text-xl font-bold mb-4 text-center">
+                裁剪 {cropQueue[0].type === 'cardback' ? '卡背' : '桌布'}
+              </h3>
+              
+              <div className="relative w-full h-[60vh] bg-kards-input-bg">
+                <Cropper
+                  image={cropQueue[0].url}
+                  crop={cropState.crop}
+                  zoom={cropState.zoom}
+                  aspect={cropQueue[0].type === 'cardback' ? 5 / 7 : 16 / 9}
+                  minZoom={0.1}
+                  maxZoom={3}
+                  restrictPosition={false}
+                  onCropChange={(crop) => setCropState(s => ({ ...s, crop }))}
+                  onZoomChange={(zoom) => setCropState(s => ({ ...s, zoom }))}
+                  onCropComplete={handleCropComplete}
+                />
+              </div>
+
+              <div className="w-full flex flex-col gap-4 my-6 text-kards-text bg-black/20 p-4 military-border">
+                {/* Position Controls */}
+                <div className="flex items-center gap-4">
+                  <span className="text-sm font-bold w-12 shrink-0 tracking-widest text-kards-text-muted">位置</span>
+                  <div className="flex-1 flex items-center justify-center gap-2">
+                    <button onClick={() => setCropState(s => ({ ...s, crop: { ...s.crop, x: s.crop.x - 1 } }))} className="w-8 h-8 flex items-center justify-center bg-kards-panel hover:bg-kards-panel-hover border border-kards-border transition-colors">←</button>
+                    <div className="flex flex-col gap-2">
+                      <button onClick={() => setCropState(s => ({ ...s, crop: { ...s.crop, y: s.crop.y - 1 } }))} className="w-8 h-8 flex items-center justify-center bg-kards-panel hover:bg-kards-panel-hover border border-kards-border transition-colors">↑</button>
+                      <button onClick={() => setCropState(s => ({ ...s, crop: { ...s.crop, y: s.crop.y + 1 } }))} className="w-8 h-8 flex items-center justify-center bg-kards-panel hover:bg-kards-panel-hover border border-kards-border transition-colors">↓</button>
+                    </div>
+                    <button onClick={() => setCropState(s => ({ ...s, crop: { ...s.crop, x: s.crop.x + 1 } }))} className="w-8 h-8 flex items-center justify-center bg-kards-panel hover:bg-kards-panel-hover border border-kards-border transition-colors">→</button>
+                  </div>
+                  <div className="text-[10px] font-mono text-kards-text-muted w-12 text-right">
+                    {Math.round(cropState.crop.x)}, {Math.round(cropState.crop.y)}
+                  </div>
+                </div>
+
+                <hr className="border-kards-border" />
+
+                {/* Zoom Controls */}
+                <div className="flex items-center gap-4">
+                  <span className="text-sm font-bold w-12 shrink-0 tracking-widest text-kards-text-muted">缩放</span>
+                  <button onClick={() => setCropState(s => ({ ...s, zoom: Math.max(0.1, s.zoom - 0.01) }))} className="px-3 py-1 bg-kards-panel hover:bg-kards-panel-hover font-bold border border-kards-border">-</button>
+                  <input
+                    type="range"
+                    value={cropState.zoom || 1}
+                    min={0.1}
+                    max={3}
+                    step={0.0001}
+                    aria-labelledby="Zoom"
+                    onChange={(e) => setCropState(s => ({ ...s, zoom: Number(e.target.value) }))}
+                    className="flex-1 accent-kards-gold"
+                  />
+                  <button onClick={() => setCropState(s => ({ ...s, zoom: Math.min(3, s.zoom + 0.01) }))} className="px-3 py-1 bg-kards-panel hover:bg-kards-panel-hover font-bold border border-kards-border">+</button>
+                  <span className="text-sm font-mono w-12 shrink-0 text-right text-kards-gold">{cropState.zoom.toFixed(4)}x</span>
+                </div>
+              </div>
+
+              <div className="flex w-full gap-4">
+                <button 
+                  onClick={handleCancelCrop}
+                  className="flex-1 py-2 text-kards-text-muted hover:text-kards-text hover:bg-kards-panel-hover transition-colors border border-kards-border"
+                >
+                  跳过 / 取消
+                </button>
+                <button 
+                  onClick={handleNextCrop}
+                  className="flex-1 py-2 bg-kards-accent text-white font-bold hover:brightness-125 transition-all shadow-lg"
+                >
+                  确认裁剪 ({cropQueue.length} 剩余)
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* --- Upload Modal --- */}
+      <AnimatePresence>
+        {showUploadModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowUploadModal(false)}
+              className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative w-full max-w-sm bg-kards-gray-alt military-border p-6 shadow-2xl flex flex-col items-center"
+            >
+              <h3 className="text-xl font-bold mb-4 text-center">上传自定义卡背</h3>
+              <div className="w-full mb-4">
+                <label className="block text-sm text-kards-text-muted mb-2">选择分类</label>
+                <select 
+                  className="w-full bg-kards-input-bg border border-kards-border p-2 text-kards-text focus:outline-none focus:border-kards-gold"
+                  value={uploadCategory || ''}
+                  onChange={e => setUploadCategory(e.target.value)}
+                >
+                  <optgroup label="默认分类">
+                    {allCategories.filter(c => !c.isCustom).map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </optgroup>
+                  {allCategories.filter(c => c.isCustom).length > 0 && (
+                    <optgroup label="自定义分类">
+                      {allCategories.filter(c => c.isCustom).map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+              </div>
+              <div className="relative w-full">
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  multiple
+                  onChange={handleMultiFileUpload}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+                <div className="w-full bg-kards-accent hover:brightness-125 transition-all text-center py-3 font-bold flex items-center justify-center gap-2">
+                  <Upload className="w-5 h-5" /> 选择文件并上传
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowUploadModal(false)}
+                className="mt-4 text-sm text-kards-text-muted hover:text-kards-text transition-colors"
+              >
+                取消
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* --- Create Collection Modal --- */}
+      <AnimatePresence>
+        {showCreateCollectionModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowCreateCollectionModal(false)}
+              className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative w-full max-w-md military-border p-6 shadow-2xl flex flex-col transition-all"
+              style={{ 
+                backgroundColor: `rgba(var(--rgb-panel-overlay), ${settings.importBoxOpacity})`,
+                backdropFilter: `blur(${settings.importBoxOpacity * 10}px)`
+              }}
+            >
+              <h3 className="text-xl font-bold mb-4 text-kards-text tracking-widest">创建新合集</h3>
+              <input
+                type="text"
+                autoFocus
+                value={newCollectionName || ''}
+                onChange={(e) => setNewCollectionName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newCollectionName.trim()) {
+                    setCollections([...collections, {
+                      id: Date.now().toString(),
+                      name: newCollectionName.trim(),
+                      deckIds: [],
+                      isFavorite: false,
+                      createdAt: Date.now()
+                    }]);
+                    setShowCreateCollectionModal(false);
+                  }
+                }}
+                placeholder="请输入合集名称..."
+                className="w-full bg-kards-bg border border-kards-border text-kards-text p-3 mb-6 focus:outline-none focus:border-kards-gold"
+              />
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => setShowCreateCollectionModal(false)}
+                  className="flex-1 py-2 text-kards-text-muted hover:text-kards-text hover:bg-kards-panel-hover transition-colors"
+                >
+                  取消
+                </button>
+                <button 
+                  disabled={!newCollectionName.trim()}
+                  onClick={() => {
+                    if (newCollectionName.trim()) {
+                      setCollections([...collections, {
+                        id: Date.now().toString(),
+                        name: newCollectionName.trim(),
+                        deckIds: [],
+                        isFavorite: false,
+                        createdAt: Date.now()
+                      }]);
+                      setShowCreateCollectionModal(false);
+                    }
+                  }}
+                  className="flex-1 bg-kards-accent text-white font-bold py-2 disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-125 transition-all"
+                >
+                  创建
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* --- Delete Collection Modal --- */}
+      <AnimatePresence>
+        {collectionToDelete && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setCollectionToDelete(null)}
+              className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative w-full max-w-sm bg-kards-gray-alt border-t-4 border-red-600 p-6 shadow-2xl flex flex-col items-center"
+            >
+              <Trash2 className="w-12 h-12 text-red-500 mb-4" />
+              <h3 className="text-lg font-bold mb-2 text-center text-kards-text">删除合集</h3>
+              <p className="text-kards-text-muted text-center mb-6 text-sm">
+                确定要删除合集 <span className="text-kards-text font-bold">"{collectionToDelete.name}"</span> 吗？此操作无法撤销。
+              </p>
+              <div className="flex w-full gap-4">
+                <button 
+                  onClick={() => setCollectionToDelete(null)}
+                  className="flex-1 py-2 text-kards-text-muted hover:text-kards-text hover:bg-kards-panel-hover transition-colors border border-kards-border"
+                >
+                  取消
+                </button>
+                <button 
+                  onClick={() => {
+                    setCollections(collections.filter(c => c.id !== collectionToDelete.id));
+                    setCollectionToDelete(null);
+                  }}
+                  className="flex-1 bg-red-600 text-white font-bold py-2 hover:bg-red-500 transition-colors shadow-lg"
+                >
+                  确认删除
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* --- Rename Collection Modal --- */}
+      <AnimatePresence>
+        {collectionToRename && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setCollectionToRename(null)}
+              className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative w-full max-w-md bg-kards-gray military-border p-6 shadow-2xl flex flex-col"
+            >
+              <h3 className="text-xl font-bold mb-4 text-kards-text tracking-widest">重命名合集</h3>
+              <input
+                type="text"
+                autoFocus
+                value={renameCollectionName || ''}
+                onChange={(e) => setRenameCollectionName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && renameCollectionName.trim()) {
+                    setCollections(collections.map(c => 
+                      c.id === collectionToRename.id ? { ...c, name: renameCollectionName.trim() } : c
+                    ));
+                    setCollectionToRename(null);
+                  }
+                }}
+                placeholder="请输入新的合集名称..."
+                className="w-full bg-kards-bg border border-kards-border text-kards-text p-3 mb-6 focus:outline-none focus:border-kards-gold"
+              />
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => setCollectionToRename(null)}
+                  className="flex-1 py-2 text-kards-text-muted hover:text-kards-text hover:bg-kards-panel-hover transition-colors"
+                >
+                  取消
+                </button>
+                <button 
+                  disabled={!renameCollectionName.trim()}
+                  onClick={() => {
+                    if (renameCollectionName.trim()) {
+                      setCollections(collections.map(c => 
+                        c.id === collectionToRename.id ? { ...c, name: renameCollectionName.trim() } : c
+                      ));
+                      setCollectionToRename(null);
+                    }
+                  }}
+                  className="flex-1 bg-kards-accent text-white font-bold py-2 disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-125 transition-all"
+                >
+                  确认
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* --- Deck Image Modal --- */}
+      <AnimatePresence>
+        {deckImageModal.show && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setDeckImageModal({ ...deckImageModal, show: false })}
+              className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-3xl bg-kards-gray-alt military-border shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
+            >
+              <div className="p-4 border-b border-kards-border flex items-center justify-between bg-kards-gray">
+                <h3 className="text-lg font-bold tracking-widest text-white flex items-center gap-2">
+                  <ImageIcon className="w-5 h-5 text-kards-gold" />
+                  本地卡组图片 {deckImageModal.deck && `- ${deckImageModal.deck.name}`}
+                </h3>
+                <button onClick={() => setDeckImageModal({ ...deckImageModal, show: false })} className="text-kards-text-muted hover:text-kards-text">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              {deckImageModal.imageUrl && <button onClick={() => downloadDeckImage(deckImageModal.imageUrl!, deckImageModal.deck?.name || 'kards-deck')} className="m-3 self-end rounded bg-kards-accent px-4 py-2 text-sm font-bold text-white">下载 PNG 图片</button>}
+              <div className="flex-1 overflow-auto p-6 flex flex-col items-center justify-center bg-kards-bg">
+                {deckImageModal.loading ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-kards-text-muted">
+                    <div className="w-12 h-12 border-4 border-kards-gold border-t-transparent rounded-full animate-spin mb-4"></div>
+                    <p className="font-bold tracking-widest">正在本机生成图片…</p>
+                  </div>
+                ) : deckImageModal.error ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-red-400 max-w-md text-center">
+                    <Zap className="w-16 h-16 mb-4 opacity-50" />
+                    <p className="font-bold mb-2">获取失败</p>
+                    <p className="text-sm opacity-80">{deckImageModal.error}</p>
+
+                  </div>
+                ) : deckImageModal.imageUrl ? (
+                  <img 
+                    src={deckImageModal.imageUrl} 
+                    alt="本地卡组图片" 
+                    className="max-w-full max-h-[70vh] object-contain shadow-2xl"
+                  />
+                ) : null}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      {/* --- Settings Modal --- */}
+      <AnimatePresence>
+        {showSettingsModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowSettingsModal(false)}
+              className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative w-full max-w-md military-border shadow-2xl flex flex-col transition-all max-h-[90vh] overflow-hidden"
+              style={{ 
+                backgroundColor: `rgba(var(--rgb-panel-overlay), ${settings.importBoxOpacity})`,
+                backdropFilter: `blur(${settings.importBoxOpacity * 10}px)`
+              }}
+            >
+              {/* Header - Fixed */}
+              <div className="flex items-center justify-between border-b border-kards-border p-8 pb-4">
+                <h3 className="text-xl font-bold tracking-[0.2em] text-kards-text flex items-center gap-3 decoration-kards-gold/50 underline-offset-8 underline">
+                  <Settings className="w-6 h-6 text-kards-gold" /> 全局设置
+                </h3>
+                <button onClick={() => setShowSettingsModal(false)} className="text-kards-text-muted hover:text-kards-text transition-colors">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Content - Scrollable */}
+              <div className="flex-1 overflow-y-auto p-8 py-6 space-y-8 custom-scrollbar">
+                {/* Display Mode */}
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold text-kards-text tracking-wider">显示模式</span>
+                    <span className="text-[10px] text-kards-text-muted uppercase tracking-tighter">切换应用视觉主题</span>
+                  </div>
+                  <select
+                    value={settings.displayMode}
+                    onChange={(e) => setSettings(s => ({ ...s, displayMode: e.target.value as 'dark' | 'light' | 'system' }))}
+                    className="bg-kards-input-bg border border-kards-input-border text-kards-text text-sm px-3 py-1.5 focus:outline-none focus:border-kards-gold rounded transition-colors"
+                  >
+                    <option value="system">跟随系统</option>
+                    <option value="dark">深色模式</option>
+                    <option value="light">浅色模式</option>
+                  </select>
+                </div>
+
+                {/* Light Theme Color Picker (Only show if not dark) */}
+                {(!effectiveIsDarkMode) && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-kards-text tracking-wider">浅色主题色</span>
+                      <span className="text-[10px] text-kards-text-muted uppercase tracking-tighter">自定义背景色阶</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => setSettings(s => ({ ...s, lightThemeColor: '#dcd7c9' }))}
+                        className="text-[10px] uppercase tracking-wider text-kards-text-muted hover:text-kards-text border border-kards-border px-2 py-1 rounded"
+                      >
+                        重置
+                      </button>
+                      <input 
+                        type="color"
+                        value={settings.lightThemeColor || '#dcd7c9'}
+                        onChange={(e) => setSettings(s => ({ ...s, lightThemeColor: e.target.value }))}
+                        className="w-10 h-8 p-0 border-0 bg-transparent cursor-pointer rounded overflow-hidden shadow-sm"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Border Radius */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-kards-text tracking-wider">圆角程度</span>
+                    <span className="text-xs font-mono text-kards-gold">{settings.borderRadius}px</span>
+                  </div>
+                  <input 
+                    type="range"
+                    min="0"
+                    max="24"
+                    step="1"
+                    value={settings.borderRadius ?? DEFAULT_SETTINGS.borderRadius}
+                    onChange={e => setSettings(s => ({ ...s, borderRadius: parseInt(e.target.value) }))}
+                    className="w-full accent-kards-gold h-1.5 bg-kards-panel-alt rounded-lg appearance-none cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[10px] text-kards-text-muted font-bold uppercase tracking-widest">
+                    <span>Brutalist</span>
+                    <span>Modern</span>
+                  </div>
+                </div>
+
+                {/* Import Box Opacity */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-kards-text tracking-wider">UI组件透明度</span>
+                    <span className="text-xs font-mono text-kards-gold">{Math.round(settings.importBoxOpacity * 100)}%</span>
+                  </div>
+                  <input 
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={settings.importBoxOpacity ?? DEFAULT_SETTINGS.importBoxOpacity}
+                    onChange={e => setSettings(s => ({ ...s, importBoxOpacity: parseFloat(e.target.value) }))}
+                    className="w-full accent-kards-gold h-1.5 bg-kards-panel-alt rounded-lg appearance-none cursor-pointer"
+                  />
+                </div>
+
+                {/* UI Scale */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-kards-text tracking-wider">UI组件大小</span>
+                    <span className="text-xs font-mono text-kards-gold">{Math.round(settings.uiScale * 100)}%</span>
+                  </div>
+                  <input 
+                    type="range"
+                    min="0.5"
+                    max="1.5"
+                    step="0.05"
+                    value={settings.uiScale ?? DEFAULT_SETTINGS.uiScale}
+                    onChange={e => setSettings(s => ({ ...s, uiScale: parseFloat(e.target.value) }))}
+                    className="w-full accent-kards-gold h-1.5 bg-kards-panel-alt rounded-lg appearance-none cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[10px] text-kards-text-muted font-bold uppercase tracking-widest">
+                    <span>精致</span>
+                    <span>巨大</span>
+                  </div>
+                </div>
+
+                {/* Deck Gap */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-kards-text tracking-wider">卡组间距</span>
+                    <span className="text-xs font-mono text-kards-gold">{settings.deckGap}rem</span>
+                  </div>
+                  <input 
+                    type="range"
+                    min="0"
+                    max="4"
+                    step="0.1"
+                    value={settings.deckGap ?? DEFAULT_SETTINGS.deckGap}
+                    onChange={e => setSettings(s => ({ ...s, deckGap: parseFloat(e.target.value) }))}
+                    className="w-full accent-kards-gold h-1.5 bg-kards-panel-alt rounded-lg appearance-none cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[10px] text-kards-text-muted font-bold uppercase tracking-widest">
+                    <span>紧凑</span>
+                    <span>宽松</span>
+                  </div>
+                </div>
+
+                {/* Logo Size */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-kards-text tracking-wider">背景Logo大小</span>
+                    <span className="text-xs font-mono text-kards-gold">{settings.logoSize}px</span>
+                  </div>
+                  <input 
+                    type="range"
+                    min="200"
+                    max="800"
+                    step="10"
+                    value={settings.logoSize ?? DEFAULT_SETTINGS.logoSize}
+                    onChange={e => setSettings(s => ({ ...s, logoSize: parseInt(e.target.value) }))}
+                    className="w-full accent-kards-gold h-1.5 bg-kards-panel-alt rounded-lg appearance-none cursor-pointer"
+                  />
+                </div>
+
+                {/* Logo Opacity */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-kards-text tracking-wider">背景Logo透明度</span>
+                    <span className="text-xs font-mono text-kards-gold">{Math.round(settings.logoOpacity * 100)}%</span>
+                  </div>
+                  <input 
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={settings.logoOpacity ?? DEFAULT_SETTINGS.logoOpacity}
+                    onChange={e => setSettings(s => ({ ...s, logoOpacity: parseFloat(e.target.value) }))}
+                    className="w-full accent-kards-gold h-1.5 bg-kards-panel-alt rounded-lg appearance-none cursor-pointer"
+                  />
+                </div>
+
+                <div className="space-y-3 pt-2 border-t border-kards-border">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-sm font-bold text-kards-text tracking-wider">数据备份</span>
+                    <span className="text-[10px] text-kards-text-muted uppercase tracking-tighter">导出或导入桌面版数据</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={handleExportBackup}
+                      className="bg-kards-panel border border-kards-border text-kards-text text-xs font-bold tracking-widest py-2 hover:border-kards-gold hover:text-kards-gold transition-colors"
+                    >
+                      导出备份
+                    </button>
+                    <button
+                      onClick={handleImportBackup}
+                      className="bg-kards-panel border border-kards-border text-kards-text text-xs font-bold tracking-widest py-2 hover:border-kards-gold hover:text-kards-gold transition-colors"
+                    >
+                      导入备份
+                    </button>
+                  </div>
+                  {backupStatus && (
+                    <p className="text-[11px] text-kards-text-muted break-all">{backupStatus}</p>
+                  )}
+                </div>
+
+                <p className="border-t border-kards-border pt-4 text-xs leading-relaxed text-kards-text-muted">卡组图片完全在本机生成。已缓存的卡图离线可用，未缓存的卡图使用文字占位。牌库同步不会在后台自动执行。</p>
+              </div>
+
+              {/* Footer - Fixed */}
+              <div className="p-8 pt-4 border-t border-kards-border flex gap-4">
+                <button 
+                  onClick={() => setSettings(DEFAULT_SETTINGS)}
+                  className="flex-1 py-3 text-xs font-bold uppercase tracking-widest text-kards-text-muted hover:text-kards-text transition-colors"
+                >
+                  重置默认
+                </button>
+                <button 
+                  onClick={() => setShowSettingsModal(false)}
+                  className="flex-1 bg-kards-accent py-3 font-bold text-white shadow-lg hover:brightness-110 active:scale-[0.98] transition-all rounded-sm"
+                >
+                  保存并关闭
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// --- Subcomponents ---
+
+function SidebarButton({ active, icon, label, onClick }: { active: boolean, icon: React.ReactNode, label: string, onClick: () => void }) {
+  return (
+    <button 
+      onClick={onClick}
+      className={`
+        w-full aspect-square flex flex-col items-center justify-center gap-1 transition-all
+        ${active ? 'bg-kards-accent text-white shadow-inner scale-[0.98]' : 'text-kards-text-muted hover:bg-kards-panel-hover hover:text-white'}
+        relative overflow-hidden group
+      `}
+    >
+      {icon}
+      <span className="text-[10px] font-bold uppercase tracking-tighter">{label}</span>
+      {active && (
+        <div className="absolute right-0 top-0 bottom-0 w-1 bg-kards-gold shadow-[0_0_10px_rgba(197,160,89,0.5)]" />
+      )}
+    </button>
+  );
+}
+
+interface DeckCardProps {
+  deck: Deck;
+  selected: boolean;
+  onClick: () => void;
+  settings: AppSettings;
+  key?: React.Key;
+}
+
+function DeckCard({ deck, selected, onClick, settings }: DeckCardProps) {
+  const mainData = NATION_DATA[deck.mainNation];
+  const allyData = deck.allyNation ? NATION_DATA[deck.allyNation] : null;
+
+  return (
+    <motion.button
+      type="button"
+      aria-label={`选择卡组 ${deck.name}`}
+      aria-pressed={selected}
+      whileHover={{ y: -5 }}
+      className="flex flex-col items-center group cursor-pointer"
+      onClick={onClick}
+    >
+      <div 
+        style={{ width: `${10 * settings.uiScale}rem` }}
+        className={`
+          aspect-[5/7] relative transition-all duration-300 shrink-0
+          ${selected ? 'scale-105 z-10' : 'hover:brightness-110'}
+        `}
+      >
+        {/* Card Body */}
+        <div 
+          style={{ 
+            backgroundColor: `rgba(var(--rgb-panel-overlay), ${settings.importBoxOpacity})` 
+          }}
+          className={`
+            w-full h-full paper-texture military-border relative overflow-hidden backdrop-blur-[2px] flex flex-col items-center justify-center rounded-md transition-all
+            ${selected ? 'ring-4 ring-kards-gold ring-offset-4 ring-offset-kards-bg' : ''}
+          `}
+        >
+          <img 
+            src={deck.cardBackUrl || mainData.defaultBack || '/assets/cardbacks/Common/BasicBeta.jpg'} 
+            alt={deck.name}
+            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 rounded-md"
+            onError={(e) => { 
+                if (e.currentTarget.getAttribute('data-error')) return;
+                e.currentTarget.setAttribute('data-error', 'true');
+                e.currentTarget.src = '/assets/cardbacks/Common/BasicBeta.jpg'; 
+            }}
+          />
+          
+          {/* Small flags at the bottom center */}
+          <div 
+            className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex items-end gap-1 bg-black/70 p-1 rounded-sm backdrop-blur-sm border border-kards-border z-10 origin-bottom"
+            style={{ transform: `translateX(-50%) scale(${settings.uiScale})` }}
+          >
+            <img src={getFlagUrl(mainData.flag)} className="w-5 h-3.5 object-contain" alt="main" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            {allyData && (
+              <div className="flex items-end gap-1">
+                 <div className="w-[1px] h-3 bg-white/20" />
+                 <img src={getFlagUrl(allyData.flag)} className="w-3.5 h-2.5 object-contain opacity-80" alt="ally" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              </div>
+            )}
+          </div>
+
+          {/* Warnings on card back */}
+          <div 
+            className="absolute inset-0 flex flex-col items-center justify-end p-2 pb-8 gap-1 pointer-events-none origin-bottom"
+            style={{ transform: `scale(${settings.uiScale})` }}
+          >
+            {deck.warnings.map((w, i) => (
+              <span key={i} className="bg-red-600/90 text-[10px] text-white px-2 py-0.5 font-bold uppercase tracking-tight shadow-lg whitespace-nowrap">
+                {w}
+              </span>
+            ))}
+            {deck.isArena && (
+              <span className="bg-kards-gold/90 text-[10px] text-black px-2 py-0.5 font-bold uppercase tracking-tight shadow-lg">
+                竞技场卡组
+              </span>
+            )}
+          </div>
+
+          {/* Favorite Indicator */}
+          {deck.isFavorite && (
+            <div 
+              className="absolute -top-1 -left-1 text-kards-gold drop-shadow-[0_0_12px_rgba(197,160,89,1)] origin-top-left"
+              style={{ transform: `scale(${settings.uiScale})` }}
+            >
+              <Star className="w-12 h-12 fill-current" />
+            </div>
+          )}
+        </div>
+        
+        {/* Worn edge effect */}
+        <div className="absolute inset-0 pointer-events-none border border-black/10 m-1" />
+      </div>
+
+      <div className="mt-4 flex flex-col items-center gap-2">
+        <span className={`text-sm font-bold tracking-tight text-center px-4 py-1 rounded shadow-md backdrop-blur-md border transition-all ${selected ? 'text-kards-gold bg-kards-panel border-kards-gold/50 shadow-kards-gold/20' : 'text-kards-text bg-kards-panel/80 border-kards-border/50'}`}>
+          {deck.name}
+        </span>
+      </div>
+    </motion.button>
+  );
+}
+
+function ActionButton({ onClick, icon, label, className = "" }: { onClick: () => void, icon: React.ReactNode, label: string, className?: string }) {
+  return (
+    <button 
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className={`flex-1 h-12 flex items-center justify-center transition-all military-border rounded-sm ${className}`}
+    >
+      {icon}
+    </button>
+  );
+}

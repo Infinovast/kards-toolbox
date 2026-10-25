@@ -1,0 +1,17 @@
+node_modules/
+build/
+dist/
+dist-electron/
+release/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+app-config.json
+
+# 原始参考项目在各自仓库维护，不纳入整合工程
+/references/
+/.impeccable/*
+!/.impeccable/design.json
+/test-results/
