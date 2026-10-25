@@ -1,4 +1,17 @@
-# 0.3.2 开发记录
+# 0.3.3 开发记录
+
+日期：2026-10-26。
+
+- 修复打包后国家、类型、稀有度和扩展包图标不可见的问题。原因是 CSS 变量内的 `./assets/filters/` 在外部样式表目录下解析为 `/assets/assets/filters/`；中立使用普通 img、费用使用纯 CSS，因此不受影响。
+- 仅调整共享 `FilterIcon` 的蒙版 URL：按 `document.baseURI` 生成绝对地址，再设置 CSS 变量；保留现有资源、颜色、筛选逻辑和布局。
+- 新增 `scripts/smoke-filter-icon-paths.cjs`，直接从实际国家/类型/稀有度/扩展包菜单计算样式提取 35 个独立蒙版 URL，验证路径、读取状态、MIME 和已选触发按钮；旧版 0.3.2 能稳定复现路径断言失败。
+- 类型检查、单测、自定义筛选交互、生产资源桌面测试和图标路径回归通过。按要求不截图、不读图；本次针对路径故障进行验证，不声称已进行视觉验收。
+
+运行目录：`release/0.3.3/win-unpacked/KARDS Toolbox.exe`。ZIP：`release/0.3.3/KARDS Toolbox-0.3.3-win.zip`，本轮以 normal 压缩级别生成。移动时保留整个解压目录。
+
+图标路径报告：`test-results/filter-icon-paths/production.json`、`test-results/filter-icon-paths/packaged.json`；ZIP 完整性与 SHA-256：`test-results/filter-icon-paths/release-check.json`。
+
+## 0.3.2 历史记录
 
 日期：2026-10-26。本轮遵照要求跳过截图和读图测试；验证范围为筛选逻辑、DOM、计算样式、布局尺寸、键盘交互及桌面运行。
 

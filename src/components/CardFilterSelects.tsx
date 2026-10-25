@@ -5,8 +5,11 @@ import type { CardFilters } from '../lib/cardFilters';
 
 const ASSETS = './assets/filters/';
 export function FilterIcon({ name, fullColor = false }: { name: string; fullColor?: boolean }) {
+  // CSS custom-property URLs resolve against the stylesheet when mask-image is
+  // applied. Resolve against the document first, including in packaged kards://.
+  const maskUrl = new URL(`${ASSETS}${name}`, document.baseURI).href;
   return fullColor ? <img className="filter-symbol-image" src={`${ASSETS}${name}`} alt="" />
-    : <span className="filter-symbol" style={{ '--filter-icon': `url("${ASSETS}${name}")` } as CSSProperties} />;
+    : <span className="filter-symbol" style={{ '--filter-icon': `url("${maskUrl}")` } as CSSProperties} />;
 }
 
 const englishNations: Record<string, string> = { Soviet: 'Soviet Union', USA: 'United States', Anzac: 'ANZAC' };

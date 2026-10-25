@@ -1,10 +1,11 @@
 # KARDS Toolbox（KARDS 工具箱）
 
-整合三个参考项目的个人 Windows 桌面工具。当前版本为 **0.3.2 开发版**，已完成本地牌库、构筑、卡组管理、卡图批量缓存和手动牌库更新的主流程；V1 全部功能见 [需求文档](docs/product-requirements.md)。
+整合三个参考项目的个人 Windows 桌面工具。当前版本为 **0.3.3 开发版**，已完成本地牌库、构筑、卡组管理、卡图批量缓存和手动牌库更新的主流程；V1 全部功能见 [需求文档](docs/product-requirements.md)。
 
 ## 已实现
 
 - 随包提供 1,646 张多语言卡牌资料，支持名称/文本搜索与阵营、类型、费用、稀有度、扩展包、状态筛选。
+- 0.3.3 修复打包后筛选图标缺失：CSS 蒙版资源使用相对于文档解析的绝对地址，避免样式文件目录产生重复 `assets` 路径。
 - 所有选择框使用统一自定义控件；资料库与构筑的阵营（资料库）、类型、费用、稀有度支持多选，同类并集、跨类交集，扩展包保持单选。国家/类型/稀有度及扩展包使用随包图标，费用以白框 0K–7K+ 显示，选中选项点亮。
 - 类型和扩展包随卡牌内容语言显示中文或英文；扩展包按官方参考顺序排列，保留衍生/特殊形态及未知新包的可识别回退项。选择框支持方向键、Home/End、Enter/Space、Tab 与 Esc，弹层不受侧栏滚动裁切。
 - 多语言文字、v40–v54 卡图选择；首次查看卡图可联网缓存，历史版本仅改变图片。
@@ -27,7 +28,7 @@
 
 ## 开始运行
 
-直接试用开发包：解压 `release/0.3.2/KARDS Toolbox-0.3.2-win.zip`，启动其中的 `KARDS Toolbox.exe`，保留解压目录内的全部文件。运行开发包无需安装 Node.js。
+直接试用开发包：解压 `release/0.3.3/KARDS Toolbox-0.3.3-win.zip`，启动其中的 `KARDS Toolbox.exe`，保留解压目录内的全部文件。运行开发包无需安装 Node.js。
 
 从源码开发：
 
@@ -49,7 +50,7 @@ npm run dist:win:zip
 
 更多说明见 [构建与运行](docs/build-and-run.md)、[架构与复用](docs/architecture.md)、[第三方来源](THIRD_PARTY_NOTICES.md)。
 
-本轮可直接运行 `release/0.3.2/win-unpacked/KARDS Toolbox.exe`，请保留整个文件夹。本轮通过类型检查、单测、无截图/读图的 DOM 交互测试与桌面测试，详见 [开发记录](docs/development-status.md)。各版本使用独立输出目录。
+本轮可直接运行 `release/0.3.3/win-unpacked/KARDS Toolbox.exe`，请保留整个文件夹。本轮通过类型检查、单测、无截图/读图的 DOM 交互测试与桌面测试，详见 [开发记录](docs/development-status.md)。各版本使用独立输出目录。
 
 ## 键盘操作
 
