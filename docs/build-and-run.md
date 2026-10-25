@@ -36,14 +36,14 @@ npm run dist:win:zip
 默认打包到 `release/`。若旧版正在运行并占用该目录，可在完成桌面构建后使用独立输出目录：
 
 ```powershell
-node node_modules/electron-builder/cli.js --win zip --x64 '--config.win.signAndEditExecutable=false' '--config.compression=normal' '--config.directories.output=release/0.3.3'
+node node_modules/electron-builder/cli.js --win zip --x64 '--config.win.signAndEditExecutable=false' '--config.compression=normal' '--config.directories.output=release/0.3.5'
 ```
 
 - `dist/`：渲染端生产资源，包含卡牌目录。
 - `dist-electron/`：主进程与 preload。
 - `release/`：打包结果；`dist:win:dir` 生成解包目录，`dist:win` 生成安装包和便携包。
-- 本轮已生成 `release/0.3.3/win-unpacked/KARDS Toolbox.exe`，可直接启动；移动时需保留整个 `win-unpacked` 文件夹。
-- ZIP 开发包为 `release/0.3.3/KARDS Toolbox-0.3.3-win.zip`，解压后启动其中的 EXE，运行无需 Node.js。旧版运行时占用原输出目录，本轮使用独立版本目录。
+- 本轮已生成 `release/0.3.5/win-unpacked/KARDS Toolbox.exe`，可直接启动；移动时需保留整个 `win-unpacked` 文件夹。
+- ZIP 开发包为 `release/0.3.5/KARDS Toolbox-0.3.5-win.zip`，解压后启动其中的 EXE，运行无需 Node.js。旧版运行时占用原输出目录，本轮使用独立版本目录。
 - 本地检查生产资源可运行 `$env:KARDS_USE_DIST='1'; node scripts/start-electron.cjs .`。
 
 打包配置复用 `node_modules/electron/dist` 的已安装运行时，避免 electron-builder 再次从 GitHub 下载。NSIS/portable 目标仍可能首次下载额外打包工具，本轮未验收单文件便携包。
@@ -59,8 +59,8 @@ npm run lint
 npm run test:desktop
 
 # 解包后的真实 EXE
-node scripts/smoke-desktop.cjs 'release/0.3.3/win-unpacked/KARDS Toolbox.exe'
-node scripts/smoke-filter-icon-paths.cjs 'release/0.3.3/win-unpacked/KARDS Toolbox.exe'
+node scripts/smoke-desktop.cjs 'release/0.3.5/win-unpacked/KARDS Toolbox.exe'
+node scripts/smoke-filter-icon-paths.cjs 'release/0.3.5/win-unpacked/KARDS Toolbox.exe'
 ```
 
 网页流程测试使用 Python Playwright。在一个终端启动 `npm run dev:renderer`，另一个终端运行：
@@ -75,6 +75,8 @@ python scripts/smoke-card-data.py
 python scripts/smoke-builder-interactions.py
 python scripts/smoke-custom-filters.py
 python scripts/smoke-deck-overlay.py
+python scripts/smoke-deck-workflows.py
+python scripts/smoke-card-strips.py
 ```
 
 网页测试会阻止未替换的外部网络请求，覆盖筛选、语言/历史图、卡组保存编辑、草稿、离线 PNG、备份边界与恢复；牌库更新脚本用固定官方接口响应测试差异预览、应用/回退、持久化、写入失败及图片缓存隔离。均使用独立浏览器上下文，报告和产物写入 `test-results/`。桌面测试使用真实 preload/IPC/文件读写，替换系统文件选择器返回值和牌库请求的 HTTP 边界，避免交互与线上数据波动。
@@ -86,8 +88,8 @@ $env:KARDS_SKIP_VISUAL_TESTS = '1'
 python scripts/smoke-navigation.py
 python scripts/smoke-card-data.py
 npm run test:desktop
-node scripts/smoke-desktop.cjs 'release/0.3.3/win-unpacked/KARDS Toolbox.exe'
-node scripts/smoke-filter-icon-paths.cjs 'release/0.3.3/win-unpacked/KARDS Toolbox.exe'
+node scripts/smoke-desktop.cjs 'release/0.3.5/win-unpacked/KARDS Toolbox.exe'
+node scripts/smoke-filter-icon-paths.cjs 'release/0.3.5/win-unpacked/KARDS Toolbox.exe'
 Remove-Item Env:KARDS_SKIP_VISUAL_TESTS
 ```
 
@@ -98,6 +100,8 @@ Remove-Item Env:KARDS_SKIP_VISUAL_TESTS
 首发卡牌快照位于 `public/data/cards-v54.json`，复制自参考项目，1,646 条记录；它是仓库快照，不保证与当前线上游戏同步。
 
 用户数据与图片通过 localforage 保存到 Chromium IndexedDB。左侧栏底部“设置”打开全宽页面，可导出/导入 JSON 用户备份、手动获取并更新牌库。开发 Vite、可选 Web 入口和打包后的 `kards://app` 属于不同 origin，测试它们时数据互相独立；开发数据不会自动迁移到便携包，可通过备份迁移用户数据，牌库需单独获取。
+
+最近一次自动检测的有效剪贴板码单独存于本地 localStorage（`kards_last_clipboard_deck_code`），不属于用户备份。记录在提示出现前写入，取消、导入、重载和重启均不会使相同码再次提示；手动导入仍可重复使用同一码。
 
 - 初次载入卡牌文字、构筑、管理及本地图片生成均可离线。
 - 选择未缓存的卡图会访问官方卡图代理并缓存；失败显示占位，不更改卡牌目录。

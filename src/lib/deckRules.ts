@@ -21,7 +21,7 @@ export const DEFAULT_DECK_RULES: Record<Exclude<DeckRuleSet, 'custom'>, DeckRule
 export function validateDeck(entries: Map<string, number>, cardsById: Map<string, KardsCardRecord>, mainNation: string, allyNation: string, rules: DeckRules): string[] {
   const warnings: string[] = [];
   const total = [...entries.values()].reduce((sum, count) => sum + count, 0);
-  if (total !== rules.deckSize) warnings.push(`可用牌当前 ${total} 张，规则要求 ${rules.deckSize} 张（另含 1 张总部）`);
+  if (total !== rules.deckSize) warnings.push(`卡组当前 ${total + 1} 张，规则要求 ${rules.deckSize + 1} 张（含 1 张总部）`);
   if (!['Germany', 'Britain', 'Japan', 'Soviet', 'USA'].includes(mainNation)) warnings.push('所选主国不在五个主要国家中');
   let allyCount = 0;
   for (const [importId, count] of entries) {

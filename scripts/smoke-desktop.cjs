@@ -106,7 +106,8 @@ async function main() {
     assert.ok(iconsAvailable, 'all offline filter resources are served by the production protocol');
     await page.getByRole('button', { name: '卡组', exact: true }).click();
     const mainWidth = (await page.getByRole('main').boundingBox()).width;
-    await page.getByRole('button', { name: '导入新卡组', exact: true }).click();
+    await page.getByRole('button', { name: '新卡组', exact: true }).click();
+    await page.getByRole('button', { name: '导入卡组', exact: false }).click();
     await page.locator('[role="dialog"][aria-modal="true"]').getByRole('textbox').last().fill('%%12|ZZ;;;');
     await page.getByRole('button', { name: '确认导入', exact: true }).click();
     await page.getByRole('button', { name: '编辑卡组', exact: true }).click();
@@ -122,13 +123,13 @@ async function main() {
     await expect(page.getByRole('dialog', { name: '卡组详情', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: '选择卡组 Desktop offline test', exact: true }).click();
     assert.equal((await page.getByRole('main').boundingBox()).width, mainWidth);
-    await page.getByLabel('卡组备注', { exact: true }).fill('生产协议与离线存储测试');
+    await expect(page.getByLabel('卡组备注', { exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: '生成本地卡组图片', exact: true }).click();
     await expect(page.getByRole('button', { name: '下载 PNG 图片', exact: true })).toBeVisible();
     assert.ok((await page.getByAltText('本地卡组图片', { exact: true }).getAttribute('src')).startsWith('data:image/png;base64,'));
     await page.reload();
     await page.getByText('Desktop offline test', { exact: true }).click();
-    await expect(page.getByLabel('卡组备注', { exact: true })).toHaveValue('生产协议与离线存储测试');
+    await expect(page.getByLabel('卡组备注', { exact: true })).toHaveCount(0);
 
     // Exercise the real fixed-endpoint IPC and parser, stubbing only the HTTP boundary.
     await app.evaluate(({ net }, cards) => {
@@ -179,12 +180,76 @@ async function main() {
     assert.ok(Object.keys(backup.data).some((key) => key.startsWith('deck_img_local_v1_')));
     await page.getByRole('button', { name: '导入备份', exact: true }).click();
     await expect(page.getByText('备份已导入，卡组、设置和构筑草稿已恢复。', { exact: true })).toBeVisible();
+
+    // New deck presets use the same real import/storage path in the packaged app.
+    await page.getByRole('button', { name: '卡组', exact: true }).click();
+    await page.getByRole('button', { name: '新卡组', exact: true }).click();
+    await page.getByRole('button', { name: '战备卡组', exact: false }).click();
+    await page.getByRole('button', { name: '添加到卡组', exact: true }).click();
+    const details = page.getByRole('dialog', { name: '卡组详情', exact: true });
+    await expect(details.getByLabel('管理卡组名称', { exact: true })).toHaveValue('守序中立');
+    await expect(details.getByText('40 张（含总部）', { exact: true })).toBeVisible();
+    await expect(details.getByLabel('主国总部 ALEXANDRIA', { exact: true })).toBeVisible();
+    assert.ok(await page.evaluate(async () => {
+      const response = await fetch('./assets/markers/reserved.svg');
+      return response.ok && response.headers.get('content-type').includes('image/svg+xml') && (await response.text()).includes('<svg');
+    }), 'official reserve symbol is served offline by the production protocol');
+    const rowAssets = await details.locator('.deck-card-nation').evaluateAll(async images => Promise.all(images.map(async image => {
+      const response = await fetch(image.src);
+      return {url: image.src, ok: response.ok, mime: response.headers.get('content-type')};
+    })));
+    assert.ok(rowAssets.length > 0);
+    for (const asset of rowAssets) {
+      assert.ok(asset.ok && asset.mime.startsWith('image/'));
+      assert.ok(asset.url.startsWith('kards://app/assets/'));
+    }
+    const knownRow = details.locator('.deck-card-strip:not([data-nation="Unknown"])').first();
+    await knownRow.hover();
+    await expect(page.getByRole('tooltip')).toBeVisible();
+    assert.ok((await page.getByRole('tooltip').boundingBox()).x < (await knownRow.boundingBox()).x);
+    await knownRow.focus();
+    await knownRow.press('Escape');
+    await expect(page.getByRole('tooltip')).toHaveCount(0);
+    await expect(details).toBeVisible();
+    await details.getByRole('button', { name: '编辑卡组', exact: true }).click();
+    await expect(page.locator('span[aria-label="卡组总张数（含总部）"]')).toHaveText('40 / 40');
+    await expect(page.getByLabel('主国总部 ALEXANDRIA', { exact: true })).toBeVisible();
+    const mainNation = page.getByRole('combobox', { name: '主国', exact: true });
+    await mainNation.click();
+    await page.getByRole('listbox').locator('[data-value="Japan"]').click();
+    const confirmation = page.getByRole('dialog', { name: '确认更换国家', exact: true });
+    await expect(confirmation).toBeVisible();
+    await expect(mainNation).toHaveAttribute('data-value', 'Britain');
+    await confirmation.press('Escape');
+    await expect(mainNation).toHaveAttribute('data-value', 'Britain');
+    await expect(mainNation).toBeFocused();
+    await page.getByRole('button', { name: '返回卡组', exact: true }).click();
+
+    // Stub the IPC's clipboard read in this test process, leaving the OS clipboard untouched.
+    const clipboardCode = '%%12|ZX;;;';
+    await app.evaluate(({ clipboard }, text) => { clipboard.readText = () => text; }, clipboardCode);
+    await page.bringToFront();
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    const clipboardPrompt = page.getByRole('heading', { name: '检测到剪贴板卡组码', exact: true });
+    await expect(clipboardPrompt).toBeVisible();
+    assert.equal(await page.evaluate(() => localStorage.getItem('kards_last_clipboard_deck_code')), clipboardCode);
+    await page.getByRole('button', { name: '暂不导入', exact: true }).click();
+    await expect(clipboardPrompt).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByRole('heading', { name: '卡组', exact: true })).toBeVisible();
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect(clipboardPrompt).toHaveCount(0);
+    await app.evaluate(({ clipboard }) => { clipboard.readText = () => '%%12|ZY;;;'; });
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect(clipboardPrompt).toBeVisible();
+    await page.getByRole('button', { name: '暂不导入', exact: true }).click();
     assert.deepEqual(errors, []);
     await fs.writeFile(path.join(output, 'result.json'), JSON.stringify({
       status: 'passed', packaged: info.packaged, version: info.version, url: page.url(), pageErrors: errors, imageInspection: !skipVisual,
       checks: ['production kards protocol', 'bundled database', 'preload IPC', 'Node isolation',
         'offline PNG', ...(!skipVisual ? ['real artwork Sharp composition', 'small custom wallpaper'] : []), 'native theme icon switching',
-        'IndexedDB reload', 'full-width settings', 'manual card-data preview/apply/rollback IPC (HTTP stubbed)', 'card-data backup boundary', 'native backup save/open (file dialogs stubbed)'],
+        'IndexedDB reload', 'full-width settings', 'manual card-data preview/apply/rollback IPC (HTTP stubbed)', 'card-data backup boundary', 'native backup save/open (file dialogs stubbed)',
+        'ready-deck import', 'production nation-row and reserve assets', 'hover preview portal', 'HQ row and inclusive total', 'country confirmation cancel/focus', 'clipboard IPC and persistent same-code suppression (reads stubbed)'],
     }, null, 2));
     console.log('Desktop smoke passed: production resources, offline data/PNG, preload and backup IPC');
   } finally {

@@ -11,3 +11,5 @@ KARDS 名称、卡牌数据、插画、卡背、旗帜及桌布等游戏内容�
 筛选图标来自用户提供的 `references/收藏.mhtml`（KARDS 官方收藏页的 `FilterBar_filter__OSG_G` 内联 SVG）及其指定的 DatoCMS 扩展包图标地址，本地副本位于 `public/assets/filters/`。逐文件来源保存在该目录的 `sources.json`；中立图标按用户要求绘制为黑色白边菱形。它们属于游戏内容资源，不适用上述参考项目的代码许可。
 
 npm 依赖各自许可见其包内 LICENSE 与 lockfile；Electron 打包亦保留其许可证文件。
+
+预备卡标志来自 KARDS 官方收藏页 `Card_card__reserved__ri3zG` 使用的 Marker 内联 SVG，保存在 `public/assets/markers/reserved.svg`；页面、脚本与模块来源记录在同目录 `sources.json`。澳新军团卡牌条使用与筛选栏相同的 `public/assets/filters/anzac.svg`。

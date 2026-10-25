@@ -70,12 +70,11 @@ with sync_playwright() as playwright:
     expect(details).to_be_visible()
     details.get_by_label('管理卡组名称', exact=True).dispatch_event('keydown', {'key':'Escape','isComposing':True,'bubbles':True})
     expect(details).to_be_visible()
-    notes = details.get_by_label('卡组备注', exact=True)
-    notes.fill('关闭浮层后保留的备注')
-    notes.press('Escape')
+    expect(details.get_by_label('卡组备注', exact=True)).to_have_count(0)
+    details.get_by_label('管理卡组名称', exact=True).press('Escape')
     expect(details).to_have_count(0)
     card.click()
-    expect(details.get_by_label('卡组备注', exact=True)).to_have_value('关闭浮层后保留的备注')
+    expect(details.get_by_label('卡组备注', exact=True)).to_have_count(0)
     # A true modal closes before the non-modal details underneath it.
     details.get_by_role('button', name='更换卡背', exact=True).click()
     expect(modal).to_have_count(1)
@@ -123,7 +122,7 @@ with sync_playwright() as playwright:
     assert geometry() == narrow
     assert page.evaluate('document.documentElement.scrollWidth') == 980
     assert not errors, errors
-    (OUT/'result.json').write_text(json.dumps({'status':'passed','screenshots':False,'imageInspection':False,'pageErrors':errors,'checks':['initially hidden','nonmodal absolute overlay','stable grid dimensions/columns','close and reopen','keyboard focus return','inline Esc and IME','notes persisted','nested modal Esc priority','double-click edit and save','stable expanded folders','980x640 full-width workspace and reachable actions']},ensure_ascii=False,indent=2),encoding='utf-8')
+    (OUT/'result.json').write_text(json.dumps({'status':'passed','screenshots':False,'imageInspection':False,'pageErrors':errors,'checks':['initially hidden','nonmodal absolute overlay','stable grid dimensions/columns','close and reopen','keyboard focus return','inline Esc and IME','notes removed','nested modal Esc priority','double-click edit and save','stable expanded folders','980x640 full-width workspace and reachable actions']},ensure_ascii=False,indent=2),encoding='utf-8')
     context.close()
     browser.close()
     print('Deck overlay smoke passed (no screenshots or image inspection)')

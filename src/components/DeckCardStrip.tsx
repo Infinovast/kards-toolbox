@@ -1,0 +1,97 @@
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { ImageOff } from 'lucide-react';
+import { cacheCardImage } from '../lib/cardImages';
+import { cardTitle, factionLabel, type KardsCardRecord } from '../types/card';
+import ReservedBadge from './ReservedBadge';
+
+// Median RGB of x=120..390, y=80..88 in the supplied 500px card headers.
+// references/cards contains nine nations plus Neutral; ANZAC keeps its existing color.
+export const CARD_STRIP_NATIONS: Record<string, { color: string; icon: string; darkText?: boolean }> = {
+  Germany: { color: '#5e6b66', icon: './assets/icons/Germany/German.png' },
+  Britain: { color: '#968c6f', icon: './assets/icons/Britain/Britain.png', darkText: true },
+  Japan: { color: '#9e8041', icon: './assets/icons/Japan/Japan.png', darkText: true },
+  Soviet: { color: '#655541', icon: './assets/icons/Soviet/Soviet.png' },
+  USA: { color: '#656d4f', icon: './assets/icons/USA/Usa.png' },
+  France: { color: '#515a78', icon: './assets/icons/France/France.png' },
+  Italy: { color: '#6a6969', icon: './assets/icons/Italy/Italy.png' },
+  Poland: { color: '#676452', icon: './assets/icons/Poland/Poland.jpg' },
+  Finland: { color: '#bbbaaa', icon: './assets/icons/Finland/Finland.png', darkText: true },
+  Neutral: { color: '#3c3d41', icon: './assets/filters/neutral.svg' },
+  Anzac: { color: '#9e6f34', icon: './assets/filters/anzac.svg', darkText: true },
+};
+
+const HEADQUARTERS: Record<string, string> = {
+  Britain: 'ALEXANDRIA', Germany: 'DANZIG', Soviet: 'STALINGRAD', Japan: 'TRUK', USA: 'CHERBOURG',
+};
+
+export function DeckHeadquartersStrip({ nation }: { nation: string }) {
+  const appearance = CARD_STRIP_NATIONS[nation] || CARD_STRIP_NATIONS.Neutral;
+  const title = HEADQUARTERS[nation] || `${factionLabel(nation)}总部`;
+  return <div className="deck-headquarters-strip" aria-label={`主国总部 ${title}`} style={{ '--strip-color': appearance.color, '--strip-text': appearance.darkText ? '#12130e' : '#fff9e8' } as CSSProperties}>
+    <div className="deck-card-strip-body"><span className="deck-card-name">{title}</span><img className="deck-card-nation" src={appearance.icon} alt={factionLabel(nation)} /></div>
+  </div>;
+}
+
+export default function DeckCardStrip({ card, importId, count, enabled = true, controls }: {
+  card?: KardsCardRecord;
+  importId: string;
+  count: number;
+  enabled?: boolean;
+  controls?: ReactNode;
+}) {
+  const title = card ? cardTitle(card, 'zh-Hans') : `未知卡牌 ${importId}`;
+  const nation = Object.keys(CARD_STRIP_NATIONS).find(key => key.toLowerCase() === card?.json.faction?.toLowerCase());
+  const appearance = CARD_STRIP_NATIONS[nation || 'Neutral'];
+  const isUnit = !!card && !['order', 'countermeasure'].includes((card.json.type || '').toLowerCase());
+  const [source, setSource] = useState('');
+  const root = useRef<HTMLDivElement>(null);
+  const [preview, setPreview] = useState<CSSProperties | null>(null);
+  const showPreview = () => {
+    if (!enabled || !card || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+    const bounds = root.current?.getBoundingClientRect();
+    if (!bounds) return;
+    const width = Math.min(250, (window.innerHeight - 32) * 618 / 867, bounds.left - 24);
+    if (width < 100) return;
+    const height = width * 867 / 618;
+    window.dispatchEvent(new CustomEvent('kards-deck-card-preview', { detail: root.current }));
+    setPreview({ width, left: bounds.left - width - 12, top: Math.max(12, Math.min(window.innerHeight - height - 12, bounds.top + bounds.height / 2 - height / 2)) });
+  };
+  useEffect(() => {
+    if (!preview) return;
+    const hide = () => setPreview(null);
+    const otherPreview = (event: Event) => { if ((event as CustomEvent).detail !== root.current) hide(); };
+    window.addEventListener('scroll', hide, true);
+    window.addEventListener('resize', hide);
+    window.addEventListener('blur', hide);
+    window.addEventListener('kards-deck-card-preview', otherPreview);
+    return () => { window.removeEventListener('scroll', hide, true); window.removeEventListener('resize', hide); window.removeEventListener('blur', hide); window.removeEventListener('kards-deck-card-preview', otherPreview); };
+  }, [preview]);
+  useEffect(() => {
+    setSource('');
+    if (!enabled || !card) return;
+    let active = true;
+    cacheCardImage(card, 'zh-Hans', 54).then(url => { if (active) setSource(url); }).catch(() => {});
+    return () => { active = false; };
+  }, [card, enabled]);
+  return <div ref={root} tabIndex={card ? 0 : undefined} aria-label={`${title}，${count} 张`} className="deck-card-strip" data-nation={nation || 'Unknown'} data-preview={!!preview && enabled} style={{ '--strip-color': appearance.color, '--strip-text': appearance.darkText ? '#12130e' : '#fff9e8' } as CSSProperties}
+    onMouseEnter={showPreview} onMouseLeave={() => setPreview(null)} onFocus={showPreview} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setPreview(null); }}
+    onKeyDown={event => { if (preview && event.key === 'Escape' && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); setPreview(null); } }}>
+    <span className="deck-card-marker">{card?.reserved && <ReservedBadge />}</span>
+    <div className="deck-card-strip-body">
+      <span className="deck-card-cost" aria-label={card ? isUnit ? `部署花费 ${card.json.kredits ?? '?'}，行动花费 ${card.json.operationCost ?? '?'}` : `花费 ${card.json.kredits ?? '?'}` : '费用未知'}>
+        <span className="deck-card-deployment" style={(card?.json.kredits ?? 0) >= 10 ? { fontSize: 21 } : undefined}>{card?.json.kredits ?? '?'}</span><small>K</small>{isUnit && <span className="deck-card-operation">{card.json.operationCost ?? '?'}</span>}
+      </span>
+      <span className="deck-card-name">{title}</span>
+      <img className="deck-card-nation" src={appearance.icon} alt={factionLabel(card?.json.faction)} />
+      <span className="deck-card-thumbnail" aria-label={`${title}卡图缩略图`}>
+        {source ? <img src={source} alt="" onError={() => setSource('')} /> : <ImageOff className="h-4 w-4 opacity-60" aria-hidden="true" />}
+      </span>
+    </div>
+    <span className="deck-card-count" aria-label={`${count} 张`}>{count}</span>
+    {controls && <div className="deck-card-controls">{controls}</div>}
+    {card && enabled && preview && createPortal(<div role="tooltip" aria-label={`${title}卡牌大图`} className="deck-card-preview glass-panel" style={preview}>
+      {source ? <img className="card-face" src={source} alt={title} /> : <div className="card-face card-face-placeholder">{title}<br />卡图暂不可用</div>}
+    </div>, document.body)}
+  </div>;
+}

@@ -92,9 +92,9 @@ with sync_playwright() as p:
     page.get_by_label("导入卡组码", exact=True).fill("Smoke deck\nMajor power: japan\n" + CODE)
     page.get_by_role("button", name="导入", exact=True).click()
     expect(page.get_by_label("卡组名称", exact=True)).to_have_value("Smoke deck")
-    expect(page.get_by_text("39 / 39", exact=True)).to_be_visible()
+    expect(page.get_by_text("40 / 40", exact=True)).to_be_visible()
     select_value(page, "构筑规则", "custom")
-    page.get_by_label("可用牌张数", exact=True).fill("40")
+    page.get_by_role("spinbutton", name="卡组总张数（含总部）", exact=True).fill("41")
     expect(page.get_by_text("规则提示 · 允许保存与导出", exact=True)).to_be_visible()
     settle(page)
     page.screenshot(path=str(SHOTS / "builder-min.png"), full_page=True)
@@ -103,7 +103,7 @@ with sync_playwright() as p:
         el.classList.remove('dark'); el.classList.add('light');
     })""")
     settle(page)
-    light_color = page.get_by_text("39 / 40", exact=True).evaluate("el => getComputedStyle(el).color")
+    light_color = page.get_by_text("40 / 41", exact=True).evaluate("el => getComputedStyle(el).color")
     assert light_color == "rgb(120, 90, 36)", light_color
     page.screenshot(path=str(SHOTS / "builder-light-min.png"), full_page=True)
     page.evaluate("""() => [document.documentElement, document.body].forEach(el => {

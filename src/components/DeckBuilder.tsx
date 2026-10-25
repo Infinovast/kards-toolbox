@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ArrowLeft, Copy, ImageDown, Minus, Plus, Save, Search, Upload } from 'lucide-react';
 import localforage from 'localforage';
-import { cardTitle, type KardsCardRecord } from '../types/card';
+import { cardTitle, factionLabel, type KardsCardRecord } from '../types/card';
+import { handleDialogKeys } from '../lib/dialogKeyboard';
+import DeckCardStrip, { DeckHeadquartersStrip } from './DeckCardStrip';
 import CustomSelect from './CustomSelect';
 import CardFilterSelects, { nationOptions } from './CardFilterSelects';
 import { decodeDeckCode, encodeDeckCode, findCardsByImportId } from '../lib/deckCode';
@@ -28,7 +31,7 @@ interface Draft {
 }
 const inputClass = 'rounded border border-kards-border bg-kards-input-bg px-3 py-2 text-sm text-kards-text';
 const numericRules = [
-  ['deckSize', '可用牌张数'], ['maxAllyCards', '盟国上限'], ['maxStandard', '普通上限'],
+  ['deckSize', '卡组总张数（含总部）'], ['maxAllyCards', '盟国上限'], ['maxStandard', '普通上限'],
   ['maxLimited', '限定上限'], ['maxSpecial', '特殊上限'], ['maxElite', '精英上限'],
 ] as const;
 
@@ -57,6 +60,10 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, onPrev
   const [message, setMessage] = useState('');
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [rendering, setRendering] = useState(false);
+  const [pendingNation, setPendingNation] = useState<{ field: 'main' | 'ally'; value: string } | null>(null);
+  const requestNationChange = (field: 'main' | 'ally', value: string) => {
+    if (value !== (field === 'main' ? mainNation : allyNation)) setPendingNation({ field, value });
+  };
 
   useEffect(() => {
     localforage.getItem<Draft>('kards_builder_draft').then((draft) => {
@@ -75,7 +82,7 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, onPrev
       setDeckName(initialDeck.name); setDeckId(initialDeck.id);
       setRuleSet(initialDeck.ruleSet || (decoded.mainNation === decoded.allyNation ? 'arena' : 'standard'));
       setCustomRules({ ...DEFAULT_DECK_RULES.standard, ...initialDeck.customRules });
-      setMessage('已载入卡组；保存会更新原卡组');
+      setMessage(initialDeck.id ? '已载入卡组；保存会更新原卡组' : '从左侧选择卡牌，保存后加入卡组列表');
     } catch (error) { setMessage(String(error)); }
   }, [initialDeck, draftLoaded]);
 
@@ -154,16 +161,16 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, onPrev
     </section>
     <aside className="flex w-[300px] shrink-0 flex-col gap-3 overflow-hidden rounded-lg border border-kards-border glass-panel p-4 xl:w-[340px]">
       <button onClick={onBack} title="Esc 返回卡组列表" className="flex shrink-0 items-center gap-1 self-start rounded px-2 py-1 text-xs text-kards-text-muted"><ArrowLeft className="h-4 w-4" />返回卡组</button>
-      <div className="flex items-center justify-between"><h2 className="font-bold text-kards-text">{deckId ? '编辑卡组' : '当前卡组'}</h2><span className="text-lg font-bold tabular-nums text-kards-status">{totalCards} / {rules.deckSize}</span></div>
+      <div className="flex items-center justify-between"><h2 className="font-bold text-kards-text">{deckId ? '编辑卡组' : '当前卡组'}</h2><span aria-label="卡组总张数（含总部）" className="text-lg font-bold tabular-nums text-kards-status">{totalCards + 1} / {rules.deckSize + 1}</span></div>
       <div className="custom-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto">
-      <p className="text-xs text-kards-text-muted">可用牌张数，另含 1 张总部 · 草稿自动保存</p>
+      <p className="text-xs text-kards-text-muted">总张数包含 1 张主国总部 · 草稿自动保存</p>
       <input value={deckName} onChange={(e) => setDeckName(e.target.value)} className={inputClass} aria-label="卡组名称" onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && entries.size) { e.preventDefault(); saveDeck(); } }} />
       <div className="grid grid-cols-2 gap-2">
-        <CustomSelect label="主国" value={mainNation} onChange={setMainNation} className="min-w-0 w-full" options={nationOptions().filter(item => item.value !== 'Neutral').map(item => ({ ...item, label: `${item.label}主国` }))} />
-        <CustomSelect label="盟国" value={allyNation} onChange={setAllyNation} className="min-w-0 w-full" options={nationOptions().filter(item => item.value !== 'Neutral').map(item => ({ ...item, label: `${item.label}盟国` }))} />
+        <CustomSelect label="主国" value={mainNation} onChange={value => requestNationChange('main', value)} className="min-w-0 w-full" options={nationOptions().filter(item => item.value !== 'Neutral').map(item => ({ ...item, label: `${item.label}主国` }))} />
+        <CustomSelect label="盟国" value={allyNation} onChange={value => requestNationChange('ally', value)} className="min-w-0 w-full" options={nationOptions().filter(item => item.value !== 'Neutral').map(item => ({ ...item, label: `${item.label}盟国` }))} />
       </div>
       {ruleSet === 'custom' && <div className="flex flex-wrap gap-3 rounded border border-kards-border p-2">
-        {numericRules.map(([key, label]) => <label key={key} className="flex items-center gap-1 text-xs text-kards-text-muted">{label}<input type="number" min="1" max="999" value={customRules[key]} onChange={event => setCustomRules({ ...customRules, [key]: Math.max(1, Math.min(999, Number(event.target.value) || 1)) })} className={`${inputClass} w-16 !px-2 !py-1`} /></label>)}
+        {numericRules.map(([key, label]) => <label key={key} className="flex items-center gap-1 text-xs text-kards-text-muted">{label}<input type="number" min={key === 'deckSize' ? 2 : 1} max={key === 'deckSize' ? 1000 : 999} value={customRules[key] + (key === 'deckSize' ? 1 : 0)} onChange={event => setCustomRules({ ...customRules, [key]: Math.max(1, Math.min(999, (Number(event.target.value) || 1) - (key === 'deckSize' ? 1 : 0))) })} className={`${inputClass} w-16 !px-2 !py-1`} /></label>)}
         <label className="text-xs text-kards-text"><input type="checkbox" checked={customRules.allowReserved} onChange={event => setCustomRules({ ...customRules, allowReserved: event.target.checked })} /> 允许预备卡</label>
         <label className="text-xs text-kards-text"><input type="checkbox" checked={customRules.allowGenerated} onChange={event => setCustomRules({ ...customRules, allowGenerated: event.target.checked })} /> 允许导入的衍生卡</label>
       </div>}
@@ -172,10 +179,14 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, onPrev
         if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); event.stopPropagation(); importCode(); }
         else if (event.key === 'Escape' && importText) { event.preventDefault(); event.stopPropagation(); setImportText(''); }
       }} title="Enter 导入；Shift+Enter 换行；Esc 清空" value={importText} onChange={event => setImportText(event.target.value)} placeholder="粘贴卡组码或分享文本" className={`${inputClass} max-h-32 min-w-0 flex-1 resize-y`} /><button disabled={!importText.trim()} onClick={importCode} className="flex items-center gap-1 rounded border border-kards-border px-2 py-2 text-sm text-kards-text disabled:opacity-40"><Upload className="h-4 w-4" />导入</button></div>
-      <div className="min-h-16 space-y-1">
-        {[...entries].map(([id, count]) => {
+      <div aria-label="构筑卡牌列表" className="min-h-16 space-y-1">
+        <DeckHeadquartersStrip nation={mainNation} />
+        {[...entries].sort(([a], [b]) => (cardsById.get(a)?.json.kredits ?? 99) - (cardsById.get(b)?.json.kredits ?? 99)).map(([id, count]) => {
           const card = cardsById.get(id), title = card ? cardTitle(card, 'zh-Hans') : `未知卡牌 ${id}`;
-          return <div key={id} className="flex items-center gap-2 border-b border-kards-border py-2 text-sm"><span className="min-w-0 flex-1 truncate text-kards-text" title={title}>{title}</span><button onClick={() => adjustCard(id, -1)} aria-label={`减少${title}`} className="rounded border border-kards-border p-1 text-kards-text"><Minus className="h-3 w-3" /></button><span className="w-6 text-center tabular-nums text-kards-text">{count}</span><button onClick={() => adjustCard(id, 1)} aria-label={`增加${title}`} className="rounded border border-kards-border p-1 text-kards-text"><Plus className="h-3 w-3" /></button></div>;
+          return <DeckCardStrip key={id} card={card} importId={id} count={count} enabled={active} controls={<>
+            <button onClick={() => adjustCard(id, 1)} aria-label={`增加${title}`}><Plus className="h-3 w-3" /></button>
+            <button onClick={() => adjustCard(id, -1)} aria-label={`减少${title}`}><Minus className="h-3 w-3" /></button>
+          </>} />;
         })}
         {!entries.size && <p className="py-10 text-center text-sm text-kards-text-muted">从左侧选择卡牌开始构筑</p>}
       </div>
@@ -184,5 +195,21 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, onPrev
       </div>
       <div className="grid shrink-0 grid-cols-2 gap-2"><button onClick={copyCode} disabled={!entries.size} className="flex items-center justify-center gap-2 rounded border border-kards-border px-2 py-2 text-sm text-kards-text disabled:opacity-40"><Copy className="h-4 w-4" />复制代码</button><button onClick={saveDeck} disabled={!entries.size} title="Ctrl+Enter 保存更改并返回" className="flex items-center justify-center gap-2 rounded bg-kards-accent px-2 py-2 text-sm font-bold text-white disabled:opacity-40"><Save className="h-4 w-4" />保存更改</button><button onClick={exportImage} disabled={!entries.size || rendering} className="col-span-2 flex items-center justify-center gap-2 rounded border border-kards-border py-2 text-sm text-kards-text disabled:opacity-40"><ImageDown className="h-4 w-4" />{rendering ? '正在本地生成…' : '导出卡组图片'}</button></div>
     </aside>
+    {active && pendingNation && createPortal(<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div onClick={() => setPendingNation(null)} className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm" />
+      <section role="dialog" aria-modal="true" aria-label="确认更换国家" tabIndex={-1} onKeyDown={handleDialogKeys} className="glass-panel relative w-full max-w-md rounded-lg border border-kards-border p-6 shadow-2xl">
+        <h2 className="mb-4 text-lg font-bold text-kards-text">更换{pendingNation.field === 'main' ? '主国' : '盟国'}？</h2>
+        <p className="text-sm text-kards-text">{factionLabel(pendingNation.field === 'main' ? mainNation : allyNation)} → {factionLabel(pendingNation.value)}</p>
+        <p className="mt-3 text-sm leading-6 text-kards-text-muted">现有卡牌将保留，不符合新国家的卡牌会显示规则提示。确认后更新构筑卡池。</p>
+        <div className="mt-5 flex justify-end gap-3">
+          <button data-dialog-cancel onClick={() => setPendingNation(null)} className="rounded border border-kards-border px-4 py-2 text-sm text-kards-text">取消</button>
+          <button data-dialog-confirm onClick={() => {
+            if (pendingNation.field === 'main') setMainNation(pendingNation.value);
+            else setAllyNation(pendingNation.value);
+            setPendingNation(null);
+          }} className="rounded bg-kards-accent px-4 py-2 text-sm font-bold text-white">确认更换</button>
+        </div>
+      </section>
+    </div>, document.body)}
   </div>;
 }

@@ -1,4 +1,59 @@
-# 0.3.3 开发记录
+# 0.3.5 开发记录
+
+日期：2026-10-26。
+
+- 卡牌条费用块改为左侧部署大数字、右上 K、右下行动小数字，直接使用 `operationCost`，保留 0；指令与反制不显示行动数字，10+ 部署费用适当缩小字号。
+- 从官方收藏页 `Card_card__reserved__ri3zG` 使用的 Marker 模块提取原始 SVG，保存为 `public/assets/markers/reserved.svg`，来源记录在同目录 `sources.json`，无需运行时联网取标志。
+- 封面在主国/盟国旗帜右侧显示含预备卡标志，按当前牌库及卡组码判断；只去除预备卡对应的红色警告，其余规则问题保留。预备卡牌条在左侧留白显示小标志。
+- 澳新军团卡牌条改为与筛选栏共用 `anzac.svg`，不再使用原有 `ANZAC/Anzac.png`。
+- 详情与构筑共用条目的 hover 和键盘焦点效果；完整卡图浮层 portal 到 body 并固定显示在左侧、约束在视口内。浮层不改变列表排版，离开、失焦、滚动、缩放和 Esc 关闭；键盘聚焦与鼠标悬停不同时也只显示一张大图。缺图保留占位。
+- 列表首行固定主国总部（包括空卡组），仅显示国家底色、名称和国家标志；五国分别为 ALEXANDRIA、DANZIG、STALINGRAD、TRUK、CHERBOURG。主国确认更换后同步更新。
+- 构筑、详情与收藏夹的卡组总张数包含 1 张总部，默认 40/40，空白 1/40。规则总数提示和自定义总数输入同步转换；卡组码、单卡数量及本地 `totalCards`、`deckSize` 存储保持可用牌语义，兼容旧卡组和备份，不重复插入总部。
+
+## 0.3.5 验证
+
+| 检查 | 结果 |
+| --- | --- |
+| `npm run lint` / `npm test` | 通过类型检查及现有卡组码、规则、备份、牌库、筛选单测 |
+| `python scripts/smoke-card-strips.py` | 通过 0 行动费、部署/行动字号和位置、指令/反制、预备封面替换及其他警告保留、左侧预备标志、澳新资源、悬停/焦点大图、单一浮层、980×640 视口、不改变排版、Esc/滚动关闭、五国总部、40 总数、自定义转换、码不变、空构筑及空详情总部；无 pageerror |
+| 卡组工作流与构筑交互回归 | 两份脚本通过；三组战备、原始码、国家确认、草稿、图片导出、剪贴板持久去重等继续可用 |
+| `npm run build:desktop` | Vite/Electron 构建通过；保留既有 bundle 超过 500kB 提示 |
+| 0.3.5 打包 EXE | 使用 `KARDS_SKIP_VISUAL_TESTS=1` 通过真实生产协议、preload/IPC、离线资料、本地 PNG、主题、备份、牌库获取/应用/回退、战备导入、预备 SVG 读取、总部与 40 总数、左侧大图、国家确认、剪贴板持久去重；无 pageerror |
+| ZIP 完整性 | 69 个条目，CRC 通过，包含主程序；SHA-256 见 `test-results/card-strips/release-check.json` |
+
+本轮仅查看用户指定参考图片以实现费用样式，自动验证不截图、不读取或比较图片像素。
+
+运行：`release/0.3.5/win-unpacked/KARDS Toolbox.exe`。ZIP：`release/0.3.5/KARDS Toolbox-0.3.5-win.zip`。移动时保留整个解压目录。
+
+报告：`test-results/card-strips/result.json`、`test-results/card-strips/release-check.json`、`test-results/desktop/result.json`。
+
+## 0.3.4 历史记录
+
+日期：2026-10-26。
+
+- 移除卡组备注界面、编辑功能及类型字段；旧备份仍可读取，遗留字段不作为功能展示。
+- 构筑主国/盟国选择先展示二次确认，取消不改变国家或卡池，确认后保留全部已有卡牌并沿用规则提示。支持 Enter 确认、Esc 取消、输入法保护和焦点返回。
+- 自动剪贴板检测在提示前将最近有效码持久存入 localStorage。同一码在取消、转入导入、改变分享标题、重载或重启后不重复提示；新码继续提示。串行处理焦点触发，忽略无效码，不影响手动导入。
+- “新卡组”取代“导入新卡组”，提供新建卡组、战备卡组和原有导入三项。新建从空白构筑开始；三组内置战备为“守序中立”“汝即军团”“冬日游戏”，严格保存用户提供的名称、完整描述、原始卡组码，均解析为 39 张可用牌；添加复用同一导入和本地保存流程。
+- 详情与构筑共用 `DeckCardStrip`：国家专属底色、黑底费用、卡名、国家标志、正方形插画缩略图和最右数量。构筑保留增减操作，未知卡保留 ID 和数量，缺图占位，缩略图复用现有缓存；左侧完整卡图展示不变。
+- 本次仅为实现需求读取指定参考图片、提取顶部色块。十份素材为九个国家和中立；颜色已固化为十六进制，澳新军团沿用原有颜色。采样范围和配色表见 `DESIGN.md`。测试不截图、不做图片解码/像素比对。
+
+## 0.3.4 验证
+
+| 检查 | 结果 |
+| --- | --- |
+| `npm run lint` / `npm test` | 通过类型检查、卡组码/规则、备份、数据目录兼容、牌库同步与筛选单测 |
+| `python scripts/smoke-deck-workflows.py` | 通过三组原始码、描述及 39 张数量、空白新建、未知卡导入、备注移除、两处卡牌条一致、十种颜色、方形缓存缩略图、增减、国家确认/取消/IME/焦点、最小窗口、剪贴板跨浏览器重启持久去重；无 pageerror |
+| 构筑交互、自定义筛选、卡组浮层回归 | 三份脚本通过；按新行为更新国家确认与备注移除断言，不截图、不读图 |
+| `npm run build:desktop` | 通过 Vite/Electron 构建，仍有既有 bundle 超过 500kB 的提示 |
+| 0.3.4 打包 EXE 桌面回归 | 使用 `KARDS_SKIP_VISUAL_TESTS=1` 通过真实 preload/IPC、生产协议、离线数据、本地 PNG、用户备份、主题和手动牌库更新；增加战备导入、卡牌条国家图标生产路径、国家确认取消及剪贴板 IPC 持久去重。剪贴板读取在测试进程内替换，未改写系统剪贴板 |
+| ZIP 完整性 | 69 个条目，包含主程序，CRC 通过；SHA-256 记录在 `test-results/deck-workflows/release-check.json` |
+
+运行：`release/0.3.4/win-unpacked/KARDS Toolbox.exe`。ZIP：`release/0.3.4/KARDS Toolbox-0.3.4-win.zip`。移动时保留整个解压目录。
+
+报告：`test-results/deck-workflows/result.json`、`test-results/builder-interactions/result.json`、`test-results/custom-filters/result.json`、`test-results/deck-overlay/result.json`、`test-results/desktop/result.json`。
+
+## 0.3.3 历史记录
 
 日期：2026-10-26。
 

@@ -70,7 +70,7 @@ export default function DeckFolders({ folders, decks, selectedDeckId, onSelect, 
               <button aria-label={`选择卡组 ${deck.name}`} aria-pressed={selectedDeckId === deck.id} onClick={() => onSelect(deck)} onDoubleClick={() => onEdit(deck)} className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-12 pr-2 text-left text-sm text-kards-text">
                 <span className="min-w-0 flex-1 truncate" title={deck.name}>{deck.name}</span>
                 {deck.isFavorite && <Star className="h-3.5 w-3.5 shrink-0 fill-kards-gold text-kards-gold" />}
-                <span className="shrink-0 text-xs tabular-nums text-kards-text-muted">{deck.totalCards} 张</span>
+                <span className="shrink-0 text-xs tabular-nums text-kards-text-muted">{deck.totalCards + 1} 张</span>
               </button>
               {group.folder && <button onClick={() => onRemove(group.folder!, deck)} aria-label={`将${deck.name}移出${group.name}`} title="移出收藏夹" className={actionClass}><X className="h-4 w-4" /></button>}
             </div>)}

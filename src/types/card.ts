@@ -15,6 +15,7 @@ export interface KardsCardRecord {
     faction?: string;
     type?: string;
     kredits?: number;
+    operationCost?: number;
     attack?: number;
     defense?: number;
     rarity?: string;

@@ -41,12 +41,15 @@ import ImageDownloadProgress from './components/ImageDownloadProgress';
 import { handleDialogKeys, useModalFocus } from './lib/dialogKeyboard';
 import CardLibrary from './components/CardLibrary';
 import DeckBuilder, { type BuilderDeck } from './components/DeckBuilder';
+import DeckCardStrip, { DeckHeadquartersStrip } from './components/DeckCardStrip';
+import ReservedBadge from './components/ReservedBadge';
+import NewDeckDialog from './components/NewDeckDialog';
 import DeckFolders from './components/DeckFolders';
 import AboutPage from './components/AboutPage';
 import CardDataUpdater from './components/CardDataUpdater';
 import CustomSelect from './components/CustomSelect';
 import { nationOptions } from './components/CardFilterSelects';
-import { cardTitle, loadCardDatabase, type KardsCardRecord } from './types/card';
+import { loadCardDatabase, type KardsCardRecord } from './types/card';
 
 // --- Types ---
 type Nation = 'Germany' | 'Soviet' | 'USA' | 'Japan' | 'Britain' | 'Finland' | 'Italy' | 'France' | 'Poland' | 'Anzac';
@@ -63,7 +66,6 @@ interface Deck {
   warnings: string[];
   isArena: boolean;
   tags?: string[];
-  notes?: string;
   ruleSet?: DeckRuleSet;
   customRules?: DeckRules;
 }
@@ -188,7 +190,7 @@ const parseDeck = (code: string) => {
   const mainNation = decoded.mainNation as Nation, allyNation = decoded.allyNation as Nation;
   const totalCards = [...decoded.counts.values()].reduce((sum, count) => sum + count, 0);
   const isArena = mainNation === allyNation;
-  const warnings = totalCards === 39 ? [] : [`可用牌当前 ${totalCards} 张，默认要求 39 张（另含总部）`];
+  const warnings = totalCards === 39 ? [] : [`卡组当前 ${totalCards + 1} 张，默认要求 40 张（含总部）`];
   if (!NATION_DATA[mainNation].isMainAllowed) warnings.push('所选主国不在五个主要国家中');
   const defaultName = isArena ? '竞技场卡组' : `${NATION_DATA[mainNation].label}${NATION_DATA[allyNation].label}卡组`;
   return { mainNation, allyNation, totalCards, warnings, isArena, defaultName };
@@ -266,6 +268,7 @@ export default function App() {
 
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showNewDeckModal, setShowNewDeckModal] = useState(false);
   const [importCode, setImportCode] = useState('');
   const [importName, setImportName] = useState('');
   const [clipboardDeckCandidate, setClipboardDeckCandidate] = useState<ClipboardDeckCandidate | null>(null);
@@ -313,6 +316,8 @@ export default function App() {
   const [customCategories, setCustomCategories] = useState<{id: string, name: string, backs: {id: string, url: string, name: string}[]}[]>([]);
 
   useEffect(() => {
+    let detecting = false;
+    let cancelled = false;
     const readClipboardText = async () => {
       if (window.kardsDesktop?.readClipboardText) {
         return window.kardsDesktop.readClipboardText();
@@ -326,21 +331,22 @@ export default function App() {
     };
 
     const detectClipboardDeck = async () => {
-      if (!document.hasFocus()) return;
+      if (!document.hasFocus() || detecting) return;
+      detecting = true;
 
       try {
         const clipboardText = await readClipboardText();
-        if (!clipboardText.trim()) return;
+        if (cancelled || !clipboardText.trim()) return;
 
         const deckCode = extractDeckCodeFromText(clipboardText);
         if (!deckCode || deckCode === lastClipboardPromptRef.current) return;
 
-        const dismissedCode = sessionStorage.getItem('kards_dismissed_clipboard_deck_code');
-        if (dismissedCode === deckCode) return;
+        if (localStorage.getItem('kards_last_clipboard_deck_code') === deckCode) return;
 
         const { defaultName } = parseDeck(deckCode);
         const inferredName = inferDeckTitleFromText(clipboardText, deckCode);
         lastClipboardPromptRef.current = deckCode;
+        localStorage.setItem('kards_last_clipboard_deck_code', deckCode);
         setClipboardDeckCandidate({
           sourceText: clipboardText,
           code: deckCode,
@@ -348,6 +354,8 @@ export default function App() {
         });
       } catch {
         // Clipboard access can fail in browsers without permission; ignore silently.
+      } finally {
+        detecting = false;
       }
     };
 
@@ -355,6 +363,7 @@ export default function App() {
     window.addEventListener('focus', detectClipboardDeck);
 
     return () => {
+      cancelled = true;
       window.removeEventListener('focus', detectClipboardDeck);
     };
   }, []);
@@ -693,11 +702,18 @@ export default function App() {
   }, [customCategories]);
 
   const selectedDeck = decks.find(d => d.id === selectedDeckId);
+  const reservedDeckIds = React.useMemo(() => {
+    const reservedIds = new Set(cardDatabase.filter(card => card.reserved).map(card => card.importId));
+    return new Set(decks.filter(deck => {
+      try { return [...decodeDeckCode(deck.code).counts.keys()].some(id => reservedIds.has(id)); }
+      catch { return false; }
+    }).map(deck => deck.id));
+  }, [decks, cardDatabase]);
   const previewEntries = React.useMemo(() => {
     if (!selectedDeck) return [];
     const index = findCardsByImportId(cardDatabase);
     try { return [...decodeDeckCode(selectedDeck.code).counts].sort(([a], [b]) => (index.get(a)?.json.kredits ?? 99) - (index.get(b)?.json.kredits ?? 99))
-      .map(([id, count]) => ({ id, count, name: index.has(id) ? cardTitle(index.get(id)!, 'zh-Hans') : `未知卡牌 ${id}` })); }
+      .map(([id, count]) => ({ id, count, card: index.get(id) })); }
     catch { return []; }
   }, [selectedDeck?.code, cardDatabase]);
 
@@ -709,9 +725,6 @@ export default function App() {
   };
 
   const handleDismissClipboardDeck = () => {
-    if (clipboardDeckCandidate) {
-      sessionStorage.setItem('kards_dismissed_clipboard_deck_code', clipboardDeckCandidate.code);
-    }
     setClipboardDeckCandidate(null);
   };
 
@@ -725,17 +738,14 @@ export default function App() {
     setClipboardDeckCandidate(null);
   };
 
-  const handleAddDeck = () => {
-    if (!importCode.trim()) return;
-    
-    try {
-      const deckCode = extractDeckCodeFromText(importCode);
-      const inferredName = inferDeckTitleFromText(importCode, deckCode);
+  const addDeckFromCode = (sourceText: string, name: string) => {
+      const deckCode = extractDeckCodeFromText(sourceText);
+      const inferredName = inferDeckTitleFromText(sourceText, deckCode);
       const { mainNation, allyNation, totalCards, warnings, isArena, defaultName } = parseDeck(deckCode);
       
       const newDeck: Deck = {
-        id: Date.now().toString(),
-        name: importName.trim() || inferredName || defaultName,
+        id: crypto.randomUUID(),
+        name: name.trim() || inferredName || defaultName,
         mainNation,
         allyNation,
         code: deckCode,
@@ -745,11 +755,12 @@ export default function App() {
         isArena
       };
       
-      setDecks([...decks, newDeck]);
+      setDecks(current => [...current, newDeck]);
       setSelectedDeckId(newDeck.id);
       setImportCode('');
       setImportName('');
       setShowImportModal(false);
+      setShowNewDeckModal(false);
       setErrorStatus(null);
       
       // Reset filters so the newly added deck is visible
@@ -757,7 +768,12 @@ export default function App() {
       setFilterMainNation('All');
       setFilterAllyNation('All');
       setFilterTag('All');
+  };
 
+  const handleAddDeck = () => {
+    if (!importCode.trim()) return;
+    try {
+      addDeckFromCode(importCode, importName);
     } catch (e: any) {
       setErrorStatus(ERROR_LOCALE[e.message] || e.message || '格式错误');
     }
@@ -1244,7 +1260,7 @@ export default function App() {
                 <input type="checkbox" role="switch" checked={settings.showDeckFolders} onChange={event => setSettings(current => ({ ...current, showDeckFolders: event.target.checked }))} className="h-4 w-4 accent-kards-accent" />
                 收藏夹显示
               </label>
-              {settings.showDeckFolders && <button onClick={() => setShowImportModal(true)} className="flex items-center gap-2 rounded bg-kards-accent px-3 py-2 text-sm font-bold text-white"><Plus className="h-4 w-4" />导入新卡组</button>}
+              {settings.showDeckFolders && <button onClick={() => setShowNewDeckModal(true)} className="flex items-center gap-2 rounded bg-kards-accent px-3 py-2 text-sm font-bold text-white"><Plus className="h-4 w-4" />新卡组</button>}
             </div>}
             {activeMenu === 'decks' && !settings.showDeckFolders && (
               <div data-testid="deck-grid"
@@ -1264,12 +1280,13 @@ export default function App() {
                     onClick={() => setSelectedDeckId(deck.id)}
                     onDoubleClick={() => openDeckEditor(deck)}
                     settings={settings}
+                    hasReserved={reservedDeckIds.has(deck.id)}
                   />
                 ))}
 
                 {/* Add Deck Placeholder */}
                 <button 
-                  onClick={() => setShowImportModal(true)}
+                  onClick={() => setShowNewDeckModal(true)}
                   className="flex flex-col items-center group flex-shrink-0"
                 >
                   <div 
@@ -1281,7 +1298,7 @@ export default function App() {
                   >
                     <Plus style={{ width: `${3 * settings.uiScale}rem`, height: `${3 * settings.uiScale}rem` }} className="text-kards-text-muted group-hover:text-kards-gold transition-colors" />
                   </div>
-                  <span className="mt-4 text-sm font-bold text-kards-text-muted bg-kards-panel/80 px-4 py-1 rounded shadow-md border border-kards-border/50 backdrop-blur-md group-hover:text-kards-gold group-hover:border-kards-gold/50 group-hover:shadow-kards-gold/20 transition-all" style={{ fontSize: `${0.875 * settings.uiScale}rem` }}>导入新卡组</span>
+                  <span className="mt-4 text-sm font-bold text-kards-text-muted bg-kards-panel/80 px-4 py-1 rounded shadow-md border border-kards-border/50 backdrop-blur-md group-hover:text-kards-gold group-hover:border-kards-gold/50 group-hover:shadow-kards-gold/20 transition-all" style={{ fontSize: `${0.875 * settings.uiScale}rem` }}>新卡组</span>
                 </button>
               </div>
             )}
@@ -1332,9 +1349,10 @@ export default function App() {
                   className="text-xl font-bold tracking-tight mb-4 text-center bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-kards-gold/30 rounded w-full"
                 />
                 
-                <div className="mb-3 flex items-center justify-between text-xs text-kards-text-muted"><span>{selectedDeck.totalCards} 张可用牌 + 1 总部</span><button onClick={() => setShowCardBackModal(selectedDeck.id)} className="rounded border border-kards-border px-2 py-1">更换卡背</button></div>
+                <div className="mb-3 flex items-center justify-between text-xs text-kards-text-muted"><span>{selectedDeck.totalCards + 1} 张（含总部）</span><button onClick={() => setShowCardBackModal(selectedDeck.id)} className="rounded border border-kards-border px-2 py-1">更换卡背</button></div>
                 <ul aria-label="卡组紧凑列表" className="space-y-0.5 text-sm">
-                  {previewEntries.map(entry => <li key={entry.id} className="flex items-center gap-2 border-b border-kards-border py-1.5"><span className="min-w-0 flex-1 truncate" title={entry.name}>{entry.name}</span><span className="shrink-0 tabular-nums text-kards-status">×{entry.count}</span></li>)}
+                  <li><DeckHeadquartersStrip nation={selectedDeck.mainNation} /></li>
+                  {previewEntries.map(entry => <li key={entry.id}><DeckCardStrip card={entry.card} importId={entry.id} count={entry.count} /></li>)}
                 </ul>
               </div>
 
@@ -1387,9 +1405,6 @@ export default function App() {
                   ))}
                 </div>
 
-                <label className="block text-xs text-kards-text-muted">卡组备注
-                  <textarea aria-label="卡组备注" rows={3} value={selectedDeck.notes || ''} onChange={(e) => setDecks((current) => current.map((deck) => deck.id === selectedDeck.id ? { ...deck, notes: e.target.value } : deck))} placeholder="记录对局思路、换牌和调整计划" className="mt-2 w-full resize-none rounded border border-kards-border bg-kards-input-bg px-3 py-2 text-sm text-kards-text" />
-                </label>
                 <div className="flex gap-2">
                   <ActionButton 
                     label="删除卡组"
@@ -1491,6 +1506,17 @@ export default function App() {
       </AnimatePresence>
 
       {/* --- Import Modal --- */}
+      {showNewDeckModal && <NewDeckDialog
+        onClose={() => setShowNewDeckModal(false)}
+        onCreate={() => {
+          setShowNewDeckModal(false);
+          setBuilderDeck({ name: '新卡组', code: '%%14|;;;' });
+          setBuilderRevision(revision => revision + 1);
+          setActiveMenu('builder');
+        }}
+        onImport={() => { setShowNewDeckModal(false); setErrorStatus(null); setShowImportModal(true); }}
+        onPreset={preset => addDeckFromCode(preset.code, preset.name)}
+      />}
       <AnimatePresence>
         {showImportModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1520,7 +1546,7 @@ export default function App() {
               </button>
               
               <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                <Plus className="w-5 h-5 text-kards-gold" /> 导入新卡组
+                <Plus className="w-5 h-5 text-kards-gold" /> 导入卡组
               </h3>
               
               <div className="space-y-6">
@@ -2437,10 +2463,11 @@ interface DeckCardProps {
   onClick: () => void;
   onDoubleClick: () => void;
   settings: AppSettings;
+  hasReserved: boolean;
   key?: React.Key;
 }
 
-function DeckCard({ deck, selected, onClick, onDoubleClick, settings }: DeckCardProps) {
+function DeckCard({ deck, selected, onClick, onDoubleClick, settings, hasReserved }: DeckCardProps) {
   const mainData = NATION_DATA[deck.mainNation];
   const allyData = deck.allyNation ? NATION_DATA[deck.allyNation] : null;
 
@@ -2494,6 +2521,7 @@ function DeckCard({ deck, selected, onClick, onDoubleClick, settings }: DeckCard
                  <img src={getFlagUrl(allyData.flag)} className="w-3.5 h-2.5 object-contain opacity-80" alt="ally" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
               </div>
             )}
+            {hasReserved && <ReservedBadge label="卡组含预备卡" className="deck-cover-reserved" />}
           </div>
 
           {/* Warnings on card back */}
@@ -2501,7 +2529,7 @@ function DeckCard({ deck, selected, onClick, onDoubleClick, settings }: DeckCard
             className="absolute inset-0 flex flex-col items-center justify-end p-2 pb-8 gap-1 pointer-events-none origin-bottom"
             style={{ transform: `scale(${settings.uiScale})` }}
           >
-            {deck.warnings.map((w, i) => (
+            {deck.warnings.filter(warning => !warning.endsWith(' 是预备卡')).map((w, i) => (
               <span key={i} className="bg-red-600/90 text-[10px] text-white px-2 py-0.5 font-bold uppercase tracking-tight shadow-lg whitespace-nowrap">
                 {w}
               </span>
