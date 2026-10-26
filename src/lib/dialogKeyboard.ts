@@ -1,5 +1,37 @@
 import { useEffect, useRef } from 'react';
 
+export function useDismissiblePanel<T extends HTMLElement = HTMLElement>(open: boolean, close: () => void, dismissOutside: () => void = close) {
+  const ref = useRef<T>(null);
+  const latestClose = useRef(close);
+  const latestOutside = useRef(dismissOutside);
+  latestClose.current = close;
+  latestOutside.current = dismissOutside;
+
+  useEffect(() => {
+    if (!open) return;
+    const pointerdown = (event: PointerEvent) => {
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+      if (event.target instanceof Node && ref.current?.contains(event.target)) return;
+      latestOutside.current();
+    };
+    const keydown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing || event.key !== 'Escape'
+        || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      latestClose.current();
+    };
+    document.addEventListener('pointerdown', pointerdown, true);
+    document.addEventListener('keydown', keydown, true);
+    return () => {
+      document.removeEventListener('pointerdown', pointerdown, true);
+      document.removeEventListener('keydown', keydown, true);
+    };
+  }, [open]);
+
+  return ref;
+}
+
 // Only the front dialog handles a key; keep multi-line input and IME composition intact.
 export function useDialogKeyboard(open: boolean, close: () => void) {
   const ref = useRef<HTMLElement>(null);

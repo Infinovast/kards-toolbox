@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { CARD_DATA_URL, collectCardData, compareCardData, fetchKardsplayerCardPage, normalizeCardRecord, parseCardDataPage, validateCardRecords } from './cardData';
+import { CARD_DATA_URL, KARDS_COM_DATA_URL, collectCardData, compareCardData, fetchKardsComCardPage, fetchKardsplayerCardPage, normalizeCardRecord, parseCardDataPage, validateCardRecords } from './cardData';
 
 const records = JSON.parse(readFileSync('public/data/cards.json', 'utf8')).cards;
 const local = records.slice(0, 3);
@@ -42,6 +42,19 @@ await fetchKardsplayerCardPage(100, (async (url, options) => {
   return new Response(JSON.stringify(payload()));
 }) as typeof fetch);
 assert.ok(requested);
+const officialRecord = { ...local[0], id: 'gid://cards/opaque-id', imageUrl: '/images/card/v54/zh-Hans/official_card.avif', thumbUrl: '/images/card/v54/zh-Hans/thumb/official_card.avif' };
+const officialPage = parseCardDataPage(payload([officialRecord], 1), 'kardscom');
+assert.equal(officialPage.cards[0].imageUrl, 'https://www.kards.com/images/card/v54/zh-Hans/official_card.avif');
+assert.equal(officialPage.cards[0].thumbUrl, 'https://www.kards.com/images/card/v54/zh-Hans/thumb/official_card.avif');
+assert.equal(officialPage.cards[0].id, 0, 'opaque transport IDs do not discard valid catalogue cards');
+await fetchKardsComCardPage(0, (async (url, options) => {
+  assert.equal(url, KARDS_COM_DATA_URL);
+  const request = JSON.parse(String(options?.body));
+  assert.deepEqual(request.variables, { language: 'zh', first: 100, offset: 0, showSpawnables: true, showExiles: true, showReserved: true });
+  assert.equal(options?.headers?.origin, 'https://www.kards.com');
+  assert.ok(request.query.includes('thumbUrl: image(type: thumb, language: $language)'));
+  return new Response(JSON.stringify(payload([officialRecord], 1)));
+}) as typeof fetch);
 const relocated = structuredClone(local);
 relocated[0].imageUrl = relocated[0].imageUrl.replace('/v53/', '/v55/');
 relocated[0].thumbUrl = relocated[0].thumbUrl.replace('/v53/', '/v55/');
@@ -74,4 +87,4 @@ const abort = new AbortController();
 const interrupted = collectCardData(() => new Promise(() => {}), () => {}, abort.signal, 0);
 abort.abort();
 await assert.rejects(() => interrupted, error => error instanceof Error && error.name === 'AbortError');
-console.log('Card-data sync tests passed: same-count edits, multilingual diff, additions/removals, Kardsplayer request, incomplete/duplicate/changed pagination and cancellation');
+console.log('Card-data sync tests passed: same-count edits, multilingual diff, additions/removals, Kardsplayer/KARDS requests, endpoint normalization, incomplete/duplicate/changed pagination and cancellation');

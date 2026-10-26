@@ -1,12 +1,13 @@
-import { useMemo, useState } from 'react';
-import { Download, Search, X } from 'lucide-react';
+import { useMemo, useState, type ReactNode } from 'react';
+import { ChevronDown, Download, Search, X } from 'lucide-react';
 import { CardFace } from './CardFace';
 import { startImageDownload, useImageDownload } from '../lib/imageDownloads';
-import { useDialogKeyboard } from '../lib/dialogKeyboard';
+import { useDismissiblePanel } from '../lib/dialogKeyboard';
 import { EMPTY_CARD_FILTERS, isGeneratedCard, matchesCardFilters, type CardFilters } from '../lib/cardFilters';
 import CustomSelect from './CustomSelect';
 import CardFilterSelects, { expansionOptions } from './CardFilterSelects';
 import { cardKeywords, cardRelations } from '../lib/cardDetails';
+import { HEADQUARTERS, HEADQUARTERS_STACK, type HeadquartersAsset } from '../lib/cardAssets';
 import {
   CARD_LANGUAGES,
   cardText,
@@ -20,6 +21,20 @@ import {
 } from '../types/card';
 
 const PAGE_SIZE = 36;
+const CARD_TEXT_KEYWORDS = /情报(?:X|\d+)|被收缴|部署|亡计|伏击|免疫|动员|压制|奋战|守护|山地|情报|控制|流亡|烟幕|重甲|钳击|闪击|收缴|撤退|抑制|转换|抉择|冲击|协力|开发|战斗(?!机)|抽取|老兵|隐蔽|预报/gu;
+
+function emphasizeCardText(text: string) {
+  const result: ReactNode[] = [];
+  let cursor = 0;
+  for (const match of text.matchAll(CARD_TEXT_KEYWORDS)) {
+    const index = match.index ?? 0;
+    if (index > cursor) result.push(text.slice(cursor, index));
+    result.push(<strong key={`${index}-${match[0]}`} className="font-bold text-kards-text">{match[0]}</strong>);
+    cursor = index + match[0].length;
+  }
+  if (cursor < text.length) result.push(text.slice(cursor));
+  return result;
+}
 
 export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
   const [filters, setFilters] = useState<CardFilters>({ ...EMPTY_CARD_FILTERS });
@@ -27,8 +42,11 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
   const [language, setLanguage] = useState<CardLanguage>('zh-Hans');
   const [page, setPage] = useState(1);
   const [selectedCard, setSelectedCard] = useState<KardsCardRecord | null>(null);
+  const [selectedHeadquarters, setSelectedHeadquarters] = useState<HeadquartersAsset | null>(null);
+  const [expandedHeadquarters, setExpandedHeadquarters] = useState(false);
   const download = useImageDownload();
-  const detailRef = useDialogKeyboard(!!selectedCard, () => setSelectedCard(null));
+  const closeDetails = () => { setSelectedCard(null); setSelectedHeadquarters(null); };
+  const detailRef = useDismissiblePanel(!!selectedCard || !!selectedHeadquarters, closeDetails);
   const cardsByCardId = useMemo(() => new Map(cards.map(card => [card.cardId, card])), [cards]);
   const keywords = selectedCard ? cardKeywords(selectedCard, language) : [];
   const relations = selectedCard ? cardRelations(selectedCard) : [];
@@ -70,6 +88,16 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
         </div>
 
         <div data-testid="library-grid" className="card-gallery custom-scrollbar min-h-0 flex-1 overflow-y-auto pb-2">
+          {page === 1 && <button type="button" aria-expanded={expandedHeadquarters} aria-label={`${expandedHeadquarters ? '收起' : '展开'}总部卡牌`} onClick={() => setExpandedHeadquarters(value => !value)} className="hq-stack-tile card-action card-tile group">
+            <span className="hq-stack-art" aria-hidden="true">{HEADQUARTERS_STACK.map((headquarters, index) => <img key={headquarters.id} src={headquarters.image} alt="" style={{ transform: `translate(${index * 4}px, ${index * 2}px) rotate(${(index - 2.5) * 1.4}deg)`, zIndex: index + 1 }} />)}</span>
+            <span className="card-caption flex items-center justify-between"><span>总部 · {HEADQUARTERS.length}</span><ChevronDown className={`h-4 w-4 transition-transform ${expandedHeadquarters ? 'rotate-180' : ''}`} /></span>
+          </button>}
+          {page === 1 && expandedHeadquarters && <div aria-label="总部卡牌" className="col-span-full grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-3 rounded border border-kards-border glass-panel p-3">
+            {HEADQUARTERS.map(headquarters => <button key={headquarters.id} type="button" onClick={() => { setSelectedCard(null); setSelectedHeadquarters(headquarters); }} aria-label={`查看总部卡牌：${headquarters.name}`} className="card-action min-w-0 text-left">
+              <img src={headquarters.image} alt="" className="card-face" />
+              <span className="card-caption block" title={`${headquarters.name} · ${headquarters.nation}`}>{headquarters.name} · {headquarters.nation}</span>
+            </button>)}
+          </div>}
           {pageCards.map((card) => (
             <button key={card.importId} onClick={() => setSelectedCard(card)} className="card-tile card-action group text-left" aria-label={`查看${cardDisplayTitle(card, language)}`}>
               <CardFace card={card} language={language} />
@@ -88,11 +116,11 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
 
       {selectedCard && (
         <aside ref={detailRef} role="dialog" aria-modal="false" aria-label="卡牌详情" tabIndex={-1} className="glass-panel custom-scrollbar absolute bottom-5 right-5 top-5 z-30 flex w-[300px] max-w-[calc(100%-40px)] flex-col overflow-y-auto rounded-lg border border-kards-border p-4 shadow-xl">
-          <button onClick={() => setSelectedCard(null)} aria-label="关闭卡牌详情" className="absolute right-3 top-3 z-10 rounded-full bg-black/60 p-1 text-white"><X className="h-4 w-4" /></button>
+          <button onClick={closeDetails} aria-label="关闭卡牌详情" className="absolute right-3 top-3 z-10 rounded-full bg-black/60 p-1 text-white"><X className="h-4 w-4" /></button>
           <CardFace card={selectedCard} language={language} className="mx-auto mb-4 max-h-[55vh] w-full object-contain" />
           <h2 className="text-lg font-bold text-kards-text">{cardDisplayTitle(selectedCard, language)}</h2>
           {keywords.length > 0 && <p aria-label="卡牌关键词" className="mt-2 text-sm text-kards-status">{keywords.join(' · ')}</p>}
-          {cardText(selectedCard, language) && <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-kards-text-muted">{cardText(selectedCard, language)}</p>}
+          {cardText(selectedCard, language) && <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-kards-text-muted">{emphasizeCardText(cardText(selectedCard, language))}</p>}
           <dl className="mt-4 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-kards-border pt-4 text-sm text-kards-text">
             <dt>阵营</dt><dd>{factionLabel(selectedCard.json.faction)}</dd><dt>类型</dt><dd>{typeLabel(selectedCard.json.type)}</dd>
             <dt>部署费用</dt><dd>{selectedCard.json.kredits ?? '—'} K</dd>
@@ -103,13 +131,21 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
             <dt>永久卡池</dt><dd>{selectedCard.json.permanent_pool ? '是' : '否'}</dd><dt>卡组码编号</dt><dd>{selectedCard.importId}</dd>
             <dt>卡牌 ID</dt><dd className="break-all">{selectedCard.cardId}</dd>
           </dl>
-          {relations.length > 0 && <section aria-label="关联卡牌" className="mt-4 border-t border-kards-border pt-4"><h3 className="text-sm font-bold text-kards-text">关联卡牌</h3><div className="mt-2 flex flex-col gap-2">
+          {relations.length > 0 && <section aria-label="关联卡牌" className="mt-4 border-t border-kards-border pt-4"><h3 className="text-sm font-bold text-kards-text">关联卡牌</h3><div className="mt-2 flex flex-wrap gap-2">
             {relations.map(({ cardId, label }) => { const related = cardsByCardId.get(cardId); return related
-              ? <button key={`${label}:${cardId}`} onClick={() => setSelectedCard(related)} className="rounded border border-kards-border bg-kards-input-bg px-3 py-2 text-left text-sm text-kards-text hover:border-kards-gold"><span className="mr-2 text-kards-text-muted">{label}</span>{cardDisplayTitle(related, language)}</button>
+              ? <button key={`${label}:${cardId}`} title={`${label}：${cardDisplayTitle(related, language)}`} aria-label={`${label}：${cardDisplayTitle(related, language)}`} onClick={() => setSelectedCard(related)} className="w-[84px] rounded border border-kards-border bg-kards-input-bg p-1 hover:border-kards-gold"><CardFace card={related} language={language} className="w-full" /></button>
               : <p key={`${label}:${cardId}`} className="break-all text-xs text-kards-text-muted">{label}：{cardId}（本地缺少资料，请在设置中更新）</p>; })}
           </div></section>}
         </aside>
       )}
+      {selectedHeadquarters && <aside ref={detailRef} role="dialog" aria-modal="false" aria-label="总部详情" tabIndex={-1} className="glass-panel custom-scrollbar absolute bottom-5 right-5 top-5 z-30 flex w-[300px] max-w-[calc(100%-40px)] flex-col overflow-y-auto rounded-lg border border-kards-border p-4 shadow-xl">
+        <button onClick={closeDetails} aria-label="关闭总部详情" className="absolute right-3 top-3 z-10 rounded-full bg-black/60 p-1 text-white"><X className="h-4 w-4" /></button>
+        <img src={selectedHeadquarters.image} alt={selectedHeadquarters.name} className="mx-auto mb-4 max-h-[55vh] w-full object-contain" />
+        <h2 className="text-lg font-bold text-kards-text">{selectedHeadquarters.name}</h2>
+        <dl className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-kards-border pt-3 text-sm text-kards-text"><dt>阵营</dt><dd>{factionLabel(selectedHeadquarters.sourceFaction)}</dd><dt>总部图</dt><dd>{factionLabel(selectedHeadquarters.nation)}</dd><dt>稀有度</dt><dd>{selectedHeadquarters.rarity || '—'}</dd></dl>
+        {selectedHeadquarters.brief && <p className="mt-3 text-sm leading-relaxed text-kards-text">{selectedHeadquarters.brief}</p>}
+        {selectedHeadquarters.history && <section className="mt-4 border-t border-kards-border pt-3"><h3 className="text-sm font-bold text-kards-text">历史背景</h3><p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-kards-text-muted">{selectedHeadquarters.history}</p></section>}
+      </aside>}
     </div>
   );
 }

@@ -1,0 +1,302 @@
+{
+  "tablecloths": [
+    {
+      "id": "default-1",
+      "name": "默认 1",
+      "file": "/assets/tablecloths/default/1.jpeg",
+      "type": "default"
+    },
+    {
+      "id": "default-2",
+      "name": "默认 2",
+      "file": "/assets/tablecloths/default/2.jpeg",
+      "type": "default"
+    },
+    {
+      "id": "default-3",
+      "name": "默认 3",
+      "file": "/assets/tablecloths/default/3.jpeg",
+      "type": "default"
+    },
+    {
+      "id": "default-4",
+      "name": "默认 4",
+      "file": "/assets/tablecloths/default/4.jpeg",
+      "type": "default"
+    },
+    {
+      "id": "default-5",
+      "name": "默认 5",
+      "file": "/assets/tablecloths/default/5.jpeg",
+      "type": "default"
+    },
+    {
+      "id": "wallpaper-1",
+      "name": "Wallpaper10_QHD",
+      "file": "/assets/tablecloths/wallpapers/Wallpaper10_QHD.jpg",
+      "type": "wallpaper"
+    },
+    {
+      "id": "wallpaper-2",
+      "name": "Wallpaper11_QHD",
+      "file": "/assets/tablecloths/wallpapers/Wallpaper11_QHD.jpg",
+      "type": "wallpaper"
+    },
+    {
+      "id": "wallpaper-3",
+      "name": "Wallpaper12_QHD",
+      "file": "/assets/tablecloths/wallpapers/Wallpaper12_QHD.jpg",
+      "type": "wallpaper"
+    },
+    {
+      "id": "wallpaper-4",
+      "name": "Wallpaper13_QHD",
+      "file": "/assets/tablecloths/wallpapers/Wallpaper13_QHD.jpg",
+      "type": "wallpaper"
+    },
+    {
+      "id": "wallpaper-5",
+      "name": "Wallpaper14_QHD",
+      "file": "/assets/tablecloths/wallpapers/Wallpaper14_QHD.jpg",
+      "type": "wallpaper"
+    },
+    {
+      "id": "wallpaper-6",
+      "name": "Wallpaper15_QHD",
+      "file": "/assets/tablecloths/wallpapers/Wallpaper15_QHD.jpg",
+      "type": "wallpaper"
+    },
+    {
+      "id": "wallpaper-7",
+      "name": "Wallpaper16_QHD",
+      "file": "/assets/tablecloths/wallpapers/Wallpaper16_QHD.jpg",
+      "type": "wallpaper"
+    },
+    {
+      "id": "wallpaper-8",
+      "name": "Wallpaper17_QHD",
+      "file": "/assets/tablecloths/wallpapers/Wallpaper17_QHD.jpg",
+      "type": "wallpaper"
+    },
+    {
+      "id": "wallpaper-9",
+      "name": "Wallpaper18_QHD",
+      "file": "/assets/tablecloths/wallpapers/Wallpaper18_QHD.jpg",
+      "type": "wallpaper"
+    },
+    {
+      "id": "wallpaper-10",
+      "name": "Wallpaper1_QHD",
+      "file": "/assets/tablecloths/wallpapers/Wallpaper1_QHD.jpg",
+      "type": "wallpaper"
+    },
+    {
+      "id": "wallpaper-11",
+      "name": "Wallpaper20_QHD",
+      "file": "/assets/tablecloths/wallpapers/Wallpaper20_QHD.jpg",
+      "type": "wallpaper"
+    },
+    {
+      "id": "wallpaper-12",
+      "name": "Wallpaper21_QHD",
+      "file": "/assets/tablecloths/wallpapers/Wallpaper21_QHD.jpg",
+      "type": "wallpaper"
+    },
+    {
+      "id": "wallpaper-13",
+      "name": "Wallpaper2_QHD",
+      "file": "/assets/tablecloths/wallpapers/Wallpaper2_QHD.jpg",
+      "type": "wallpaper"
+    },
+    {
+      "id": "wallpaper-14",
+      "name": "Wallpaper3_QHD",
+      "file": "/assets/tablecloths/wallpapers/Wallpaper3_QHD.jpg",
+      "type": "wallpaper"
+    },
+    {
+      "id": "wallpaper-15",
+      "name": "Wallpaper4_QHD",
+      "file": "/assets/tablecloths/wallpapers/Wallpaper4_QHD.jpg",
+      "type": "wallpaper"
+    },
+    {
+      "id": "wallpaper-16",
+      "name": "Wallpaper5_QHD",
+      "file": "/assets/tablecloths/wallpapers/Wallpaper5_QHD.jpg",
+      "type": "wallpaper"
+    },
+    {
+      "id": "wallpaper-17",
+      "name": "Wallpaper6_QHD",
+      "file": "/assets/tablecloths/wallpapers/Wallpaper6_QHD.jpg",
+      "type": "wallpaper"
+    },
+    {
+      "id": "wallpaper-18",
+      "name": "Wallpaper7_QHD",
+      "file": "/assets/tablecloths/wallpapers/Wallpaper7_QHD.jpg",
+      "type": "wallpaper"
+    },
+    {
+      "id": "wallpaper-19",
+      "name": "Wallpaper8_QHD",
+      "file": "/assets/tablecloths/wallpapers/Wallpaper8_QHD.jpg",
+      "type": "wallpaper"
+    },
+    {
+      "id": "wallpaper-20",
+      "name": "Wallpaper9_QHD",
+      "file": "/assets/tablecloths/wallpapers/Wallpaper9_QHD.jpg",
+      "type": "wallpaper"
+    },
+    {
+      "id": "wallpaper-21",
+      "name": "Wallpaper_FR_01",
+      "file": "/assets/tablecloths/wallpapers/Wallpaper_FR_01.jpg",
+      "type": "wallpaper"
+    },
+    {
+      "id": "wallpaper-22",
+      "name": "Wallpaper_FR_02",
+      "file": "/assets/tablecloths/wallpapers/Wallpaper_FR_02.jpg",
+      "type": "wallpaper"
+    },
+    {
+      "id": "wallpaper-23",
+      "name": "Wallpaper_RU_01",
+      "file": "/assets/tablecloths/wallpapers/Wallpaper_RU_01.jpg",
+      "type": "wallpaper"
+    },
+    {
+      "id": "wallpaper-24",
+      "name": "Wallpaper_RU_02",
+      "file": "/assets/tablecloths/wallpapers/Wallpaper_RU_02.jpg",
+      "type": "wallpaper"
+    },
+    {
+      "id": "wallpaper-25",
+      "name": "Wallpaper_USA_01",
+      "file": "/assets/tablecloths/wallpapers/Wallpaper_USA_01.jpg",
+      "type": "wallpaper"
+    },
+    {
+      "id": "wallpaper-26",
+      "name": "Wallpaper_USA_02",
+      "file": "/assets/tablecloths/wallpapers/Wallpaper_USA_02.jpg",
+      "type": "wallpaper"
+    },
+    {
+      "id": "hq-rangoon",
+      "name": "仰光",
+      "file": "/assets/tablecloths/headquarters/rangoon.jpg",
+      "type": "headquarters",
+      "headquartersId": "Japan/rangoon"
+    },
+    {
+      "id": "hq-london",
+      "name": "伦敦",
+      "file": "/assets/tablecloths/headquarters/london.jpg",
+      "type": "headquarters",
+      "headquartersId": "Britain/london_waw"
+    },
+    {
+      "id": "hq-washington",
+      "name": "华盛顿",
+      "file": "/assets/tablecloths/headquarters/washington.jpg",
+      "type": "headquarters",
+      "headquartersId": "USA/washington_waw"
+    },
+    {
+      "id": "hq-bastogne",
+      "name": "巴斯托涅",
+      "file": "/assets/tablecloths/headquarters/bastogne.jpg",
+      "type": "headquarters",
+      "headquartersId": "USA/bastogne_waw_event"
+    },
+    {
+      "id": "hq-bryansk",
+      "name": "布良斯克",
+      "file": "/assets/tablecloths/headquarters/bryansk.jpg",
+      "type": "headquarters",
+      "headquartersId": "Soviet/bryansk_waw"
+    },
+    {
+      "id": "hq-kursk",
+      "name": "库尔斯克",
+      "file": "/assets/tablecloths/headquarters/kursk.jpg",
+      "type": "headquarters",
+      "headquartersId": "Soviet/kursk"
+    },
+    {
+      "id": "hq-guadalcanal",
+      "name": "瓜达尔卡纳尔",
+      "file": "/assets/tablecloths/headquarters/guadalcanal.jpg",
+      "type": "headquarters",
+      "headquartersId": "USA/guadalcanal"
+    },
+    {
+      "id": "hq-baguio",
+      "name": "碧瑶",
+      "file": "/assets/tablecloths/headquarters/baguio.jpg",
+      "type": "headquarters",
+      "headquartersId": "Japan/baguio"
+    },
+    {
+      "id": "hq-tunis_city",
+      "name": "突尼斯市",
+      "file": "/assets/tablecloths/headquarters/tunis_city.jpg",
+      "type": "headquarters",
+      "headquartersId": "Britain/tunis_city"
+    },
+    {
+      "id": "hq-fleet",
+      "name": "舰队",
+      "file": "/assets/tablecloths/headquarters/fleet.jpg",
+      "type": "headquarters",
+      "headquartersId": "Common/flotilla_neutral"
+    },
+    {
+      "id": "hq-moscow",
+      "name": "莫斯科",
+      "file": "/assets/tablecloths/headquarters/moscow.jpg",
+      "type": "headquarters",
+      "headquartersId": "Soviet/moscow"
+    },
+    {
+      "id": "hq-supply_train",
+      "name": "补给列车",
+      "file": "/assets/tablecloths/headquarters/supply_train.jpg",
+      "type": "headquarters",
+      "headquartersId": "Common/supply_train_neutral"
+    },
+    {
+      "id": "hq-alam_el_halfa",
+      "name": "阿拉姆哈勒法",
+      "file": "/assets/tablecloths/headquarters/alam_el_halfa.jpg",
+      "type": "headquarters",
+      "headquartersId": "Britain/alam_el_halfa"
+    },
+    {
+      "id": "hq-arracourt",
+      "name": "阿拉库尔",
+      "file": "/assets/tablecloths/headquarters/arracourt.jpg",
+      "type": "headquarters",
+      "headquartersId": "USA/arracourt"
+    },
+    {
+      "id": "hq-ardennes",
+      "name": "阿登",
+      "file": "/assets/tablecloths/headquarters/ardennes.jpg",
+      "type": "headquarters",
+      "headquartersId": "Germany/ardennes_waw"
+    },
+    {
+      "id": "hq-manila",
+      "name": "马尼拉",
+      "file": "/assets/tablecloths/headquarters/manila.jpg",
+      "type": "headquarters",
+      "headquartersId": "Japan/manila"
+    }
+  ]
+}

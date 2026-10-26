@@ -3,6 +3,7 @@ import { Download, RotateCcw, Search, Trash2, X } from 'lucide-react';
 import { cardDisplayTitle, type KardsCardRecord } from '../types/card';
 import CustomSelect from './CustomSelect';
 import { compareCardData, type CardFieldChange } from '../lib/cardData';
+import type { CardDataSource } from '../lib/cardData';
 import { applyCardData, cancelCardDataCheck, checkCardData, deleteDownloadedCardData, initializeCardDataSync, rollbackCardData, useCardDataSync } from '../lib/cardDataSync';
 
 const labels: Record<string, string> = { cardId: '卡牌标识', imageUrl: '当前卡图地址', thumbUrl: '缩略图地址', reserved: '预备状态', title: '卡名', text: '卡牌文本', description: '描述', kredits: '费用', attack: '攻击力', defense: '防御力', rarity: '稀有度', faction: '阵营', type: '类型', set: '扩展包', image: '卡图路径', attributes: '关键词与老兵关系', operationCost: '行动费用', can_create: '衍生卡', exile: '放逐', permanent_pool: '常驻卡池', id: '卡牌标识', import_id: '卡组码编号' };
@@ -15,10 +16,13 @@ function valueText(value: unknown) {
   return typeof value === 'object' ? JSON.stringify(value) : String(value);
 }
 function timeText(value?: string | null) { return value ? new Date(value).toLocaleString('zh-CN', { hour12: false }) : '暂无'; }
+function sourceLabel(source?: string) { return source === 'kardscom' || source === 'official' ? 'kards.com' : source === 'kardsplayer' ? 'kardsplayer.com' : '内置数据'; }
 
 export default function CardDataUpdater({ cards, onApplied }: { cards: KardsCardRecord[]; onApplied: (cards: KardsCardRecord[]) => void }) {
   const sync = useCardDataSync();
+  const [source, setSource] = useState<CardDataSource>(() => localStorage.getItem('kards_card_data_source') === 'kardscom' ? 'kardscom' : 'kardsplayer');
   useEffect(() => { void initializeCardDataSync(); }, []);
+  useEffect(() => { localStorage.setItem('kards_card_data_source', source); }, [source]);
   const [kind, setKind] = useState('all');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
@@ -46,20 +50,26 @@ export default function CardDataUpdater({ cards, onApplied }: { cards: KardsCard
   };
   const hasDownloadedData = !!(sync.stored.active || sync.stored.pending || sync.stored.previous || sync.stored.lastCheckedAt);
 
-  return <section aria-label="卡牌数据更新" className="mb-8 rounded-lg glass-panel p-5 md:p-6">
-    <div className="flex flex-wrap items-start justify-between gap-4">
-      <div className="min-w-0"><h3 className="text-lg font-bold text-kards-text">卡牌数据</h3><p className="mt-2 text-sm leading-6 text-kards-text-muted">从 Kardsplayer 收藏页接口获取完整卡牌资料，包含预备卡与衍生形态。核对文字、数值、关联卡牌和卡图地址差异后，再应用更新。</p></div>
+  return <section aria-label="卡牌数据更新" className="mb-6 rounded-lg glass-panel p-4">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex min-w-0 flex-wrap items-center gap-3">
+        <h3 className="text-base font-bold text-kards-text">卡牌数据</h3>
+        <div role="group" aria-label="数据更新来源" className="inline-flex overflow-hidden rounded border border-kards-border">
+          <button type="button" aria-pressed={source === 'kardsplayer'} onClick={() => setSource('kardsplayer')} className={`px-3 py-1.5 text-xs ${source === 'kardsplayer' ? 'bg-kards-gold/15 text-kards-text' : 'text-kards-text-muted hover:text-kards-text'}`}>kardsplayer.com</button>
+          <button type="button" aria-pressed={source === 'kardscom'} onClick={() => setSource('kardscom')} className={`border-l border-kards-border px-3 py-1.5 text-xs ${source === 'kardscom' ? 'bg-kards-gold/15 text-kards-text' : 'text-kards-text-muted hover:text-kards-text'}`}>kards.com</button>
+        </div>
+      </div>
       <div className="flex flex-wrap gap-2">
-        <button onClick={() => void checkCardData()} disabled={busy} className="flex items-center gap-2 rounded bg-kards-accent px-4 py-2 text-sm font-bold text-white disabled:opacity-40"><Download className="h-4 w-4" />{sync.status === 'fetching' ? '正在获取…' : '获取最新卡牌数据'}</button>
+        <button onClick={() => void checkCardData(source)} disabled={busy} className="flex items-center gap-2 rounded bg-kards-accent px-3 py-2 text-sm font-bold text-white disabled:opacity-40"><Download className="h-4 w-4" />{sync.status === 'fetching' ? '正在获取…' : '获取数据'}</button>
         <button onClick={rollback} disabled={busy || !sync.stored.previous} className="flex items-center gap-2 rounded border border-kards-border px-3 py-2 text-sm text-kards-text disabled:opacity-40"><RotateCcw className="h-4 w-4" />回退上次数据</button>
         <button onClick={() => void removeData('all')} disabled={busy || !hasDownloadedData} className="flex items-center gap-2 rounded border border-kards-border px-3 py-2 text-sm text-kards-text hover:border-red-500/60 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-40"><Trash2 className="h-4 w-4" />删除全部下载数据</button>
       </div>
     </div>
-    <dl className="mt-5 grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
-      <div><dt className="text-kards-text-muted">当前牌库</dt><dd className="mt-1 text-kards-text">{cards.length.toLocaleString()} 张 · {sync.stored.active?.source === 'official' ? '旧官方接口数据' : sync.stored.active?.source === 'kardsplayer' ? 'Kardsplayer 更新数据' : '随包 Kardsplayer 数据'}</dd></div>
+    <dl className="mt-3 grid grid-cols-2 gap-x-5 gap-y-2 border-t border-kards-border pt-3 text-xs sm:grid-cols-4">
+      <div><dt className="text-kards-text-muted">当前牌库</dt><dd className="mt-1 text-kards-text">{cards.length.toLocaleString()} 张 · {sourceLabel(sync.stored.active?.source)}</dd></div>
       <div><dt className="text-kards-text-muted">最近获取</dt><dd className="mt-1 text-kards-text">{timeText(sync.stored.lastCheckedAt)}</dd></div>
       <div><dt className="text-kards-text-muted">最近应用</dt><dd className="mt-1 text-kards-text">{timeText(sync.stored.active?.appliedAt)}</dd></div>
-      <div><dt className="text-kards-text-muted">更新来源</dt><dd className="mt-1 break-all text-kards-text">api.kardsplayer.com/graphql</dd></div>
+      <div><dt className="text-kards-text-muted">更新来源</dt><dd className="mt-1 text-kards-text">{source === 'kardscom' ? 'kards.com' : 'kardsplayer.com'}</dd></div>
     </dl>
     <details className="mt-4 text-sm text-kards-text"><summary className="cursor-pointer rounded py-1">已下载的卡牌数据</summary>
       <div className="mt-2 divide-y divide-kards-border">{(['active', 'pending', 'previous'] as const).map(part => {
@@ -67,9 +77,7 @@ export default function CardDataUpdater({ cards, onApplied }: { cards: KardsCard
         const label = { active: '已应用的更新数据', pending: '待应用数据', previous: '回退数据' }[part];
         return <div key={part} className="flex flex-wrap items-center justify-between gap-3 py-3"><div><span>{label}</span><p className="mt-1 text-xs text-kards-text-muted">{data ? `${data.cards.length.toLocaleString()} 张 · ${timeText(data.fetchedAt)}` : '未保存'}</p></div><button aria-label={`删除${label}`} disabled={busy || !data} onClick={() => void removeData(part)} className="flex items-center gap-1 rounded border border-kards-border px-2 py-1 text-xs hover:border-red-500/60 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-40"><Trash2 className="h-3.5 w-3.5" />删除</button></div>;
       })}</div>
-      <p className="text-xs leading-6 text-kards-text-muted">随包牌库是应用内置资源，保留供离线使用；删除已应用的数据后将使用随包牌库。</p>
     </details>
-    <p className="mt-4 text-xs leading-6 text-kards-text-muted">数据获取不下载卡图文件。应用后，卡图及缩略图按牌库指定的地址缓存；地址变化时使用新缓存。卡牌数据与用户备份分开保存。</p>
     {sync.status === 'fetching' && <div className="mt-4" role="status">
       <div className="flex items-center justify-between gap-3 text-sm text-kards-text"><span>已获取 {sync.completed.toLocaleString()} / {sync.total ? sync.total.toLocaleString() : '待确认'} 张 · 切换页面后继续获取</span><button onClick={cancelCardDataCheck} className="flex items-center gap-1 rounded border border-kards-border px-3 py-1"><X className="h-4 w-4" />取消获取</button></div>
       <progress aria-label="获取卡牌数据进度" value={sync.completed} max={sync.total || 1} className="mt-3 h-2 w-full accent-kards-accent" />
@@ -81,7 +89,7 @@ export default function CardDataUpdater({ cards, onApplied }: { cards: KardsCard
         <div><h4 className="font-bold text-kards-text">新旧数据对比</h4><p className="mt-2 text-sm text-kards-text-muted">当前 {cards.length.toLocaleString()} 张 → 待更新 {pending.cards.length.toLocaleString()} 张 · 新增 {counts.added} / 修改 {counts.changed} / 移除 {counts.removed}</p><p className="mt-1 text-xs text-kards-text-muted">候选数据获取于 {timeText(pending.fetchedAt)}</p></div>
         <button onClick={apply} disabled={busy || !changes.length || sync.status !== 'ready'} className="rounded bg-kards-accent px-5 py-2 text-sm font-bold text-white disabled:opacity-40">{sync.status === 'applying' ? '正在应用…' : '应用更新'}</button>
       </div>
-      {!changes.length ? <p className="mt-4 text-sm text-kards-text">当前数据与 Kardsplayer 数据一致，无需更新。</p> : <>
+      {!changes.length ? <p className="mt-4 text-sm text-kards-text">两份数据一致，无需更新。</p> : <>
         <div className="my-4 flex flex-wrap gap-3">
           <CustomSelect label="数据对比类型" value={kind} onChange={setKind} options={[{ value: 'all', label: `全部差异（${changes.length}）` }, ...Object.entries(kindLabels).map(([value, label]) => ({ value, label: `${label}（${counts[value]}）` }))]} />
           <div className="relative min-w-40 flex-1"><Search className="absolute left-3 top-3 h-4 w-4 text-kards-text-muted" /><input aria-label="搜索数据差异" value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Escape' && query && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); setQuery(''); } }} placeholder="搜索卡名或编号" className="w-full rounded border border-kards-border bg-kards-input-bg py-2 pl-9 pr-3 text-sm text-kards-text" /></div>

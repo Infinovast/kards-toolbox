@@ -14,7 +14,8 @@ src/lib/deckRules.ts        可配置规则校验，只提示不阻止保存
 src/lib/cardFilters.ts      资料库/构筑共享筛选与构筑主盟国卡池边界
 src/lib/cardImages.ts       完整卡图/缩略图 URL 分键缓存、下载与请求去重
 src/lib/imageDownloads.ts  跨页面批量缓存任务与进度
-src/lib/cardData.ts         Kardsplayer 固定 GraphQL 查询、分页校验、多语言逐字段差异
+src/lib/cardData.ts         Kardsplayer/KARDS 官方固定 GraphQL 查询、分页校验、多语言逐字段差异
+src/lib/cardAssets.ts       卡背、总部、桌布的 JSON 清单与可用范围解析
 src/lib/cardImageDownload.ts 图片 URL 校验、AVIF/PNG/WebP/JPEG 签名与 MIME 识别
 src/lib/cardDatabase.ts     独立牌库快照的原子持久化
 src/lib/cardDataSync.ts     跨页面获取任务、候选/应用/回退状态
@@ -33,7 +34,7 @@ React 19 + TypeScript + Vite + Tailwind CSS 4，Electron 桌面壳。保留 Deck
 | --- | --- | --- |
 | Kards-Deck-Collector | React 桌面壳、Electron、卡组/合集、收藏、标签、卡背、桌布、主题、备份 | 作为根工程；加入资料库和构筑导航、备注、编辑连接；移除远程出图与 TLS 绕过配置 |
 | kards-image-tool | 多语言 `data.json`、阵营编码、按拷贝数分组的卡组码、稀有度上限、卡图 URL、Canvas 思路 | 直接复制快照和澳新资源；将代码逻辑改为共享 TS 模块及 React 页面；本地渲染器为整合后重写 |
-| 用户提供的 kardsplayer-downloader | Kardsplayer 固定端点、分页参数、原始多语言 JSON、完整图/缩略图 URL | 随包数据使用其导出；在线查询适配为共享 TS 和桌面 IPC，保留原卡与老兵等独立记录 |
+| 用户提供的 kardsplayer-downloader | Kardsplayer 固定端点、分页参数、原始多语言 JSON、完整图/缩略图 URL | 随包数据使用其导出；在线查询适配为共享 TS 和桌面 IPC，保留原卡与老兵等独立记录。设置默认选用此来源，也可切换 KARDS 官方 GraphQL 来源 |
 | koishi-plugin-kardsman | GraphQL 分页/同步思路、Sharp 渲染 | 已适配十列 Sharp 渲染及手动分页获取；完整取回后逐字段比较，显式应用/回退。不带入 Koishi 命令、定时器或图片同步；按 ID 补全尚未实现 |
 
 保留原始项目供核对。所有实际改动在根工程，`references/` 不参与 TypeScript 检查、打包或根仓库版本管理。
@@ -41,6 +42,7 @@ React 19 + TypeScript + Vite + Tailwind CSS 4，Electron 桌面壳。保留 Deck
 ## 本地数据边界
 
 - `public/data/cards.json`：只读 Kardsplayer 多语言快照，包含实际 imageUrl/thumbUrl；卡图地址由卡牌数据指定，不提供历史版本切换。
+- `src/data/cardbacks.json`、`headquarters.json`、`tablecloths.json`：内置卡背、总部卡图及详情、桌布清单；清单引用 `public/assets/` 下的 ASCII 文件名。总部专属桌布通过总部 `groupId` 关联，用户桌布选项排除总部专属项。
 - `kards_card_database_v1`：独立可写牌库，包含 `schemaVersion: 1`、当前 `active`、上次 `previous`、待确认 `pending` 快照及 `lastCheckedAt`。每份快照保留数据、来源、获取/应用时间；不纳入用户备份。
 - `kards_decks` / `kards_collections`：用户卡组及收藏夹；保留旧合集的存储键和字段，界面改为列表内可展开分组。规则集和自定义规则字段兼容旧卡组；不再提供备注功能，旧备份中的备注不显示。
 - `kards_builder_draft`：当前构筑会话，自动保存，纳入用户备份。
@@ -58,11 +60,11 @@ React 19 + TypeScript + Vite + Tailwind CSS 4，Electron 桌面壳。保留 Deck
 
 左栏上部连接卡组与卡牌，底部为桌布和设置。设置是全宽工作区页面，打开页面只读取本地状态，不请求官方数据。
 
-用户点击获取后，桌面端通过 preload 的 `fetchCardDataPage(offset)` 调用固定 `cards:fetch-page` IPC，主进程使用 `electron.net.fetch` 请求 `https://api.kardsplayer.com/graphql`；浏览器预览直接请求同一接口。端点与查询固定，不允许渲染端指定任意 URL。每页 100 张，包含衍生与预备卡，`showExiles: false`，分页间隔一秒；按用户的 Python 下载器查询保留 `imageUrl`、`thumbUrl` 和多语言 `json`。图片字段是地址，获取资料不下载图片文件。
+用户点击获取并选择来源后，桌面端通过 preload 的 `fetchCardDataPage(offset, source)` 调用固定 `cards:fetch-page` IPC；主进程使用 `electron.net.fetch` 请求对应固定端点：Kardsplayer `https://api.kardsplayer.com/graphql` 或 KARDS 官方 `https://herokuapi.kards.com/graphql`。浏览器预览直接请求相同的固定端点。端点与查询固定，不允许渲染端指定任意 URL。两种来源都分页获取卡牌字段，并进入同一套校验、逐字段差异比较、显式应用和回退流程；图片字段作为 URL 保存，获取资料不会下载图片文件。新安装的内置快照仍取自 Kardsplayer 导出，设置默认来源为 Kardsplayer。
 
 参考 Kardsman 的分页思路，但不采用“总数相同就跳过”的策略。完整数据经类型、唯一编号、分页计数与完整性校验后，按 `importId` 比较新增/修改/移除。多语言逐字段展开，忽略 JSON 键顺序和根级 API 记录数字 ID；统一重复的 `reserved` 字段。获取任务保存在模块级 external store，切换页面不中断，取消或失败不会替换当前数据。
 
-获取只写入候选快照，应用后才切换共享牌库并重新计算卡组规则提示。当前、候选和回退数据写在同一个 IndexedDB 值内，写入失败不会出现半应用状态；应用失败保留候选，允许重试。回退同样先持久化成功，再切换界面。启动优先读取已应用快照，否则使用随包 Kardsplayer 快照；不在启动时静默迁移已应用的旧快照。未知卡仍保留卡组码和数量，以编号显示。
+获取只写入候选快照，来源与数据一同保存；应用后才切换共享牌库并重新计算卡组规则提示。当前、候选和回退数据写在同一个 IndexedDB 值内，写入失败不会出现半应用状态；应用失败保留候选，允许重试。回退同样先持久化成功，再切换界面。启动优先读取已应用快照，否则使用随包 Kardsplayer 快照；不在启动时静默迁移已应用的旧快照。未知卡仍保留卡组码和数量，以编号显示。
 
 牌库获取/应用保留全部已有卡图缓存；默认“当前卡图”使用新数据 URL 指定的版本，不能继续硬编码 v54。每次查看或批量缓存一张卡时，同时请求完整图与缩略图并按 URL 去重；单独失败不影响另一种图片显示，批量任务要求两种均完成，重试只补缺项。卡牌条固定读取缩略图，悬停预览与 PNG 导出使用完整图。对于没有图片 URL 的旧牌库记录，只按 `cardId + importId` 从随包目录借用缩略图地址，不修改当前应用牌库；若没有有效缩略图地址或文件不可用，条目显示缺图占位，不将完整图用于裁切。桌面通过受限 `cards:fetch-image` IPC 和 `net.fetch` 下载原图，规避 CORS，按文件签名纠正源站 AVIF 的 octet-stream MIME；浏览器预览保留图片代理。
 

@@ -1,7 +1,9 @@
 import type { KardsCardRecord } from '../types/card';
 
 export const CARD_DATA_URL = 'https://api.kardsplayer.com/graphql';
+export const KARDS_COM_DATA_URL = 'https://herokuapi.kards.com/graphql';
 export const CARD_DATA_PAGE_SIZE = 100;
+export type CardDataSource = 'kardsplayer' | 'kardscom';
 // Mirrors references/kardsplayer-downloader/kardsplayer_cards.py. The API's
 // image URLs are metadata; fetching the catalogue never downloads image files.
 export const CARD_DATA_QUERY = `query getCards($language: String, $offset: Int, $first: Int, $showSpawnables: Boolean, $showExiles: Boolean, $showReserved: Boolean) {
@@ -11,10 +13,17 @@ export const CARD_DATA_QUERY = `query getCards($language: String, $offset: Int, 
   }
 }`;
 
+export const KARDS_COM_DATA_QUERY = `query getCards($language: String, $offset: Int, $first: Int, $showSpawnables: Boolean, $showExiles: Boolean, $showReserved: Boolean) {
+  cards(language: $language, first: $first, offset: $offset, showSpawnables: $showSpawnables, showExiles: $showExiles, showReserved: $showReserved) {
+    pageInfo { count hasNextPage }
+    edges { node { id cardId importId json reserved imageUrl: image(language: $language) thumbUrl: image(type: thumb, language: $language) } }
+  }
+}`;
+
 export interface CardDataPage { cards: KardsCardRecord[]; total: number; hasNextPage: boolean }
 export interface CardDataSnapshot {
   cards: KardsCardRecord[];
-  source: 'bundled' | 'official' | 'kardsplayer';
+  source: 'bundled' | 'official' | CardDataSource;
   fetchedAt: string | null;
   appliedAt?: string;
 }
@@ -34,9 +43,10 @@ export interface CardDataChange {
   fields: CardFieldChange[];
 }
 
-export function normalizeCardRecord(value: unknown): KardsCardRecord {
+export function normalizeCardRecord(value: unknown, source: CardDataSource = 'kardsplayer'): KardsCardRecord {
   const card = value as KardsCardRecord;
-  if (!card || !Number.isInteger(card.id) || typeof card.cardId !== 'string' || !card.cardId
+  if (!card || (typeof card.id !== 'number' && typeof card.id !== 'string') || !String(card.id)
+    || typeof card.cardId !== 'string' || !card.cardId
     || typeof card.importId !== 'string' || !card.importId || !card.json || Array.isArray(card.json) || typeof card.json !== 'object') {
     throw new Error('卡牌数据格式无效，已停止更新');
   }
@@ -63,19 +73,20 @@ export function normalizeCardRecord(value: unknown): KardsCardRecord {
   for (const field of ['imageUrl', 'thumbUrl'] as const) {
     if (card[field] === undefined) continue; // Existing offline snapshots remain readable.
     if (typeof card[field] !== 'string' || !card[field]) throw new Error(`卡牌 ${card.importId} 的卡图地址无效`);
-    const url = new URL(card[field], 'https://www.kardsplayer.com');
-    if (url.origin !== 'https://www.kardsplayer.com' || !/^\/images\/card\/v\d+\/[\w-]+\/(thumb\/)?[\w.-]+\.avif$/.test(url.pathname) || url.search || url.hash) throw new Error(`卡牌 ${card.importId} 的卡图地址无效`);
+    const url = new URL(card[field], source === 'kardscom' ? 'https://www.kards.com' : 'https://www.kardsplayer.com');
+    if (!['https://www.kardsplayer.com', 'https://www.kards.com'].includes(url.origin) || !/^\/images\/card\/v\d+\/[\w-]+\/(thumb\/)?[\w.-]+\.avif$/.test(url.pathname) || url.search || url.hash) throw new Error(`卡牌 ${card.importId} 的卡图地址无效`);
     images[field] = url.href;
   }
-  return { id: card.id, cardId: card.cardId, importId: card.importId, reserved, ...images, json };
+  const recordId = Number(card.id);
+  return { id: Number.isInteger(recordId) ? recordId : 0, cardId: card.cardId, importId: card.importId, reserved, ...images, json };
 }
 
-export function validateCardRecords(values: unknown): KardsCardRecord[] {
+export function validateCardRecords(values: unknown, source: CardDataSource = 'kardsplayer'): KardsCardRecord[] {
   if (!Array.isArray(values) || !values.length) throw new Error('牌库为空或格式无效，已保留当前数据');
   const seen = new Set<string>();
   const seenCardIds = new Set<string>();
   return values.map(value => {
-    const card = normalizeCardRecord(value);
+    const card = normalizeCardRecord(value, source);
     if (seen.has(card.importId) || seenCardIds.has(card.cardId)) throw new Error(`牌库存在重复卡牌 ${card.importId}，请重新获取`);
     seen.add(card.importId);
     seenCardIds.add(card.cardId);
@@ -83,15 +94,16 @@ export function validateCardRecords(values: unknown): KardsCardRecord[] {
   });
 }
 
-export function parseCardDataPage(payload: unknown): CardDataPage {
+export function parseCardDataPage(payload: unknown, source: CardDataSource = 'kardsplayer'): CardDataPage {
   const response = payload as { errors?: { message?: string }[]; data?: { cards?: { pageInfo?: { count?: number; hasNextPage?: boolean }; edges?: { node?: unknown }[] } } };
-  if (response?.errors?.length) throw new Error(`Kardsplayer 接口返回错误：${response.errors.map(error => error.message || '未知错误').join('；')}`);
+  const sourceName = source === 'kardscom' ? 'KARDS 官方' : 'Kardsplayer';
+  if (response?.errors?.length) throw new Error(`${sourceName} 接口返回错误：${response.errors.map(error => error.message || '未知错误').join('；')}`);
   const page = response?.data?.cards;
   if (!page || !Number.isInteger(page.pageInfo?.count) || page.pageInfo.count < 1 || page.pageInfo.count > 100000
     || typeof page.pageInfo.hasNextPage !== 'boolean' || !Array.isArray(page.edges) || !page.edges.length || page.edges.length > CARD_DATA_PAGE_SIZE) {
-    throw new Error('Kardsplayer 接口分页数据不完整，请重试；当前牌库未改变');
+    throw new Error(`${sourceName} 接口分页数据不完整，请重试；当前牌库未改变`);
   }
-  const cards = validateCardRecords(page.edges.map(edge => edge.node));
+  const cards = validateCardRecords(page.edges.map(edge => edge.node), source);
   for (const card of cards) {
     if (!card.imageUrl || !card.thumbUrl || !card.json.title?.['zh-Hans'] || card.json.kredits === undefined) throw new Error(`卡牌 ${card.cardId} 缺少名称、费用或图片地址，已停止更新`);
     if (['infantry', 'tank', 'artillery', 'fighter', 'bomber'].includes(card.json.type)) {
@@ -112,6 +124,33 @@ export async function fetchKardsplayerCardPage(offset: number, fetcher: typeof f
   });
   if (!response.ok) throw new Error(`获取 Kardsplayer 卡牌数据失败（HTTP ${response.status}）`);
   return parseCardDataPage(await response.json());
+}
+
+export async function fetchKardsComCardPage(offset: number, fetcher: typeof fetch = fetch): Promise<CardDataPage> {
+  if (!Number.isInteger(offset) || offset < 0 || offset > 100000) throw new Error('分页参数无效');
+  const response = await fetcher(KARDS_COM_DATA_URL, {
+    method: 'POST',
+    headers: {
+      accept: '*/*',
+      'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8',
+      'cache-control': 'no-cache',
+      'content-type': 'application/json',
+      origin: 'https://www.kards.com',
+      pragma: 'no-cache',
+      referer: 'https://www.kards.com/',
+      'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36',
+    },
+    body: JSON.stringify({ operationName: 'getCards', query: KARDS_COM_DATA_QUERY, variables: {
+      language: 'zh', first: CARD_DATA_PAGE_SIZE, offset, showSpawnables: true, showExiles: true, showReserved: true,
+    } }),
+    signal: AbortSignal.timeout(30000),
+  });
+  if (!response.ok) throw new Error(`获取 KARDS 官方卡牌数据失败（HTTP ${response.status}）`);
+  return parseCardDataPage(await response.json(), 'kardscom');
+}
+
+export function fetchCardDataPage(offset: number, source: CardDataSource = 'kardsplayer', fetcher: typeof fetch = fetch): Promise<CardDataPage> {
+  return source === 'kardscom' ? fetchKardsComCardPage(offset, fetcher) : fetchKardsplayerCardPage(offset, fetcher);
 }
 
 function stable(value: unknown): string {
@@ -161,15 +200,15 @@ export async function collectCardData(fetchPage: (offset: number) => Promise<Car
       fetchPage(cards.length).then(resolve, reject).finally(() => signal.removeEventListener('abort', aborted));
     });
     signal.throwIfAborted();
-    if (!page.cards.length || !Number.isInteger(page.total) || page.total < 1) throw new Error('Kardsplayer 分页数据无效，已停止更新');
-    if (total && total !== page.total) throw new Error('Kardsplayer 牌库在获取过程中发生变化，请重新获取');
+    if (!page.cards.length || !Number.isInteger(page.total) || page.total < 1) throw new Error('卡牌数据分页无效，已停止更新');
+    if (total && total !== page.total) throw new Error('卡牌数据在获取过程中发生变化，请重新获取');
     total = page.total;
     cards.push(...page.cards);
-    if (cards.length > total || (page.hasNextPage && cards.length >= total)) throw new Error('Kardsplayer 分页计数不一致，已停止更新');
+    if (cards.length > total || (page.hasNextPage && cards.length >= total)) throw new Error('卡牌数据分页计数不一致，已停止更新');
     progress(cards.length, total);
     signal.throwIfAborted();
     if (!page.hasNextPage) {
-      if (cards.length !== total) throw new Error(`只获取到 ${cards.length}/${total} 张卡牌，已保留当前数据，请重试`);
+      if (cards.length !== total) throw new Error(`只获取到 ${cards.length}/${total} 张卡牌数据，已保留当前数据，请重试`);
       return validateCardRecords(cards);
     }
     await new Promise<void>((resolve, reject) => {

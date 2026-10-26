@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { createPortal } from 'react-dom';
 import { ImageOff } from 'lucide-react';
 import { cacheCardImage } from '../lib/cardImages';
+import { headquartersForDeck } from '../lib/cardAssets';
 import { cardDisplayTitle, factionLabel, type KardsCardRecord } from '../types/card';
 import ReservedBadge from './ReservedBadge';
 
@@ -25,11 +26,35 @@ const HEADQUARTERS: Record<string, string> = {
   Britain: 'ALEXANDRIA', Germany: 'DANZIG', Soviet: 'STALINGRAD', Japan: 'TRUK', USA: 'CHERBOURG',
 };
 
-export function DeckHeadquartersStrip({ nation }: { nation: string }) {
+export function DeckHeadquartersStrip({ nation, headquartersId }: { nation: string; headquartersId?: string }) {
   const appearance = CARD_STRIP_NATIONS[nation] || CARD_STRIP_NATIONS.Neutral;
-  const title = HEADQUARTERS[nation] || `${factionLabel(nation)}总部`;
-  return <div className="deck-headquarters-strip" aria-label={`主国总部 ${title}`} style={{ '--strip-color': appearance.color, '--strip-text': appearance.darkText ? '#12130e' : '#fff9e8' } as CSSProperties}>
+  const headquarters = headquartersForDeck(headquartersId, nation);
+  const title = headquarters?.name || HEADQUARTERS[nation] || `${factionLabel(nation)}总部`;
+  const root = useRef<HTMLDivElement>(null);
+  const [preview, setPreview] = useState<CSSProperties | null>(null);
+  const showPreview = () => {
+    if (!headquarters) return;
+    const bounds = root.current?.getBoundingClientRect();
+    if (!bounds) return;
+    const width = Math.min(250, (window.innerHeight - 32) * 618 / 867, bounds.left - 24);
+    if (width < 100) return;
+    const height = width * 867 / 618;
+    window.dispatchEvent(new CustomEvent('kards-deck-card-preview', { detail: root.current }));
+    setPreview({ width, left: bounds.left - width - 12, top: Math.max(12, Math.min(window.innerHeight - height - 12, bounds.top + bounds.height / 2 - height / 2)) });
+  };
+  useEffect(() => {
+    if (!preview) return;
+    const hide = () => setPreview(null);
+    const otherPreview = (event: Event) => { if ((event as CustomEvent).detail !== root.current) hide(); };
+    window.addEventListener('scroll', hide, true);
+    window.addEventListener('resize', hide);
+    window.addEventListener('blur', hide);
+    window.addEventListener('kards-deck-card-preview', otherPreview);
+    return () => { window.removeEventListener('scroll', hide, true); window.removeEventListener('resize', hide); window.removeEventListener('blur', hide); window.removeEventListener('kards-deck-card-preview', otherPreview); };
+  }, [preview]);
+  return <div ref={root} className="deck-headquarters-strip" aria-label={`主国总部 ${title}`} style={{ '--strip-color': appearance.color, '--strip-text': appearance.darkText ? '#12130e' : '#fff9e8' } as CSSProperties} onMouseEnter={showPreview} onMouseLeave={() => setPreview(null)} onFocus={showPreview} onBlur={() => setPreview(null)}>
     <div className="deck-card-strip-body"><span className="deck-card-name">{title}</span><img className="deck-card-nation" src={appearance.icon} alt={factionLabel(nation)} /></div>
+    {headquarters && preview && createPortal(<div role="tooltip" aria-label={`${title}总部大图`} className="deck-card-preview glass-panel" style={preview}><img className="card-face" src={headquarters.image} alt={title} /></div>, document.body)}
   </div>;
 }
 

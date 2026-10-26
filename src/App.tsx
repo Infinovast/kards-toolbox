@@ -38,7 +38,7 @@ import { decodeDeckCode, findCardsByImportId } from './lib/deckCode';
 import { DEFAULT_DECK_RULES, validateDeck, type DeckRuleSet, type DeckRules } from './lib/deckRules';
 import { extractDeckCodeFromText, inferDeckTitleFromText } from './lib/deckImport';
 import ImageDownloadProgress from './components/ImageDownloadProgress';
-import { handleDialogKeys, useModalFocus } from './lib/dialogKeyboard';
+import { handleDialogKeys, useDismissiblePanel, useModalFocus } from './lib/dialogKeyboard';
 import CardLibrary from './components/CardLibrary';
 import DeckBuilder, { type BuilderDeck } from './components/DeckBuilder';
 import DeckCardStrip, { DeckHeadquartersStrip } from './components/DeckCardStrip';
@@ -51,6 +51,7 @@ import CardCacheManager from './components/CardCacheManager';
 import CustomSelect from './components/CustomSelect';
 import { nationOptions } from './components/CardFilterSelects';
 import { loadCardDatabase, type KardsCardRecord } from './types/card';
+import { CARD_BACK_CATEGORIES, CARD_BACKS, DEFAULT_CARD_BACK, USER_TABLECLOTHS, cardBackForDeck, cardBackIsAvailable, defaultCardBackForNation, tableclothForHeadquarters } from './lib/cardAssets';
 
 // --- Types ---
 type Nation = 'Germany' | 'Soviet' | 'USA' | 'Japan' | 'Britain' | 'Finland' | 'Italy' | 'France' | 'Poland' | 'Anzac';
@@ -63,6 +64,9 @@ interface Deck {
   code: string;
   isFavorite: boolean;
   cardBackUrl?: string;
+  cardBackScope?: 'common' | 'main' | 'ally';
+  cardBackNation?: string;
+  headquartersId?: string;
   totalCards: number;
   warnings: string[];
   isArena: boolean;
@@ -77,6 +81,23 @@ interface Collection {
   deckIds: string[];
   isFavorite: boolean;
   createdAt: number;
+}
+
+interface AvailableCardBack {
+  id: string;
+  name: string;
+  url: string;
+  isCustomCard: boolean;
+  file?: string;
+  scope?: 'common' | 'main' | 'ally';
+  nation?: string;
+}
+
+interface AvailableCardBackCategory {
+  id: string;
+  name: string;
+  isCustom?: boolean;
+  backs: AvailableCardBack[];
 }
 
 interface AppSettings {
@@ -139,32 +160,32 @@ const ERROR_LOCALE: Record<string, string> = {
   CARD_COUNT_EXCEEDS_4: '同一张卡牌累计超过 4 张',
 };
 
-const NATION_DATA: Record<Nation, { label: string, color: string, flag: string, isMainAllowed: boolean, icon: string, defaultBack: string, veteranBack?: string }> = {
+const NATION_DATA: Record<Nation, { label: string, color: string, flag: string, isMainAllowed: boolean, icon: string }> = {
   Germany: { 
     label: '德', color: '#3d3d3d', flag: 'de', isMainAllowed: true,
-    icon: '/assets/icons/Germany/German.png', defaultBack: '/assets/cardbacks/Germany/GermanDefault.jpg', veteranBack: '/assets/cardbacks/Germany/GermanDefault.jpg'
+    icon: '/assets/icons/Germany/German.png'
   },
   Britain: { 
     label: '英', color: '#002366', flag: 'gb', isMainAllowed: true,
-    icon: '/assets/icons/Britain/Britain.png', defaultBack: '/assets/cardbacks/Britain/BritainDefault.jpg', veteranBack: '/assets/cardbacks/Britain/BritianVeteran.jpg'
+    icon: '/assets/icons/Britain/Britain.png'
   },
   Japan: { 
     label: '日', color: '#bc002d', flag: 'jp', isMainAllowed: true,
-    icon: '/assets/icons/Japan/Japan.png', defaultBack: '/assets/cardbacks/Japan/JapanDefault.jpg', veteranBack: '/assets/cardbacks/Japan/JapanVeteran.jpg'
+    icon: '/assets/icons/Japan/Japan.png'
   },
   Soviet: { 
     label: '苏', color: '#cc0000', flag: 'su', isMainAllowed: true,
-    icon: '/assets/icons/Soviet/Soviet.png', defaultBack: '/assets/cardbacks/Soviet/SovietDefault.jpg', veteranBack: '/assets/cardbacks/Soviet/SovietVeteran.jpg'
+    icon: '/assets/icons/Soviet/Soviet.png'
   },
   USA: { 
     label: '美', color: '#3c3b6e', flag: 'us', isMainAllowed: true,
-    icon: '/assets/icons/USA/Usa.png', defaultBack: '/assets/cardbacks/USA/UsaDefault.jpg', veteranBack: '/assets/cardbacks/USA/UsaVeteran.jpg'
+    icon: '/assets/icons/USA/Usa.png'
   },
-  France: { label: '法', color: '#0055A4', flag: 'fr', isMainAllowed: false, icon: '/assets/icons/France/France.png', defaultBack: '/assets/cardbacks/Common/BasicBeta.jpg', veteranBack: '' },
-  Italy: { label: '意', color: '#008C45', flag: 'it', isMainAllowed: false, icon: '/assets/icons/Italy/Italy.png', defaultBack: '/assets/cardbacks/Common/BasicBeta.jpg', veteranBack: '' },
-  Poland: { label: '波', color: '#DC143C', flag: 'pl', isMainAllowed: false, icon: '/assets/icons/Poland/Poland.jpg', defaultBack: '/assets/cardbacks/Common/BasicBeta.jpg', veteranBack: '' },
-  Finland: { label: '芬', color: '#003580', flag: 'fi', isMainAllowed: false, icon: '/assets/icons/Finland/Finland.png', defaultBack: '/assets/cardbacks/Common/BasicBeta.jpg', veteranBack: '' },
-  Anzac: { label: '澳', color: '#9E6F34', flag: 'an', isMainAllowed: false, icon: '/assets/icons/ANZAC/Anzac.png', defaultBack: '/assets/cardbacks/Common/BasicBeta.jpg', veteranBack: '' },
+  France: { label: '法', color: '#0055A4', flag: 'fr', isMainAllowed: false, icon: '/assets/icons/France/France.png' },
+  Italy: { label: '意', color: '#008C45', flag: 'it', isMainAllowed: false, icon: '/assets/icons/Italy/Italy.png' },
+  Poland: { label: '波', color: '#DC143C', flag: 'pl', isMainAllowed: false, icon: '/assets/icons/Poland/Poland.jpg' },
+  Finland: { label: '芬', color: '#003580', flag: 'fi', isMainAllowed: false, icon: '/assets/icons/Finland/Finland.png' },
+  Anzac: { label: '澳', color: '#9E6F34', flag: 'an', isMainAllowed: false, icon: '/assets/icons/ANZAC/Anzac.png' },
 };
 
 const NATION_FLAG_ASSETS: Record<string, string> = {
@@ -180,8 +201,6 @@ const NATION_FLAG_ASSETS: Record<string, string> = {
   an: '/assets/flags/anzac.svg',
 };
 
-const BUILT_IN_TABLECLOTHS = Array.from({ length: 21 }, (_, i) => `/assets/tablecloths/tablecloth (${i + 1}).jpeg`);
-
 const getFlagUrl = (nationCode: string) => {
   return NATION_FLAG_ASSETS[nationCode] || NATION_FLAG_ASSETS.de;
 };
@@ -196,49 +215,6 @@ const parseDeck = (code: string) => {
   const defaultName = isArena ? '竞技场卡组' : `${NATION_DATA[mainNation].label}${NATION_DATA[allyNation].label}卡组`;
   return { mainNation, allyNation, totalCards, warnings, isArena, defaultName };
 };
-
-const CARD_BACK_CATEGORIES = [
-  {
-    name: '通用',
-    backs: [
-      { id: 'common_basic', url: '/assets/cardbacks/Common/BasicBeta.jpg', name: '基本测试版' }
-    ]
-  },
-  {
-    name: '德国',
-    backs: [
-      { id: 'ger_def', url: '/assets/cardbacks/Germany/GermanDefault.jpg', name: '德国默认' }
-    ]
-  },
-  {
-    name: '英国',
-    backs: [
-      { id: 'gbr_def', url: '/assets/cardbacks/Britain/BritainDefault.jpg', name: '英国默认' },
-      { id: 'gbr_vet', url: '/assets/cardbacks/Britain/BritianVeteran.jpg', name: '英国老兵' }
-    ]
-  },
-  {
-    name: '日本',
-    backs: [
-      { id: 'jpn_def', url: '/assets/cardbacks/Japan/JapanDefault.jpg', name: '日本默认' },
-      { id: 'jpn_vet', url: '/assets/cardbacks/Japan/JapanVeteran.jpg', name: '日本老兵' }
-    ]
-  },
-  {
-    name: '苏联',
-    backs: [
-      { id: 'sov_def', url: '/assets/cardbacks/Soviet/SovietDefault.jpg', name: '苏联默认' },
-      { id: 'sov_vet', url: '/assets/cardbacks/Soviet/SovietVeteran.jpg', name: '苏联老兵' }
-    ]
-  },
-  {
-    name: '美国',
-    backs: [
-      { id: 'usa_def', url: '/assets/cardbacks/USA/UsaDefault.jpg', name: '美国默认' },
-      { id: 'usa_vet', url: '/assets/cardbacks/USA/UsaVeteran.jpg', name: '美国老兵' }
-    ]
-  }
-];
 
 const INITIAL_DECKS: Deck[] = [];
 
@@ -297,6 +273,10 @@ export default function App() {
     setAddingTagToDeckId(null);
     requestAnimationFrame(() => { if (opener?.isConnected) opener.focus(); });
   }, []);
+  const deckDetailsRef = useDismissiblePanel(activeMenu === 'decks' && !!selectedDeckId, closeDeckDetails, () => {
+    setSelectedDeckId(null);
+    setAddingTagToDeckId(null);
+  });
 
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
@@ -539,13 +519,13 @@ export default function App() {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'tablecloth' | 'cardback', id: string, catId?: string } | null>(null);
 
-  const getOrGenerateDeckImage = async (deck: Pick<Deck, 'name' | 'code'>) => {
-    const imageData = await renderDeckImage(deck.code, cardDatabase, deck.name, selectedTablecloth);
+  const getOrGenerateDeckImage = async (deck: Pick<Deck, 'name' | 'code' | 'headquartersId'>) => {
+    const imageData = await renderDeckImage(deck.code, cardDatabase, deck.name, tableclothForHeadquarters(deck.headquartersId) || selectedTablecloth);
     await localforage.setItem(`deck_img_local_v1_${deck.code}`, imageData);
     return imageData;
   };
 
-  const handleGetDeckImage = async (deck: Pick<Deck, 'name' | 'code'>) => {
+  const handleGetDeckImage = async (deck: Pick<Deck, 'name' | 'code' | 'headquartersId'>) => {
     const request = ++deckImageRequest.current;
     setDeckImageModal({ show: true, deck, loading: true, imageUrl: null, error: null });
     try {
@@ -677,12 +657,13 @@ export default function App() {
     e.target.value = ''; // Reset input
   };
 
-  const allCategories = React.useMemo(() => {
-    const merged = CARD_BACK_CATEGORIES.map(c => ({
-      id: c.name,
+  const allCategories = React.useMemo<AvailableCardBackCategory[]>(() => {
+    const targetDeck = decks.find(deck => deck.id === showCardBackModal);
+    const merged: AvailableCardBackCategory[] = CARD_BACK_CATEGORIES.filter(category => category.backs.some(back => !targetDeck || cardBackIsAvailable(back, targetDeck.mainNation, targetDeck.allyNation))).map(c => ({
+      id: c.id,
       name: c.name,
       isCustom: false,
-      backs: c.backs.map(b => ({ ...b, isCustomCard: false }))
+      backs: c.backs.map(b => ({ ...b, url: b.file, isCustomCard: false }))
     }));
 
     customCategories.forEach(cc => {
@@ -700,9 +681,11 @@ export default function App() {
     });
 
     return merged;
-  }, [customCategories]);
+  }, [customCategories, decks, showCardBackModal]);
 
   const selectedDeck = decks.find(d => d.id === selectedDeckId);
+  const deckInFocus = activeMenu === 'builder' ? builderDeck : activeMenu === 'decks' ? selectedDeck : null;
+  const activeTablecloth = (deckInFocus ? tableclothForHeadquarters(deckInFocus.headquartersId) : undefined) || selectedTablecloth;
   const reservedDeckIds = React.useMemo(() => {
     const reservedIds = new Set(cardDatabase.filter(card => card.reserved).map(card => card.importId));
     return new Set(decks.filter(deck => {
@@ -789,7 +772,7 @@ export default function App() {
       name: built.name, mainNation: parsed.mainNation, allyNation: parsed.allyNation,
       code: built.code, isFavorite: existing?.isFavorite || false,
       totalCards: parsed.totalCards, warnings, isArena: built.ruleSet === 'arena',
-      ruleSet: built.ruleSet, customRules: built.customRules,
+      ruleSet: built.ruleSet, customRules: built.customRules, headquartersId: built.headquartersId,
     };
     setDecks((current) => existing ? current.map((deck) => deck.id === existing.id ? savedDeck : deck) : [...current, savedDeck]);
     setSelectedDeckId(savedDeck.id); setBuilderDeck(null); setActiveMenu('decks');
@@ -1186,7 +1169,7 @@ export default function App() {
       </header>
 
       {/* --- Main Layout --- */}
-      <div data-testid="workspace" className="relative flex min-h-0 flex-1 overflow-hidden" style={{ backgroundImage: selectedTablecloth ? `url("${selectedTablecloth}")` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+      <div data-testid="workspace" className="relative flex min-h-0 flex-1 overflow-hidden" style={{ backgroundImage: activeTablecloth ? `url("${activeTablecloth}")` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' }}>
         
         {/* Left Sidebar */}
         <aside aria-label="主导航" className="glass-panel w-24 shrink-0 flex flex-col gap-1 p-1 z-10 border-r border-kards-border transition-colors duration-300">
@@ -1218,7 +1201,7 @@ export default function App() {
                       <div className="flex-1 flex justify-end">
                         <img 
                           src={NATION_DATA[selectedDeck.mainNation].icon} 
-                          style={{ width: settings.logoSize, height: settings.logoSize, opacity: settings.logoOpacity * (selectedTablecloth ? 1.2 : 0.8) }}
+                          style={{ width: settings.logoSize, height: settings.logoSize, opacity: settings.logoOpacity * (activeTablecloth ? 1.2 : 0.8) }}
                           className="object-contain transition-all duration-300" 
                           alt="main"
                         />
@@ -1226,7 +1209,7 @@ export default function App() {
                       <div className="flex-1 flex justify-start">
                         <img 
                           src={NATION_DATA[selectedDeck.allyNation].icon} 
-                          style={{ width: settings.logoSize * 0.77, height: settings.logoSize * 0.77, opacity: settings.logoOpacity * (selectedTablecloth ? 1 : 0.6) }}
+                          style={{ width: settings.logoSize * 0.77, height: settings.logoSize * 0.77, opacity: settings.logoOpacity * (activeTablecloth ? 1 : 0.6) }}
                           className="object-contain transition-all duration-300" 
                           alt="ally"
                         />
@@ -1235,7 +1218,7 @@ export default function App() {
                   ) : (
                     <img 
                       src={NATION_DATA[selectedDeck.mainNation].icon} 
-                      style={{ width: settings.logoSize * 1.1, height: settings.logoSize * 1.1, opacity: settings.logoOpacity * (selectedTablecloth ? 1.2 : 0.8) }}
+                      style={{ width: settings.logoSize * 1.1, height: settings.logoSize * 1.1, opacity: settings.logoOpacity * (activeTablecloth ? 1.2 : 0.8) }}
                       className="object-contain transition-all duration-300" 
                       alt="nation"
                     />
@@ -1323,12 +1306,7 @@ export default function App() {
 
         {/* Non-modal details float over the unchanged deck workspace. */}
         {activeMenu === 'decks' && selectedDeck && (
-          <aside role="dialog" aria-modal="false" aria-label="卡组详情" tabIndex={-1}
-            onKeyDown={event => {
-              if (!event.defaultPrevented && !event.nativeEvent.isComposing && event.key === 'Escape' && !document.querySelector('[role="dialog"][aria-modal="true"]')) {
-                event.preventDefault(); event.stopPropagation(); closeDeckDetails();
-              }
-            }}
+          <aside ref={deckDetailsRef} data-deck-details role="dialog" aria-modal="false" aria-label="卡组详情" tabIndex={-1}
             className="glass-panel absolute bottom-5 right-5 top-5 z-30 flex w-[320px] max-w-[calc(100%-136px)] flex-col overflow-hidden rounded-lg border border-kards-border shadow-xl"
           >
               <motion.div 
@@ -1353,7 +1331,7 @@ export default function App() {
                 
                 <div className="mb-3 flex items-center justify-between text-xs text-kards-text-muted"><span>{selectedDeck.totalCards + 1} 张（含总部）</span><button onClick={() => setShowCardBackModal(selectedDeck.id)} className="rounded border border-kards-border px-2 py-1">更换卡背</button></div>
                 <ul aria-label="卡组紧凑列表" className="space-y-0.5 text-sm">
-                  <li><DeckHeadquartersStrip nation={selectedDeck.mainNation} /></li>
+                  <li><DeckHeadquartersStrip nation={selectedDeck.mainNation} headquartersId={selectedDeck.headquartersId} /></li>
                   {previewEntries.map(entry => <li key={entry.id}><DeckCardStrip card={entry.card} importId={entry.id} count={entry.count} /></li>)}
                 </ul>
               </div>
@@ -1707,19 +1685,18 @@ export default function App() {
                     </div>
                   ))}
 
-                  {/* Built-in Tablecloths */}
-                  {BUILT_IN_TABLECLOTHS.map((url, idx) => (
-                    <div 
-                      key={`builtin-${idx}`}
-                      onClick={() => setSelectedTablecloth(url)}
-                      className={`aspect-video military-border overflow-hidden cursor-pointer group relative ${selectedTablecloth === url ? 'ring-2 ring-kards-gold' : 'hover:brightness-110 opacity-80 hover:opacity-100'}`}
-                    >
-                      <img src={url} className="w-full h-full object-cover" alt={`Tablecloth ${idx + 1}`} />
-                      <div className="absolute inset-0 bg-kards-gold/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <Check className={`w-6 h-6 text-kards-text ${selectedTablecloth === url ? 'opacity-100' : 'opacity-0'}`} />
+                  {(['default', 'wallpaper'] as const).map(type => <React.Fragment key={type}>
+                    <h4 className="col-span-full pt-3 text-xs font-bold text-kards-text-muted">{type === 'default' ? '默认桌布' : '壁纸'}</h4>
+                    {USER_TABLECLOTHS.filter(item => item.type === type).map(item => (
+                      <div key={item.id} onClick={() => setSelectedTablecloth(item.file)} title={item.name} className={`aspect-video military-border overflow-hidden cursor-pointer group relative ${selectedTablecloth === item.file ? 'ring-2 ring-kards-gold' : 'hover:brightness-110 opacity-80 hover:opacity-100'}`}>
+                        <img src={item.file} className="w-full h-full object-cover" alt={item.name} />
+                        <span className="absolute bottom-0 left-0 right-0 truncate bg-black/65 px-2 py-1 text-[10px] text-white">{item.name}</span>
+                        <div className="absolute inset-0 bg-kards-gold/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <Check className={`w-6 h-6 text-kards-text ${selectedTablecloth === item.file ? 'opacity-100' : 'opacity-0'}`} />
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </React.Fragment>)}
                 </div>
               </div>
             </motion.div>
@@ -1852,7 +1829,8 @@ export default function App() {
                             className={`flex flex-col items-center group relative ${deleteConfirm?.id === back.id ? '' : 'cursor-pointer'}`}
                             onClick={() => {
                               if (deleteConfirm?.id === back.id) return;
-                              setDecks(decks.map(d => d.id === showCardBackModal ? { ...d, cardBackUrl: back.url } : d));
+                              const catalogBack = CARD_BACKS.find(item => item.file === back.url);
+                              setDecks(current => current.map(d => d.id === showCardBackModal ? { ...d, cardBackUrl: back.url, cardBackScope: catalogBack?.scope, cardBackNation: catalogBack?.nation } : d));
                               setShowCardBackModal(null);
                             }}
                           >
@@ -1862,7 +1840,7 @@ export default function App() {
                                 alt={back.name} 
                                 className="w-full h-full object-contain group-hover:scale-105 transition-transform"
                                 onError={(e) => {
-                                  e.currentTarget.src = '/assets/cardbacks/Common/BasicBeta.jpg';
+                                  e.currentTarget.src = DEFAULT_CARD_BACK;
                                 }}
                               />
                               <div className="absolute inset-0 pointer-events-none bg-kards-gold/20 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -2472,6 +2450,8 @@ interface DeckCardProps {
 function DeckCard({ deck, selected, onClick, onDoubleClick, settings, hasReserved }: DeckCardProps) {
   const mainData = NATION_DATA[deck.mainNation];
   const allyData = deck.allyNation ? NATION_DATA[deck.allyNation] : null;
+  const cardBack = cardBackForDeck(deck);
+  const fallbackCardBack = defaultCardBackForNation(deck.mainNation);
 
   return (
     <motion.button
@@ -2501,13 +2481,13 @@ function DeckCard({ deck, selected, onClick, onDoubleClick, settings, hasReserve
           `}
         >
           <img 
-            src={deck.cardBackUrl || mainData.defaultBack || '/assets/cardbacks/Common/BasicBeta.jpg'} 
+            src={cardBack || DEFAULT_CARD_BACK}
             alt={deck.name}
             className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 rounded-md"
             onError={(e) => { 
                 if (e.currentTarget.getAttribute('data-error')) return;
                 e.currentTarget.setAttribute('data-error', 'true');
-                e.currentTarget.src = '/assets/cardbacks/Common/BasicBeta.jpg'; 
+                e.currentTarget.src = fallbackCardBack || DEFAULT_CARD_BACK;
             }}
           />
           

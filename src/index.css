@@ -170,6 +170,9 @@ input, textarea { caret-color: var(--color-kards-gold); }
 .card-face { display: block; width: 100%; height: auto; aspect-ratio: 618 / 867; object-fit: contain; border-radius: 0; }
 .card-face-placeholder { display: flex; align-items: center; justify-content: center; padding: 8px; text-align: center; font-size: 12px; color: var(--color-kards-text-muted); background: rgb(var(--rgb-panel-overlay), 0.72); }
 .card-caption { background: #080a08; color: #f1ebd8; border-radius: 0 0 7px 7px; padding: 6px 8px; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hq-stack-tile { display: flex; flex-direction: column; min-width: 0; padding: 0; overflow: hidden; background: none; text-align: left; }
+.hq-stack-art { position: relative; display: block; width: 100%; aspect-ratio: 618 / 867; overflow: hidden; background: rgb(var(--rgb-panel-overlay), 0.6); }
+.hq-stack-art img { position: absolute; top: 5%; left: 8%; width: 82%; height: 88%; border-radius: 3px; object-fit: contain; box-shadow: 1px 3px 8px rgba(0, 0, 0, 0.5); }
 .card-gallery-builder { grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); gap: 12px; }
 .card-gallery-builder .card-tile { max-width: 138px; }
 .rarity-slots { display: flex; justify-content: center; align-items: center; gap: 5px; height: 27px; }

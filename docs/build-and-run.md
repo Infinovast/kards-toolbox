@@ -29,21 +29,23 @@ node node_modules/electron/install.js
 ```powershell
 npm run lint
 npm test
+npm run build
 npm run build:desktop
 npm run dist:win:zip
 ```
 
+当前源码和 `package.json` 版本为 1.0.0。`npm run build` 生成网页和本地服务资源；`npm run build:desktop` 额外编译 Electron 主进程。发布包需再执行对应 `dist:win:*` 命令。
+
 默认打包到 `release/`。若旧版正在运行并占用该目录，可在完成桌面构建后使用独立输出目录：
 
 ```powershell
-node node_modules/electron-builder/cli.js --win zip --x64 '--config.win.signAndEditExecutable=false' '--config.compression=normal' '--config.directories.output=release/0.3.7'
+node node_modules/electron-builder/cli.js --win zip --x64 '--config.win.signAndEditExecutable=false' '--config.compression=normal' '--config.directories.output=release/1.0.0'
 ```
 
 - `dist/`：渲染端生产资源，包含卡牌目录。
 - `dist-electron/`：主进程与 preload。
 - `release/`：打包结果；`dist:win:dir` 生成解包目录，`dist:win` 生成安装包和便携包。
-- 本轮已生成 `release/0.3.7/win-unpacked/KARDS Toolbox.exe`，可直接启动；移动时需保留整个 `win-unpacked` 文件夹。
-- ZIP 开发包为 `release/0.3.7/KARDS Toolbox-0.3.7-win.zip`，解压后启动其中的 EXE，运行无需 Node.js。旧版运行时占用原输出目录，本轮使用独立版本目录。
+- `release/0.3.7/` 中的 EXE 和 ZIP 是 0.3.7 归档开发包，不包含 1.0.0 改动。当前 1.0.0 尚未生成 Windows 发布包。
 - 本地检查生产资源可运行 `$env:KARDS_USE_DIST='1'; node scripts/start-electron.cjs .`。
 
 打包配置复用 `node_modules/electron/dist` 的已安装运行时，避免 electron-builder 再次从 GitHub 下载。NSIS/portable 目标仍可能首次下载额外打包工具，本轮未验收单文件便携包。

@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import localforage from 'localforage';
-import { collectCardData, fetchKardsplayerCardPage, validateCardRecords, type CardDataStorage } from './cardData';
+import { collectCardData, fetchCardDataPage, validateCardRecords, type CardDataSource, type CardDataStorage } from './cardData';
 import { CARD_DATABASE_KEY, readCardDataStorage, writeCardDataStorage } from './cardDatabase';
 import type { KardsCardRecord } from '../types/card';
 
@@ -24,7 +24,7 @@ export function initializeCardDataSync() {
     .catch(error => { publish({ status: 'error', error: String(error) }); initialized = undefined; });
 }
 
-export async function checkCardData() {
+export async function checkCardData(source: CardDataSource = 'kardsplayer') {
   await initializeCardDataSync();
   if (state.status === 'fetching' || state.status === 'applying') return;
   controller = new AbortController();
@@ -35,13 +35,13 @@ export async function checkCardData() {
     await writeCardDataStorage(stored);
     publish({ stored });
     const cards = await collectCardData(offset => window.kardsDesktop?.fetchCardDataPage
-      ? window.kardsDesktop.fetchCardDataPage(offset) : fetchKardsplayerCardPage(offset),
+      ? window.kardsDesktop.fetchCardDataPage(offset, source) : fetchCardDataPage(offset, source),
     (completed, total) => publish({ completed, total }), signal);
     signal.throwIfAborted();
     const fetchedAt = new Date().toISOString();
-    const next: CardDataStorage = { ...stored, pending: { cards, source: 'kardsplayer', fetchedAt }, lastCheckedAt: fetchedAt };
+    const next: CardDataStorage = { ...stored, pending: { cards, source, fetchedAt }, lastCheckedAt: fetchedAt };
     await writeCardDataStorage(next);
-    publish({ stored: next, status: 'ready', message: '最新数据已获取，尚未应用。请核对差异后应用更新。' });
+    publish({ stored: next, status: 'ready', message: `${source === 'kardscom' ? 'KARDS 官方' : 'Kardsplayer'} 数据已获取，核对差异后可应用。` });
   } catch (error) {
     if (signal.aborted) publish({ status: 'idle', message: '已取消获取，当前卡牌数据未改变。' });
     else publish({ status: 'error', error: error instanceof Error ? error.message : '获取失败，请检查网络后重试' });
