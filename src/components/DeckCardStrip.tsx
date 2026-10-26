@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type DragEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { ImageOff } from 'lucide-react';
 import { cacheCardImage } from '../lib/cardImages';
@@ -23,7 +23,7 @@ export const CARD_STRIP_NATIONS: Record<string, { color: string; icon: string; d
 };
 
 const HEADQUARTERS: Record<string, string> = {
-  Britain: 'ALEXANDRIA', Germany: 'DANZIG', Soviet: 'STALINGRAD', Japan: 'TRUK', USA: 'CHERBOURG',
+  Britain: 'ALAM EL HALFA', Germany: 'DANZIG', Soviet: 'STALINGRAD', Japan: 'TRUK', USA: 'CHERBOURG',
 };
 
 export function DeckHeadquartersStrip({ nation, headquartersId }: { nation: string; headquartersId?: string }) {
@@ -58,12 +58,15 @@ export function DeckHeadquartersStrip({ nation, headquartersId }: { nation: stri
   </div>;
 }
 
-export default function DeckCardStrip({ card, importId, count, enabled = true, controls }: {
+export default function DeckCardStrip({ card, importId, count, enabled = true, controls, draggable = false, onDragStart, onDragEnd }: {
   card?: KardsCardRecord;
   importId: string;
   count: number;
   enabled?: boolean;
   controls?: ReactNode;
+  draggable?: boolean;
+  onDragStart?: (event: DragEvent<HTMLDivElement>) => void;
+  onDragEnd?: (event: DragEvent<HTMLDivElement>) => void;
 }) {
   const title = card ? cardDisplayTitle(card, 'zh-Hans') : `未知卡牌 ${importId}`;
   const nation = Object.keys(CARD_STRIP_NATIONS).find(key => key.toLowerCase() === card?.json.faction?.toLowerCase());
@@ -105,7 +108,7 @@ export default function DeckCardStrip({ card, importId, count, enabled = true, c
     onMouseEnter={showPreview} onMouseLeave={() => setPreview(null)} onFocus={showPreview} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setPreview(null); }}
     onKeyDown={event => { if (preview && event.key === 'Escape' && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); setPreview(null); } }}>
     <span className="deck-card-marker">{card?.reserved && <ReservedBadge />}</span>
-    <div className="deck-card-strip-body">
+    <div className="deck-card-strip-body" draggable={draggable} onDragStart={onDragStart} onDragEnd={onDragEnd}>
       <span className="deck-card-cost" aria-label={card ? isUnit ? `部署花费 ${card.json.kredits ?? '?'}，行动花费 ${card.json.operationCost ?? '?'}` : `花费 ${card.json.kredits ?? '?'}` : '费用未知'}>
         <span className="deck-card-deployment" style={(card?.json.kredits ?? 0) >= 10 ? { fontSize: 21 } : undefined}>{card?.json.kredits ?? '?'}</span><small>K</small>{isUnit && <span className="deck-card-operation">{card.json.operationCost ?? '?'}</span>}
       </span>

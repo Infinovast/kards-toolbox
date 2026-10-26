@@ -2,17 +2,29 @@ import { cardTitle, factionLabel, type KardsCardRecord } from '../types/card';
 import { decodeDeckCode, findCardsByImportId } from './deckCode';
 import { getCachedCardImage } from './cardImages';
 import type { DeckRenderRequest } from './deckRenderTypes';
+import { BUNKER_HEADQUARTERS, headquartersForDeck } from './cardAssets';
 
-export async function renderDeckImage(code: string, cards: KardsCardRecord[], title = 'KARDS 卡组', background?: string | null): Promise<string> {
+async function imageDataUrl(url: string): Promise<string> {
+  if (url.startsWith('data:')) return url;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('无法读取卡组图片资源');
+  const blob = await response.blob();
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+export async function renderDeckImage(code: string, cards: KardsCardRecord[], title = 'KARDS 卡组', background?: string | null, headquartersId?: string): Promise<string> {
   const deck = decodeDeckCode(code), index = findCardsByImportId(cards);
   const entries = [...deck.counts].sort(([a], [b]) => (index.get(a)?.json.kredits ?? 99) - (index.get(b)?.json.kredits ?? 99));
-  if (background && !background.startsWith('data:')) {
-    const response = await fetch(background);
-    if (!response.ok) throw new Error('无法读取生图背景');
-    const blob = await response.blob();
-    background = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(blob); });
-  }
+  if (background) background = await imageDataUrl(background);
+  const headquarters = headquartersForDeck(headquartersId, deck.mainNation) || BUNKER_HEADQUARTERS;
+  const headquartersImage = headquarters ? await imageDataUrl(headquarters.image).catch(() => null) : null;
   const request: DeckRenderRequest = { title, mainNation: factionLabel(deck.mainNation), allyNation: factionLabel(deck.allyNation), background: background?.startsWith('data:') ? background : null,
+    headquartersImage,
     cards: await Promise.all(entries.map(async ([id, count]) => ({ id, count, name: index.has(id) ? cardTitle(index.get(id)!, 'zh-Hans') : `未知卡牌 ${id}`, rarity: index.get(id)?.json.rarity || '', image: index.has(id) ? await getCachedCardImage(index.get(id)!) : null }))) };
   if (window.kardsDesktop?.renderDeckImage) return window.kardsDesktop.renderDeckImage(request);
   return renderBrowserPreview(request, background);
@@ -39,8 +51,10 @@ async function renderBrowserPreview(request: DeckRenderRequest, background?: str
     ctx.font = 'bold 44px Microsoft YaHei,sans-serif'; ctx.fillText(String(request.cards.filter(c => c.rarity === rarity).reduce((sum, c) => sum + c.count, 0)), x + 72, y + 54);
   }
   let position = 0;
-  for (const card of [...request.cards, { id: 'HQ', name: '总部', rarity: '', count: 1, image: '/assets/deck-render/bunker.png' }]) {
-    const image = card.image ? await load(card.image).catch(() => null) : null;
+  const bunkerImage = BUNKER_HEADQUARTERS?.image || '/assets/deck-render/bunker.png';
+  for (const card of [...request.cards, { id: 'HQ', name: '地堡', rarity: '', count: 1, image: request.headquartersImage || bunkerImage }]) {
+    let image = card.image ? await load(card.image).catch(() => null) : null;
+    if (card.id === 'HQ' && !image) image = await load(bunkerImage).catch(() => null);
     for (let n = 0; n < card.count; n++, position++) {
       const x = 60 + position % cols * (thumbW + gap), y = top + Math.floor(position / cols) * (thumbH + gap);
       if (image) { const scale = Math.max(thumbW / image.width, thumbH / image.height), sw = thumbW / scale, sh = thumbH / scale; ctx.drawImage(image, (image.width - sw) / 2, (image.height - sh) / 2, sw, sh, x, y, thumbW, thumbH); }

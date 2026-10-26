@@ -51,8 +51,26 @@ export const CARD_BACKS = CARD_BACK_CATEGORIES.flatMap(category => category.back
 export const HEADQUARTERS = (headquartersManifest as { headquarters: HeadquartersAsset[] }).headquarters;
 export const TABLECLOTHS = (tableclothManifest as { tablecloths: TableclothAsset[] }).tablecloths;
 export const USER_TABLECLOTHS = TABLECLOTHS.filter(item => item.type !== 'headquarters');
+export const DEFAULT_TABLECLOTH = TABLECLOTHS.find(item => item.id === 'default-4')?.file
+  || TABLECLOTHS.find(item => item.type === 'default')?.file || '';
+
+export function resolveSelectedTablecloth(value: string | null | undefined, customTablecloths: string[] = []): string {
+  return value && (USER_TABLECLOTHS.some(item => item.file === value) || customTablecloths.includes(value))
+    ? value
+    : DEFAULT_TABLECLOTH;
+}
 
 export const DEFAULT_CARD_BACK = CARD_BACKS.find(back => back.id === cardBackData.defaultBackId)?.file || '';
+export const DEFAULT_HEADQUARTERS_BY_NATION: Record<string, string> = {
+  USA: 'USA/cherbourg', Soviet: 'Soviet/stalingrad', Britain: 'Britain/alam_el_halfa',
+  Japan: 'Japan/truk', Germany: 'Germany/danzig',
+};
+export const BUNKER_HEADQUARTERS = HEADQUARTERS.find(item => item.groupId === 'Common/concrete_bunker_neutral' && item.nation === 'Blank');
+
+export function defaultHeadquartersForNation(nation: string): HeadquartersAsset | undefined {
+  const groupId = DEFAULT_HEADQUARTERS_BY_NATION[nation];
+  return HEADQUARTERS.find(item => item.groupId === groupId && item.nation === nation) || BUNKER_HEADQUARTERS;
+}
 
 export function defaultCardBackForNation(nation: string): string {
   const id = cardBackData.defaultBackByNation[nation];
@@ -71,8 +89,11 @@ export function cardBackForDeck(deck: { mainNation: string; allyNation?: string;
 }
 
 export function headquartersForDeck(groupId: string | undefined, nation: string): HeadquartersAsset | undefined {
-  if (!groupId) return undefined;
-  return HEADQUARTERS.find(item => item.groupId === groupId && item.nation === nation);
+  if (groupId && groupId !== 'default') {
+    const selected = HEADQUARTERS.find(item => item.groupId === groupId && item.nation === nation);
+    if (selected) return selected;
+  }
+  return defaultHeadquartersForNation(nation);
 }
 
 export function headquartersOptions(nation: string): HeadquartersAsset[] {
@@ -85,8 +106,14 @@ export function tableclothForHeadquarters(groupId: string | undefined): string |
   return TABLECLOTHS.find(item => item.type === 'headquarters' && item.headquartersId === groupId)?.file;
 }
 
-const stackNationOrder = ['Britain', 'Germany', 'Japan', 'Soviet', 'USA'];
-export const HEADQUARTERS_STACK = [
-  ...stackNationOrder.map(nation => HEADQUARTERS.find(item => item.scope === 'main' && item.nation === nation)).filter((item): item is HeadquartersAsset => !!item),
-  HEADQUARTERS.find(item => item.scope === 'common' && item.nation === 'USA'),
-].filter((item): item is HeadquartersAsset => !!item);
+export const HEADQUARTERS_STACKS = [
+  { id: 'USA', label: '美国', nation: 'USA', scope: 'main' as const },
+  { id: 'Soviet', label: '苏联', nation: 'Soviet', scope: 'main' as const },
+  { id: 'Britain', label: '英国', nation: 'Britain', scope: 'main' as const },
+  { id: 'Japan', label: '日本', nation: 'Japan', scope: 'main' as const },
+  { id: 'Germany', label: '德国', nation: 'Germany', scope: 'main' as const },
+  { id: 'Common', label: '通用', nation: 'Blank', scope: 'common' as const },
+].map(category => ({
+  ...category,
+  cards: HEADQUARTERS.filter(item => item.scope === category.scope && item.nation === category.nation),
+}));

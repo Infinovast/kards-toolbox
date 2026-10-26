@@ -1,6 +1,6 @@
 /** Adapted from koishi-plugin-kardsman/src/render.ts (MIT).
  * Retains Sharp thumbnail/composite pipeline, ten columns, repeated cards,
- * background, rarity icons and the final bunker slot. Reads only bundled assets
+ * background, rarity icons and the final headquarters slot. Reads only bundled assets
  * and cached data URLs supplied by the isolated renderer; never fetches artwork.
  */
 import sharp, { type OverlayOptions } from 'sharp';
@@ -37,7 +37,11 @@ export async function renderKardsmanDeck(request: DeckRenderRequest): Promise<st
       : svg(thumbW, thumbH, `<rect width="100%" height="100%" fill="#e6e1d4"/><text x="50%" y="45%" text-anchor="middle" font-size="18" fill="#333">${safe(card.name).slice(0, 150)}</text><text x="50%" y="57%" text-anchor="middle" font-size="14" fill="#555">未缓存卡图 · ${safe(card.id)}</text>`);
     for (let n = 0; n < card.count; n++, position++) composites.push({ input: thumb, left: 60 + position % cols * (thumbW + pad), top: gridStartY + Math.floor(position / cols) * (thumbH + pad) });
   }
-  const bunker = await sharp(asset('bunker.png')).resize(thumbW, thumbH, { fit: 'cover' }).png().toBuffer();
+  const selectedHeadquarters = cachedBuffer(request.headquartersImage);
+  const headquarters = selectedHeadquarters
+    ? await sharp(selectedHeadquarters).resize(thumbW, thumbH, { fit: 'cover' }).png().toBuffer().catch(() => null)
+    : null;
+  const bunker = headquarters || await sharp(asset('bunker.png')).resize(thumbW, thumbH, { fit: 'cover' }).png().toBuffer();
   composites.push({ input: bunker, left: 60 + position % cols * (thumbW + pad), top: gridStartY + Math.floor(position / cols) * (thumbH + pad) });
   const logo = await sharp(path.join(assets, 'kards_logos', 'Common', 'KardsLogoWhite.png')).trim().resize({ height: 130 }).png().toBuffer();
   composites.push({ input: logo, left: 60, top: 24 });

@@ -51,7 +51,7 @@ import CardCacheManager from './components/CardCacheManager';
 import CustomSelect from './components/CustomSelect';
 import { nationOptions } from './components/CardFilterSelects';
 import { loadCardDatabase, type KardsCardRecord } from './types/card';
-import { CARD_BACK_CATEGORIES, CARD_BACKS, DEFAULT_CARD_BACK, USER_TABLECLOTHS, cardBackForDeck, cardBackIsAvailable, defaultCardBackForNation, tableclothForHeadquarters } from './lib/cardAssets';
+import { CARD_BACK_CATEGORIES, CARD_BACKS, DEFAULT_CARD_BACK, DEFAULT_TABLECLOTH, USER_TABLECLOTHS, cardBackForDeck, cardBackIsAvailable, defaultCardBackForNation, headquartersForDeck, headquartersOptions, resolveSelectedTablecloth, tableclothForHeadquarters } from './lib/cardAssets';
 
 // --- Types ---
 type Nation = 'Germany' | 'Soviet' | 'USA' | 'Japan' | 'Britain' | 'Finland' | 'Italy' | 'France' | 'Poland' | 'Anzac';
@@ -185,7 +185,7 @@ const NATION_DATA: Record<Nation, { label: string, color: string, flag: string, 
   Italy: { label: '意', color: '#008C45', flag: 'it', isMainAllowed: false, icon: '/assets/icons/Italy/Italy.png' },
   Poland: { label: '波', color: '#DC143C', flag: 'pl', isMainAllowed: false, icon: '/assets/icons/Poland/Poland.jpg' },
   Finland: { label: '芬', color: '#003580', flag: 'fi', isMainAllowed: false, icon: '/assets/icons/Finland/Finland.png' },
-  Anzac: { label: '澳', color: '#9E6F34', flag: 'an', isMainAllowed: false, icon: '/assets/icons/ANZAC/Anzac.png' },
+  Anzac: { label: '澳', color: '#9E6F34', flag: 'an', isMainAllowed: false, icon: '/assets/icons/ANZAC/anzac.svg' },
 };
 
 const NATION_FLAG_ASSETS: Record<string, string> = {
@@ -244,6 +244,8 @@ export default function App() {
   }, []);
 
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
+  const [hoveredDeckId, setHoveredDeckId] = useState<string | null>(null);
+  const deckHoverCloseTimer = useRef<number | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showNewDeckModal, setShowNewDeckModal] = useState(false);
   const [importCode, setImportCode] = useState('');
@@ -267,14 +269,30 @@ export default function App() {
   const [filterAllyNation, setFilterAllyNation] = useState<Nation | 'All'>('All');
   const [filterTag, setFilterTag] = useState<string | 'All'>('All');
 
+  const clearDeckHoverClose = () => {
+    if (deckHoverCloseTimer.current !== null) window.clearTimeout(deckHoverCloseTimer.current);
+    deckHoverCloseTimer.current = null;
+  };
+  const hoverDeck = (id: string) => { clearDeckHoverClose(); setHoveredDeckId(id); };
+  const scheduleDeckHoverClose = () => {
+    if (document.querySelector('.custom-select-popover')) return;
+    clearDeckHoverClose();
+    deckHoverCloseTimer.current = window.setTimeout(() => { setHoveredDeckId(null); deckHoverCloseTimer.current = null; }, 180);
+  };
   const closeDeckDetails = React.useCallback(() => {
     const opener = document.querySelector<HTMLButtonElement>('[aria-label^="选择卡组 "][aria-pressed="true"]');
     setSelectedDeckId(null);
+    setHoveredDeckId(null);
     setAddingTagToDeckId(null);
+    if (deckHoverCloseTimer.current !== null) window.clearTimeout(deckHoverCloseTimer.current);
+    deckHoverCloseTimer.current = null;
     requestAnimationFrame(() => { if (opener?.isConnected) opener.focus(); });
   }, []);
-  const deckDetailsRef = useDismissiblePanel(activeMenu === 'decks' && !!selectedDeckId, closeDeckDetails, () => {
+  useEffect(() => () => clearDeckHoverClose(), []);
+  useEffect(() => { if (activeMenu !== 'decks') setHoveredDeckId(null); }, [activeMenu]);
+  const deckDetailsRef = useDismissiblePanel(activeMenu === 'decks' && !!(selectedDeckId || hoveredDeckId), closeDeckDetails, () => {
     setSelectedDeckId(null);
+    setHoveredDeckId(null);
     setAddingTagToDeckId(null);
   });
 
@@ -286,13 +304,13 @@ export default function App() {
         requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('[aria-label="关于"]')?.focus());
       } else if (event.key === 'Escape' && activeMenu === 'decks') {
         event.preventDefault();
-        if (selectedDeckId) closeDeckDetails();
+        if (selectedDeckId || hoveredDeckId) closeDeckDetails();
         else if (searchQuery) setSearchQuery('');
       }
     };
     document.addEventListener('keydown', keydown);
     return () => document.removeEventListener('keydown', keydown);
-  }, [activeMenu, aboutReturnMenu, searchQuery, selectedDeckId, closeDeckDetails]);
+  }, [activeMenu, aboutReturnMenu, searchQuery, selectedDeckId, hoveredDeckId, closeDeckDetails]);
   
   const [customCategories, setCustomCategories] = useState<{id: string, name: string, backs: {id: string, url: string, name: string}[]}[]>([]);
 
@@ -371,8 +389,8 @@ export default function App() {
         const loadedDecks = await getOrMigrate<Deck[]>('kards_decks', INITIAL_DECKS);
         const loadedCollections = await getOrMigrate<Collection[]>('kards_collections', []);
         const loadedCategories = await getOrMigrate<any[]>('kards_custom_categories', []);
-        const loadedSelectedTablecloth = await getOrMigrate<string | null>('kards_selected_tablecloth', null);
         const loadedCustomTablecloths = await getOrMigrate<string[]>('kards_custom_tablecloths', []);
+        const loadedSelectedTablecloth = await getOrMigrate<string | null>('kards_selected_tablecloth', DEFAULT_TABLECLOTH);
         const loadedSettingsRaw = await getOrMigrate<any>('kards_settings', DEFAULT_SETTINGS);
         if (loadedSettingsRaw.isDarkMode !== undefined && loadedSettingsRaw.displayMode === undefined) {
           loadedSettingsRaw.displayMode = loadedSettingsRaw.isDarkMode ? 'dark' : 'light';
@@ -382,7 +400,7 @@ export default function App() {
         setDecks(loadedDecks);
         setCollections(loadedCollections);
         setCustomCategories(loadedCategories);
-        setSelectedTablecloth(loadedSelectedTablecloth);
+        setSelectedTablecloth(resolveSelectedTablecloth(loadedSelectedTablecloth, loadedCustomTablecloths));
         setCustomTablecloths(loadedCustomTablecloths);
         setSettings({ ...DEFAULT_SETTINGS, ...loadedSettingsRaw });
         setDataLoaded(true);
@@ -498,7 +516,7 @@ export default function App() {
   const [editingCardInfo, setEditingCardInfo] = useState<{catId: string, backId: string} | null>(null);
   const [editingCardName, setEditingCardName] = useState('');
 
-  const [selectedTablecloth, setSelectedTablecloth] = useState<string | null>(null);
+  const [selectedTablecloth, setSelectedTablecloth] = useState<string>(DEFAULT_TABLECLOTH);
 
   const [customTablecloths, setCustomTablecloths] = useState<string[]>([]);
 
@@ -519,13 +537,16 @@ export default function App() {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'tablecloth' | 'cardback', id: string, catId?: string } | null>(null);
 
-  const getOrGenerateDeckImage = async (deck: Pick<Deck, 'name' | 'code' | 'headquartersId'>) => {
-    const imageData = await renderDeckImage(deck.code, cardDatabase, deck.name, tableclothForHeadquarters(deck.headquartersId) || selectedTablecloth);
+  const getOrGenerateDeckImage = async (deck: Pick<Deck, 'name' | 'code' | 'headquartersId'> & { mainNation?: string }) => {
+    const mainNation = deck.mainNation || decodeDeckCode(deck.code).mainNation;
+    const headquarters = headquartersForDeck(deck.headquartersId, mainNation);
+    const background = tableclothForHeadquarters(headquarters?.groupId) || selectedTablecloth;
+    const imageData = await renderDeckImage(deck.code, cardDatabase, deck.name, background, deck.headquartersId);
     await localforage.setItem(`deck_img_local_v1_${deck.code}`, imageData);
     return imageData;
   };
 
-  const handleGetDeckImage = async (deck: Pick<Deck, 'name' | 'code' | 'headquartersId'>) => {
+  const handleGetDeckImage = async (deck: Pick<Deck, 'name' | 'code' | 'headquartersId'> & { mainNation?: string }) => {
     const request = ++deckImageRequest.current;
     setDeckImageModal({ show: true, deck, loading: true, imageUrl: null, error: null });
     try {
@@ -549,10 +570,10 @@ export default function App() {
     setDecks(loadedDecks || INITIAL_DECKS);
     setCollections(loadedCollections || []);
     setCustomCategories(loadedCategories || []);
-    setSelectedTablecloth(loadedSelectedTablecloth || null);
     setCustomTablecloths(loadedCustomTablecloths || []);
+    setSelectedTablecloth(resolveSelectedTablecloth(loadedSelectedTablecloth, loadedCustomTablecloths || []));
     setSettings({ ...DEFAULT_SETTINGS, ...(loadedSettings || {}) });
-    setSelectedDeckId((loadedDecks || [])[0]?.id || null);
+    setSelectedDeckId(null);
     setBuilderDeck(null);
     setBuilderRevision((revision) => revision + 1);
     setSettingsReturnMenu('decks');
@@ -623,11 +644,7 @@ export default function App() {
 
   useEffect(() => {
     if (!dataLoaded) return;
-    if (selectedTablecloth) {
-      localforage.setItem('kards_selected_tablecloth', selectedTablecloth).catch(console.error);
-    } else {
-      localforage.removeItem('kards_selected_tablecloth').catch(console.error);
-    }
+    localforage.setItem('kards_selected_tablecloth', selectedTablecloth || DEFAULT_TABLECLOTH).catch(console.error);
   }, [selectedTablecloth, dataLoaded]);
 
   useEffect(() => {
@@ -683,9 +700,15 @@ export default function App() {
     return merged;
   }, [customCategories, decks, showCardBackModal]);
 
-  const selectedDeck = decks.find(d => d.id === selectedDeckId);
+  const activeDeckId = hoveredDeckId || selectedDeckId;
+  const selectedDeck = decks.find(d => d.id === activeDeckId);
   const deckInFocus = activeMenu === 'builder' ? builderDeck : activeMenu === 'decks' ? selectedDeck : null;
-  const activeTablecloth = (deckInFocus ? tableclothForHeadquarters(deckInFocus.headquartersId) : undefined) || selectedTablecloth;
+  const focusedNation = deckInFocus
+    ? ('mainNation' in deckInFocus && typeof deckInFocus.mainNation === 'string' ? deckInFocus.mainNation : decodeDeckCode(deckInFocus.code).mainNation)
+    : undefined;
+  const focusedHeadquartersId = typeof deckInFocus?.headquartersId === 'string' ? deckInFocus.headquartersId : undefined;
+  const focusedHeadquarters = focusedNation ? headquartersForDeck(focusedHeadquartersId, focusedNation) : undefined;
+  const activeTablecloth = (focusedHeadquarters ? tableclothForHeadquarters(focusedHeadquarters.groupId) : undefined) || selectedTablecloth;
   const reservedDeckIds = React.useMemo(() => {
     const reservedIds = new Set(cardDatabase.filter(card => card.reserved).map(card => card.importId));
     return new Set(decks.filter(deck => {
@@ -782,7 +805,8 @@ export default function App() {
   const handleDeleteDeck = (id: string) => {
     setDecks(decks.filter(d => d.id !== id));
     setCollections(current => current.map(folder => ({ ...folder, deckIds: folder.deckIds.filter(deckId => deckId !== id) })));
-    if (selectedDeckId === id) setSelectedDeckId(decks[0]?.id || null);
+    if (selectedDeckId === id) setSelectedDeckId(null);
+    if (hoveredDeckId === id) setHoveredDeckId(null);
   };
 
   const handleCopyCode = async (code: string) => {
@@ -1261,8 +1285,10 @@ export default function App() {
                   <DeckCard 
                     key={deck.id}
                     deck={deck}
-                    selected={selectedDeckId === deck.id}
+                    selected={activeDeckId === deck.id}
                     onClick={() => setSelectedDeckId(deck.id)}
+                    onHover={() => hoverDeck(deck.id)}
+                    onHoverLeave={scheduleDeckHoverClose}
                     onDoubleClick={() => openDeckEditor(deck)}
                     settings={settings}
                     hasReserved={reservedDeckIds.has(deck.id)}
@@ -1291,8 +1317,10 @@ export default function App() {
             {activeMenu === 'decks' && settings.showDeckFolders && <DeckFolders
               folders={collections}
               decks={sortedDecks}
-              selectedDeckId={selectedDeckId}
+              selectedDeckId={activeDeckId}
               onSelect={deck => setSelectedDeckId(deck.id)}
+              onHover={deck => hoverDeck(deck.id)}
+              onHoverLeave={scheduleDeckHoverClose}
               onEdit={deck => { const stored = decks.find(item => item.id === deck.id); if (stored) openDeckEditor(stored); }}
               onCreate={() => { setNewCollectionName(''); setShowCreateCollectionModal(true); }}
               onRename={folder => { const stored = collections.find(item => item.id === folder.id); if (stored) { setCollectionToRename(stored); setRenameCollectionName(stored.name); } }}
@@ -1306,7 +1334,7 @@ export default function App() {
 
         {/* Non-modal details float over the unchanged deck workspace. */}
         {activeMenu === 'decks' && selectedDeck && (
-          <aside ref={deckDetailsRef} data-deck-details role="dialog" aria-modal="false" aria-label="卡组详情" tabIndex={-1}
+          <aside ref={deckDetailsRef} data-deck-details role="dialog" aria-modal="false" aria-label="卡组详情" tabIndex={-1} onMouseEnter={clearDeckHoverClose} onMouseLeave={scheduleDeckHoverClose}
             className="glass-panel absolute bottom-5 right-5 top-5 z-30 flex w-[320px] max-w-[calc(100%-136px)] flex-col overflow-hidden rounded-lg border border-kards-border shadow-xl"
           >
               <motion.div 
@@ -1329,7 +1357,13 @@ export default function App() {
                   className="text-xl font-bold tracking-tight mb-4 text-center bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-kards-gold/30 rounded w-full"
                 />
                 
-                <div className="mb-3 flex items-center justify-between text-xs text-kards-text-muted"><span>{selectedDeck.totalCards + 1} 张（含总部）</span><button onClick={() => setShowCardBackModal(selectedDeck.id)} className="rounded border border-kards-border px-2 py-1">更换卡背</button></div>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-kards-text-muted">
+                  <span>{selectedDeck.totalCards + 1} 张（含总部）</span>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <CustomSelect label="更换总部" value={headquartersForDeck(selectedDeck.headquartersId, selectedDeck.mainNation)?.groupId || ''} onChange={headquartersId => setDecks(current => current.map(deck => deck.id === selectedDeck.id ? { ...deck, headquartersId } : deck))} className="max-w-[150px]" options={headquartersOptions(selectedDeck.mainNation).map(headquarters => ({ value: headquarters.groupId, label: headquarters.name }))} />
+                    <button onClick={() => setShowCardBackModal(selectedDeck.id)} className="shrink-0 rounded border border-kards-border px-2 py-1">更换卡背</button>
+                  </div>
+                </div>
                 <ul aria-label="卡组紧凑列表" className="space-y-0.5 text-sm">
                   <li><DeckHeadquartersStrip nation={selectedDeck.mainNation} headquartersId={selectedDeck.headquartersId} /></li>
                   {previewEntries.map(entry => <li key={entry.id}><DeckCardStrip card={entry.card} importId={entry.id} count={entry.count} /></li>)}
@@ -1629,15 +1663,6 @@ export default function App() {
               
               <div className="flex-1 overflow-y-auto w-full no-scrollbar pr-2 pb-8">
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {/* Default / Empty Option */}
-                  <div 
-                    onClick={() => setSelectedTablecloth(null)}
-                    className={`aspect-video military-border flex flex-col items-center justify-center cursor-pointer transition-all ${!selectedTablecloth ? 'border-kards-gold bg-kards-gold/10' : 'bg-kards-bg hover:bg-kards-panel-hover opacity-60 hover:opacity-100'}`}
-                  >
-                    <ImageIcon className="w-8 h-8 mb-2 text-kards-text-muted" />
-                    <span className="text-xs font-bold uppercase tracking-widest">默认桌布</span>
-                  </div>
-
                   {/* Custom Uploads */}
                   {customTablecloths.map((url, idx) => (
                     <div 
@@ -1660,7 +1685,7 @@ export default function App() {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setCustomTablecloths(prev => prev.filter((_, i) => i !== idx));
-                                if (selectedTablecloth === url) setSelectedTablecloth(null);
+                                if (selectedTablecloth === url) setSelectedTablecloth(DEFAULT_TABLECLOTH);
                                 setDeleteConfirm(null);
                               }}
                               className="px-2 py-1 bg-red-600 text-white text-[10px] font-bold rounded-sm uppercase tracking-tighter hover:bg-red-500"
@@ -2441,13 +2466,15 @@ interface DeckCardProps {
   deck: Deck;
   selected: boolean;
   onClick: () => void;
+  onHover: () => void;
+  onHoverLeave: () => void;
   onDoubleClick: () => void;
   settings: AppSettings;
   hasReserved: boolean;
   key?: React.Key;
 }
 
-function DeckCard({ deck, selected, onClick, onDoubleClick, settings, hasReserved }: DeckCardProps) {
+function DeckCard({ deck, selected, onClick, onHover, onHoverLeave, onDoubleClick, settings, hasReserved }: DeckCardProps) {
   const mainData = NATION_DATA[deck.mainNation];
   const allyData = deck.allyNation ? NATION_DATA[deck.allyNation] : null;
   const cardBack = cardBackForDeck(deck);
@@ -2461,6 +2488,8 @@ function DeckCard({ deck, selected, onClick, onDoubleClick, settings, hasReserve
       whileHover={{ y: -5 }}
       className="flex flex-col items-center group cursor-pointer"
       onClick={onClick}
+      onMouseEnter={onHover}
+      onMouseLeave={onHoverLeave}
       onDoubleClick={onDoubleClick}
     >
       <div 

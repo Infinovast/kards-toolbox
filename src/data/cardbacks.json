@@ -582,6 +582,22 @@
           "isDefault": true
         }
       ]
+    },
+    {
+      "id": "ally-anzac",
+      "name": "ANZAC盟国",
+      "scope": "ally",
+      "nation": "Anzac",
+      "backs": [
+        {
+          "id": "cardback-069",
+          "name": "澳新军团",
+          "file": "/assets/cardbacks/Allies/Anzac/Anzac.png",
+          "scope": "ally",
+          "nation": "Anzac",
+          "isDefault": true
+        }
+      ]
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, Copy, ImageDown, Minus, Plus, Save, Search, Upload } from 'lucide-react';
 import localforage from 'localforage';
@@ -10,7 +10,7 @@ import CardFilterSelects, { nationOptions } from './CardFilterSelects';
 import { decodeDeckCode, encodeDeckCode, findCardsByImportId } from '../lib/deckCode';
 import { inferDeckTitleFromText, extractDeckCodeFromText } from '../lib/deckImport';
 import { DEFAULT_DECK_RULES, validateDeck, type DeckRuleSet, type DeckRules } from '../lib/deckRules';
-import { headquartersOptions } from '../lib/cardAssets';
+import { defaultHeadquartersForNation } from '../lib/cardAssets';
 import { CardFace, RaritySlots } from './CardFace';
 import { EMPTY_CARD_FILTERS, isGeneratedCard, isInBuilderPool, matchesCardFilters, type CardFilters } from '../lib/cardFilters';
 
@@ -33,6 +33,8 @@ interface Draft {
   headquartersId?: string;
 }
 const inputClass = 'rounded border border-kards-border bg-kards-input-bg px-3 py-2 text-sm text-kards-text';
+const POOL_CARD_DRAG_TYPE = 'application/x-kards-pool-card';
+const DECK_CARD_DRAG_TYPE = 'application/x-kards-deck-card';
 const numericRules = [
   ['deckSize', '卡组总张数（含总部）'], ['maxAllyCards', '盟国上限'], ['maxStandard', '普通上限'],
   ['maxLimited', '限定上限'], ['maxSpecial', '特殊上限'], ['maxElite', '精英上限'],
@@ -48,7 +50,7 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, onPrev
 }) {
   const [mainNation, setMainNation] = useState('Germany');
   const [allyNation, setAllyNation] = useState('Soviet');
-  const [headquartersId, setHeadquartersId] = useState('default');
+  const [headquartersId, setHeadquartersId] = useState(defaultHeadquartersForNation('Germany')?.groupId || '');
   const [ruleSet, setRuleSet] = useState<DeckRuleSet>('standard');
   const [customRules, setCustomRules] = useState<DeckRules>({ ...DEFAULT_DECK_RULES.standard });
   const [entries, setEntries] = useState<Map<string, number>>(new Map());
@@ -65,6 +67,7 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, onPrev
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [rendering, setRendering] = useState(false);
   const [pendingNation, setPendingNation] = useState<{ field: 'main' | 'ally'; value: string } | null>(null);
+  const [dragOverZone, setDragOverZone] = useState<'pool' | 'deck' | null>(null);
   const requestNationChange = (field: 'main' | 'ally', value: string) => {
     if (value !== (field === 'main' ? mainNation : allyNation)) setPendingNation({ field, value });
   };
@@ -73,7 +76,7 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, onPrev
     localforage.getItem<Draft>('kards_builder_draft').then((draft) => {
       if (!draft) return;
       setMainNation(draft.mainNation); setAllyNation(draft.allyNation);
-      setHeadquartersId(draft.headquartersId || 'default');
+      setHeadquartersId(draft.headquartersId && draft.headquartersId !== 'default' ? draft.headquartersId : defaultHeadquartersForNation(draft.mainNation)?.groupId || '');
       setRuleSet(draft.ruleSet); setCustomRules({ ...DEFAULT_DECK_RULES.standard, ...draft.customRules });
       setEntries(new Map(draft.entries)); setDeckName(draft.deckName); setDeckId(draft.deckId);
     }).catch(() => setMessage('构筑草稿读取失败，可以重新开始构筑')).finally(() => setDraftLoaded(true));
@@ -84,11 +87,11 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, onPrev
     try {
       const decoded = decodeDeckCode(initialDeck.code);
       setMainNation(decoded.mainNation); setAllyNation(decoded.allyNation); setEntries(decoded.counts);
-      setHeadquartersId(initialDeck.headquartersId || 'default');
+      setHeadquartersId(initialDeck.headquartersId && initialDeck.headquartersId !== 'default' ? initialDeck.headquartersId : defaultHeadquartersForNation(decoded.mainNation)?.groupId || '');
       setDeckName(initialDeck.name); setDeckId(initialDeck.id);
       setRuleSet(initialDeck.ruleSet || (decoded.mainNation === decoded.allyNation ? 'arena' : 'standard'));
       setCustomRules({ ...DEFAULT_DECK_RULES.standard, ...initialDeck.customRules });
-      setMessage(initialDeck.id ? '已载入卡组；保存会更新原卡组' : '从左侧选择卡牌，保存后加入卡组列表');
+      setMessage('');
     } catch (error) { setMessage(String(error)); }
   }, [initialDeck, draftLoaded]);
 
@@ -107,6 +110,12 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, onPrev
   const warnings = validateDeck(entries, cardsById, mainNation, allyNation, rules);
   const matchingCards = useMemo(() => cards.filter(card => isInBuilderPool(card, mainNation, allyNation) && matchesCardFilters(card, filters)), [cards, mainNation, allyNation, filters]);
   const expansions = useMemo(() => [...new Set(cards.filter(card => !isGeneratedCard(card)).map(card => card.json.set).filter(Boolean))].sort(), [cards]);
+  const sortedEntries = useMemo(() => [...entries].sort(([leftId], [rightId]) => {
+    const left = cardsById.get(leftId), right = cardsById.get(rightId);
+    return (left?.json.kredits ?? 99) - (right?.json.kredits ?? 99)
+      || (left ? cardTitle(left, 'zh-Hans') : leftId).localeCompare(right ? cardTitle(right, 'zh-Hans') : rightId, 'zh-Hans')
+      || leftId.localeCompare(rightId);
+  }), [entries, cardsById]);
 
   const adjustCard = (importId: string, change: number) => setEntries((current) => {
     const next = new Map<string, number>(current), count = (next.get(importId) || 0) + change;
@@ -114,12 +123,25 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, onPrev
     else next.set(importId, Math.min(999, count));
     return next;
   });
+  const hasDragType = (event: DragEvent, type: string) => Array.from(event.dataTransfer.types).includes(type);
+  const handleDropToDeck = (event: DragEvent) => {
+    if (!hasDragType(event, POOL_CARD_DRAG_TYPE)) return;
+    event.preventDefault(); event.stopPropagation();
+    adjustCard(event.dataTransfer.getData(POOL_CARD_DRAG_TYPE), 1);
+    setDragOverZone(null);
+  };
+  const handleDropToPool = (event: DragEvent) => {
+    if (!hasDragType(event, DECK_CARD_DRAG_TYPE)) return;
+    event.preventDefault(); event.stopPropagation();
+    adjustCard(event.dataTransfer.getData(DECK_CARD_DRAG_TYPE), -1);
+    setDragOverZone(null);
+  };
 
   const importCode = () => {
     try {
       const decoded = decodeDeckCode(importText);
       setMainNation(decoded.mainNation); setAllyNation(decoded.allyNation); setEntries(decoded.counts);
-      setHeadquartersId('default');
+      setHeadquartersId(defaultHeadquartersForNation(decoded.mainNation)?.groupId || '');
       const title = inferDeckTitleFromText(importText, extractDeckCodeFromText(importText));
       setDeckName(title || '导入的卡组');
       const unknown = [...decoded.counts.keys()].filter((id) => !cardsById.has(id));
@@ -132,11 +154,11 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, onPrev
     catch { setImportText(code); setMessage('剪贴板不可用，卡组码已填入左侧输入框，可手动复制'); }
   };
   const saveDeck = () => {
-    onSave({ id: deckId, code: encodeDeckCode(mainNation, allyNation, entries), name: deckName.trim() || '新卡组', ruleSet, customRules, headquartersId: headquartersId === 'default' ? undefined : headquartersId }, warnings);
+    onSave({ id: deckId, code: encodeDeckCode(mainNation, allyNation, entries), name: deckName.trim() || '新卡组', ruleSet, customRules, headquartersId: headquartersId || defaultHeadquartersForNation(mainNation)?.groupId }, warnings);
   };
   const exportImage = async () => {
     setRendering(true);
-    try { await onPreview({ id: deckId, code: encodeDeckCode(mainNation, allyNation, entries), name: deckName.trim() || '新卡组', ruleSet, customRules, headquartersId: headquartersId === 'default' ? undefined : headquartersId }); }
+    try { await onPreview({ id: deckId, code: encodeDeckCode(mainNation, allyNation, entries), name: deckName.trim() || '新卡组', ruleSet, customRules, headquartersId: headquartersId || defaultHeadquartersForNation(mainNation)?.groupId }); }
     catch (error) { setMessage(error instanceof Error ? error.message : '图片生成失败'); }
     finally { setRendering(false); }
   };
@@ -155,9 +177,9 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, onPrev
         </div>
       </div>
       <p className="text-xs text-kards-text-muted">找到 {matchingCards.length} 张</p>
-      <div data-testid="builder-grid" className="card-gallery card-gallery-builder custom-scrollbar min-h-0 flex-1 overflow-y-auto pb-2">
+      <div data-testid="builder-grid" onDragOver={event => { if (hasDragType(event, DECK_CARD_DRAG_TYPE)) { event.preventDefault(); setDragOverZone('pool'); } }} onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragOverZone(null); }} onDrop={handleDropToPool} className={`card-gallery card-gallery-builder custom-scrollbar min-h-0 flex-1 overflow-y-auto rounded pb-2 ${dragOverZone === 'pool' ? 'ring-2 ring-kards-gold/70' : ''}`}>
         {matchingCards.slice((page - 1) * 60, page * 60).map((card) => <div key={card.importId} className="card-tile">
-          <button onClick={() => adjustCard(card.importId, 1)} onContextMenu={e => { e.preventDefault(); adjustCard(card.importId, -1); }} aria-label={`添加${cardTitle(card, 'zh-Hans')}`} title={`${cardTitle(card, 'zh-Hans')} · 单击加一张，右键减一张`} className="card-action group block w-full text-left">
+          <button draggable={active} onDragStart={event => { event.dataTransfer.setData(POOL_CARD_DRAG_TYPE, card.importId); event.dataTransfer.effectAllowed = 'copy'; }} onClick={() => adjustCard(card.importId, 1)} onContextMenu={e => { e.preventDefault(); adjustCard(card.importId, -1); }} aria-label={`添加${cardTitle(card, 'zh-Hans')}`} title={`${cardTitle(card, 'zh-Hans')} · 单击或拖入右栏加一张，右键减一张`} className="card-action group block w-full text-left">
             <CardFace card={card} enabled={active} />
           </button>
           <RaritySlots rarity={card.json.rarity} count={entries.get(card.importId) || 0} />
@@ -166,17 +188,15 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, onPrev
       </div>
       <div className="flex shrink-0 items-center justify-center gap-3 text-xs text-kards-text"><button disabled={page <= 1} onClick={() => setPage(page - 1)} className="rounded border border-kards-border px-3 py-1 disabled:opacity-40">上一页</button><span>{page} / {Math.max(1, Math.ceil(matchingCards.length / 60))}</span><button disabled={page * 60 >= matchingCards.length} onClick={() => setPage(page + 1)} className="rounded border border-kards-border px-3 py-1 disabled:opacity-40">下一页</button></div>
     </section>
-    <aside className="flex w-[300px] shrink-0 flex-col gap-3 overflow-hidden rounded-lg border border-kards-border glass-panel p-4 xl:w-[340px]">
+    <aside onDragOver={event => { if (hasDragType(event, POOL_CARD_DRAG_TYPE)) { event.preventDefault(); setDragOverZone('deck'); } }} onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragOverZone(null); }} onDrop={handleDropToDeck} className={`flex w-[300px] shrink-0 flex-col gap-3 overflow-hidden rounded-lg border border-kards-border glass-panel p-4 xl:w-[340px] ${dragOverZone === 'deck' ? 'ring-2 ring-kards-gold/70' : ''}`}>
       <button onClick={onBack} title="Esc 返回卡组列表" className="flex shrink-0 items-center gap-1 self-start rounded px-2 py-1 text-xs text-kards-text-muted"><ArrowLeft className="h-4 w-4" />返回卡组</button>
-      <div className="flex items-center justify-between"><h2 className="font-bold text-kards-text">{deckId ? '编辑卡组' : '当前卡组'}</h2><span aria-label="卡组总张数（含总部）" className="text-lg font-bold tabular-nums text-kards-status">{totalCards + 1} / {rules.deckSize + 1}</span></div>
+      <div className="flex items-center justify-between"><h2 className="font-bold text-kards-text">{deckId ? '编辑卡组' : '当前卡组'}</h2><span aria-label="卡组总张数（含总部）" className="text-lg font-bold tabular-nums"><span className={totalCards > rules.deckSize ? 'text-red-500 dark:text-red-400' : 'text-kards-status'}>{totalCards + 1}</span><span className="text-kards-text-muted"> / {rules.deckSize + 1}</span></span></div>
       <div className="custom-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto">
-      <p className="text-xs text-kards-text-muted">总张数包含 1 张主国总部 · 草稿自动保存</p>
       <input value={deckName} onChange={(e) => setDeckName(e.target.value)} className={inputClass} aria-label="卡组名称" onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && entries.size) { e.preventDefault(); saveDeck(); } }} />
       <div className="grid grid-cols-2 gap-2">
         <CustomSelect label="主国" value={mainNation} onChange={value => requestNationChange('main', value)} className="min-w-0 w-full" options={nationOptions().filter(item => item.value !== 'Neutral').map(item => ({ ...item, label: `${item.label}主国` }))} />
         <CustomSelect label="盟国" value={allyNation} onChange={value => requestNationChange('ally', value)} className="min-w-0 w-full" options={nationOptions().filter(item => item.value !== 'Neutral').map(item => ({ ...item, label: `${item.label}盟国` }))} />
       </div>
-      <CustomSelect label="总部" value={headquartersId} onChange={setHeadquartersId} className="w-full" options={[{ value: 'default', label: `标准总部 · ${{ Britain: 'ALEXANDRIA', Germany: 'DANZIG', Soviet: 'STALINGRAD', Japan: 'TRUK', USA: 'CHERBOURG' }[mainNation] || '总部'}` }, ...headquartersOptions(mainNation).map(item => ({ value: item.groupId, label: item.name }))]} />
       {ruleSet === 'custom' && <div className="flex flex-wrap gap-3 rounded border border-kards-border p-2">
         {numericRules.map(([key, label]) => <label key={key} className="flex items-center gap-1 text-xs text-kards-text-muted">{label}<input type="number" min={key === 'deckSize' ? 2 : 1} max={key === 'deckSize' ? 1000 : 999} value={customRules[key] + (key === 'deckSize' ? 1 : 0)} onChange={event => setCustomRules({ ...customRules, [key]: Math.max(1, Math.min(999, (Number(event.target.value) || 1) - (key === 'deckSize' ? 1 : 0))) })} className={`${inputClass} w-16 !px-2 !py-1`} /></label>)}
         <label className="text-xs text-kards-text"><input type="checkbox" checked={customRules.allowReserved} onChange={event => setCustomRules({ ...customRules, allowReserved: event.target.checked })} /> 允许预备卡</label>
@@ -188,13 +208,13 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, onPrev
         else if (event.key === 'Escape' && importText) { event.preventDefault(); event.stopPropagation(); setImportText(''); }
       }} title="Enter 导入；Shift+Enter 换行；Esc 清空" value={importText} onChange={event => setImportText(event.target.value)} placeholder="粘贴卡组码或分享文本" className={`${inputClass} max-h-32 min-w-0 flex-1 resize-y`} /><button disabled={!importText.trim()} onClick={importCode} className="flex items-center gap-1 rounded border border-kards-border px-2 py-2 text-sm text-kards-text disabled:opacity-40"><Upload className="h-4 w-4" />导入</button></div>
       <div aria-label="构筑卡牌列表" className="min-h-16 space-y-1">
-        <DeckHeadquartersStrip nation={mainNation} headquartersId={headquartersId === 'default' ? undefined : headquartersId} />
-        {[...entries].sort(([a], [b]) => (cardsById.get(a)?.json.kredits ?? 99) - (cardsById.get(b)?.json.kredits ?? 99)).map(([id, count]) => {
+        <DeckHeadquartersStrip nation={mainNation} headquartersId={headquartersId} />
+        {sortedEntries.map(([id, count]) => {
           const card = cardsById.get(id), title = card ? cardTitle(card, 'zh-Hans') : `未知卡牌 ${id}`;
-          return <DeckCardStrip key={id} card={card} importId={id} count={count} enabled={active} controls={<>
+          return <div key={id} className="deck-builder-card-row"><DeckCardStrip card={card} importId={id} count={count} enabled={active} draggable={active} onDragStart={event => { event.dataTransfer.setData(DECK_CARD_DRAG_TYPE, id); event.dataTransfer.effectAllowed = 'move'; }} onDragEnd={() => setDragOverZone(null)} controls={<>
             <button onClick={() => adjustCard(id, 1)} aria-label={`增加${title}`}><Plus className="h-3 w-3" /></button>
             <button onClick={() => adjustCard(id, -1)} aria-label={`减少${title}`}><Minus className="h-3 w-3" /></button>
-          </>} />;
+          </>} /></div>;
         })}
         {!entries.size && <p className="py-10 text-center text-sm text-kards-text-muted">从左侧选择卡牌开始构筑</p>}
       </div>
@@ -212,7 +232,7 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, onPrev
         <div className="mt-5 flex justify-end gap-3">
           <button data-dialog-cancel onClick={() => setPendingNation(null)} className="rounded border border-kards-border px-4 py-2 text-sm text-kards-text">取消</button>
           <button data-dialog-confirm onClick={() => {
-            if (pendingNation.field === 'main') { setMainNation(pendingNation.value); setHeadquartersId('default'); }
+            if (pendingNation.field === 'main') { setMainNation(pendingNation.value); setHeadquartersId(defaultHeadquartersForNation(pendingNation.value)?.groupId || ''); }
             else setAllyNation(pendingNation.value);
             setPendingNation(null);
           }} className="rounded bg-kards-accent px-4 py-2 text-sm font-bold text-white">确认更换</button>

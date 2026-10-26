@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { ChevronDown, Download, Search, X } from 'lucide-react';
+import { Download, Search, X } from 'lucide-react';
 import { CardFace } from './CardFace';
 import { startImageDownload, useImageDownload } from '../lib/imageDownloads';
 import { useDismissiblePanel } from '../lib/dialogKeyboard';
@@ -7,7 +7,8 @@ import { EMPTY_CARD_FILTERS, isGeneratedCard, matchesCardFilters, type CardFilte
 import CustomSelect from './CustomSelect';
 import CardFilterSelects, { expansionOptions } from './CardFilterSelects';
 import { cardKeywords, cardRelations } from '../lib/cardDetails';
-import { HEADQUARTERS, HEADQUARTERS_STACK, type HeadquartersAsset } from '../lib/cardAssets';
+import { HEADQUARTERS_STACKS, type HeadquartersAsset } from '../lib/cardAssets';
+import ReservedBadge from './ReservedBadge';
 import {
   CARD_LANGUAGES,
   cardText,
@@ -43,7 +44,7 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
   const [page, setPage] = useState(1);
   const [selectedCard, setSelectedCard] = useState<KardsCardRecord | null>(null);
   const [selectedHeadquarters, setSelectedHeadquarters] = useState<HeadquartersAsset | null>(null);
-  const [expandedHeadquarters, setExpandedHeadquarters] = useState(false);
+  const [expandedHeadquarters, setExpandedHeadquarters] = useState<string | null>(null);
   const download = useImageDownload();
   const closeDetails = () => { setSelectedCard(null); setSelectedHeadquarters(null); };
   const detailRef = useDismissiblePanel(!!selectedCard || !!selectedHeadquarters, closeDetails);
@@ -88,19 +89,17 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
         </div>
 
         <div data-testid="library-grid" className="card-gallery custom-scrollbar min-h-0 flex-1 overflow-y-auto pb-2">
-          {page === 1 && <button type="button" aria-expanded={expandedHeadquarters} aria-label={`${expandedHeadquarters ? '收起' : '展开'}总部卡牌`} onClick={() => setExpandedHeadquarters(value => !value)} className="hq-stack-tile card-action card-tile group">
-            <span className="hq-stack-art" aria-hidden="true">{HEADQUARTERS_STACK.map((headquarters, index) => <img key={headquarters.id} src={headquarters.image} alt="" style={{ transform: `translate(${index * 4}px, ${index * 2}px) rotate(${(index - 2.5) * 1.4}deg)`, zIndex: index + 1 }} />)}</span>
-            <span className="card-caption flex items-center justify-between"><span>总部 · {HEADQUARTERS.length}</span><ChevronDown className={`h-4 w-4 transition-transform ${expandedHeadquarters ? 'rotate-180' : ''}`} /></span>
-          </button>}
-          {page === 1 && expandedHeadquarters && <div aria-label="总部卡牌" className="col-span-full grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-3 rounded border border-kards-border glass-panel p-3">
-            {HEADQUARTERS.map(headquarters => <button key={headquarters.id} type="button" onClick={() => { setSelectedCard(null); setSelectedHeadquarters(headquarters); }} aria-label={`查看总部卡牌：${headquarters.name}`} className="card-action min-w-0 text-left">
-              <img src={headquarters.image} alt="" className="card-face" />
-              <span className="card-caption block" title={`${headquarters.name} · ${headquarters.nation}`}>{headquarters.name} · {headquarters.nation}</span>
+          {page === 1 && HEADQUARTERS_STACKS.map(stack => <button key={stack.id} type="button" aria-expanded={expandedHeadquarters === stack.id} aria-label={`${expandedHeadquarters === stack.id ? '收起' : '展开'}${stack.label}总部`} onClick={() => setExpandedHeadquarters(current => current === stack.id ? null : stack.id)} className="card-tile hq-stack-tile card-action group">
+            <span className="hq-stack-art" aria-hidden="true">{stack.cards.map((headquarters, index) => <img key={headquarters.id} src={headquarters.image} alt="" style={{ transform: `translate(${index * 3}px, ${index * 2}px) rotate(${(index - (stack.cards.length - 1) / 2) * 1.4}deg)`, zIndex: index + 1 }} />)}</span>
+          </button>)}
+          {page === 1 && expandedHeadquarters && <div aria-label={`${HEADQUARTERS_STACKS.find(stack => stack.id === expandedHeadquarters)?.label || ''}总部卡牌`} className="col-span-full grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-3">
+            {HEADQUARTERS_STACKS.find(stack => stack.id === expandedHeadquarters)?.cards.map(headquarters => <button key={headquarters.id} type="button" title={`${headquarters.name} · ${headquarters.nation}`} onClick={() => { setSelectedCard(null); setSelectedHeadquarters(headquarters); }} aria-label={`查看总部卡牌：${headquarters.name}`} className="hq-expanded-card card-action min-w-0">
+              <img src={headquarters.image} alt="" className="hq-expanded-card-art" />
             </button>)}
           </div>}
           {pageCards.map((card) => (
             <button key={card.importId} onClick={() => setSelectedCard(card)} className="card-tile card-action group text-left" aria-label={`查看${cardDisplayTitle(card, language)}`}>
-              <CardFace card={card} language={language} />
+              <span className="library-card-art"><CardFace card={card} language={language} />{card.reserved && <ReservedBadge className="library-reserved-badge" />}</span>
               <div className="card-caption" title={cardDisplayTitle(card, language)}>{cardDisplayTitle(card, language)}</div>
             </button>
           ))}

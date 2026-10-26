@@ -15,11 +15,13 @@ interface FolderDeck {
   isFavorite: boolean;
 }
 
-export default function DeckFolders({ folders, decks, selectedDeckId, onSelect, onEdit, onCreate, onRename, onDelete, onAdd, onRemove, onFavorite }: {
+export default function DeckFolders({ folders, decks, selectedDeckId, onSelect, onHover, onHoverLeave, onEdit, onCreate, onRename, onDelete, onAdd, onRemove, onFavorite }: {
   folders: DeckFolder[];
   decks: FolderDeck[];
   selectedDeckId: string | null;
   onSelect: (deck: FolderDeck) => void;
+  onHover: (deck: FolderDeck) => void;
+  onHoverLeave: () => void;
   onEdit: (deck: FolderDeck) => void;
   onCreate: () => void;
   onRename: (folder: DeckFolder) => void;
@@ -44,7 +46,7 @@ export default function DeckFolders({ folders, decks, selectedDeckId, onSelect, 
   const actionClass = 'rounded p-2 text-kards-text-muted hover:bg-kards-panel-hover hover:text-kards-text';
   return <section aria-label="卡组收藏夹" className="w-full max-w-7xl">
     <div className="mb-3 flex items-center justify-between gap-3">
-      <p className="text-sm text-kards-text-muted">单击预览卡组，双击进入编辑。</p>
+      <p className="text-sm text-kards-text-muted">悬停或单击预览卡组，双击进入编辑。</p>
       <button onClick={onCreate} className="flex shrink-0 items-center gap-2 rounded border border-kards-border glass-panel px-3 py-2 text-sm text-kards-text"><FolderPlus className="h-4 w-4" />新建收藏夹</button>
     </div>
     <div className="overflow-hidden rounded-lg border border-kards-border glass-panel">
@@ -67,7 +69,7 @@ export default function DeckFolders({ folders, decks, selectedDeckId, onSelect, 
           </div>
           {open && <div id={`folder-${group.id}`} role="group" aria-label={group.name} className="border-t border-kards-border pb-2">
             {group.decks.map(deck => <div key={deck.id} className={`flex items-center gap-1 pr-2 ${selectedDeckId === deck.id ? 'bg-kards-panel-hover' : 'hover:bg-kards-panel-hover'}`}>
-              <button aria-label={`选择卡组 ${deck.name}`} aria-pressed={selectedDeckId === deck.id} onClick={() => onSelect(deck)} onDoubleClick={() => onEdit(deck)} className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-12 pr-2 text-left text-sm text-kards-text">
+              <button aria-label={`选择卡组 ${deck.name}`} aria-pressed={selectedDeckId === deck.id} onMouseEnter={() => onHover(deck)} onMouseLeave={onHoverLeave} onClick={() => onSelect(deck)} onDoubleClick={() => onEdit(deck)} className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-12 pr-2 text-left text-sm text-kards-text">
                 <span className="min-w-0 flex-1 truncate" title={deck.name}>{deck.name}</span>
                 {deck.isFavorite && <Star className="h-3.5 w-3.5 shrink-0 fill-kards-gold text-kards-gold" />}
                 <span className="shrink-0 text-xs tabular-nums text-kards-text-muted">{deck.totalCards + 1} 张</span>

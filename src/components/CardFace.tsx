@@ -26,8 +26,12 @@ export const RARITY_SLOTS: Record<string, { max: number; color: string }> = {
 };
 export function RaritySlots({ rarity = 'Standard', count }: { rarity?: string; count: number }) {
   const { max, color } = RARITY_SLOTS[rarity] || RARITY_SLOTS.Standard;
+  const fullCount = max - Math.min(Math.max(0, count), max);
   return <div className="rarity-slots" aria-label={`已携带 ${count} 张，标准上限 ${max} 张`}>
-    {Array.from({ length: max }, (_, i) => <span key={i} data-half={i < count} style={{ background: i < count ? `linear-gradient(135deg, ${color} 50%, transparent 50%)` : color, borderColor: color }} />)}
+    {Array.from({ length: max }, (_, i) => {
+      const half = i >= fullCount;
+      return <span key={i} data-fill={half ? 'half' : 'full'} style={{ background: half ? `linear-gradient(to top right, ${color} 50%, transparent 50%)` : color, borderColor: color }} />;
+    })}
     {count > max && <span className="rarity-overflow">+{count - max}</span>}
   </div>;
 }
