@@ -134,15 +134,21 @@ async function main() {
     // Exercise the real fixed-endpoint IPC and parser, stubbing only the HTTP boundary.
     await app.evaluate(({ net }, cards) => {
       global.__cardRequests = [];
+      global.__imageRequests = [];
       const original = net.fetch.bind(net);
       net.fetch = async (url, options) => {
         if (url === 'https://api.kardsplayer.com/graphql') {
           global.__cardRequests.push(JSON.parse(options.body));
           return new Response(JSON.stringify({ data: { cards: { pageInfo: { count: cards.length, hasNextPage: false }, edges: cards.map(node => ({ node })) } } }), { status: 200 });
         }
+        if (typeof url === 'string' && url.startsWith('https://www.kardsplayer.com/images/card/v99/')) {
+          global.__imageRequests.push(url);
+          const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l1sAAAAASUVORK5CYII=', 'base64');
+          return new Response(Buffer.concat([png, Buffer.from(url.includes('/thumb/') ? 'thumbnail' : 'full')]), { headers: { 'content-type': 'image/png' } });
+        }
         return original(url, options);
       };
-    }, records.slice(0, 2));
+    }, records.filter(card => ['50_infantry_regiment', '50_infantry_regiment_vet'].includes(card.cardId)).map(card => ({ ...card, imageUrl: card.imageUrl.replace(/\/v\d+\//, '/v99/'), thumbUrl: card.thumbUrl.replace(/\/v\d+\//, '/v99/') })));
     await assert.rejects(() => page.evaluate(() => window.kardsDesktop.fetchCardDataPage(-1)), /分页参数/);
     page.on('dialog', dialog => dialog.accept());
     await page.getByRole('button', { name: '设置', exact: true }).click();
@@ -158,6 +164,16 @@ async function main() {
     assert.ok(dataRequests[0].query.includes('imageUrl: image(') && dataRequests[0].query.includes('thumbUrl: image('));
     await page.getByRole('button', { name: '应用更新', exact: true }).click();
     await expect(page.getByText('更新已应用，卡牌库和构筑已使用新数据。当前卡图按新地址加载，已有缓存保留。', { exact: true })).toBeVisible();
+    const cache = page.getByRole('region', { name: '本地缓存', exact: true });
+    await expect(cache.getByRole('button', { name: '未缓存（2）', exact: true })).toBeVisible();
+    await cache.getByRole('button', { name: '缓存未缓存卡图', exact: true }).click();
+    await expect(cache.getByRole('button', { name: '已缓存（2）', exact: true })).toBeVisible();
+    await cache.getByRole('button', { name: '已缓存（2）', exact: true }).click();
+    await expect(cache.getByRole('table', { name: '卡牌缓存清单' }).getByRole('cell')).toHaveText(['已缓存', '已缓存', '已缓存', '已缓存']);
+    const imageRequests = await app.evaluate(() => global.__imageRequests);
+    assert.equal(imageRequests.length, 4);
+    assert.equal(imageRequests.filter(url => url.includes('/thumb/')).length, 2, 'production IPC caches separate true thumbnail URLs');
+    await page.getByRole('button', { name: '关闭下载进度', exact: true }).click();
     await page.getByRole('button', { name: '卡牌', exact: true }).click();
     await expect(page.getByText('本地目录 2 张 · 当前结果 2 张', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: '设置', exact: true }).click();
@@ -177,6 +193,7 @@ async function main() {
     const backup = JSON.parse(await fs.readFile(backupPath, 'utf8'));
     assert.equal(backup.app, 'kards-toolbox');
     assert.ok(!('kards_card_database_v1' in backup.data));
+    assert.ok(!Object.keys(backup.data).some(key => key.startsWith('kards_card_image_')), 'image files, failure and batch records stay outside user backups');
     assert.equal(backup.data.kards_decks[0].name, 'Desktop offline test');
     assert.ok(Object.keys(backup.data).some((key) => key.startsWith('deck_img_local_v1_')));
     await page.getByRole('button', { name: '导入备份', exact: true }).click();
@@ -249,7 +266,7 @@ async function main() {
       status: 'passed', packaged: info.packaged, version: info.version, url: page.url(), pageErrors: errors, imageInspection: !skipVisual,
       checks: ['production kards protocol', 'bundled database', 'preload IPC', 'Node isolation',
         'offline PNG', ...(!skipVisual ? ['real artwork Sharp composition', 'small custom wallpaper'] : []), 'native theme icon switching',
-        'IndexedDB reload', 'full-width settings', 'manual card-data preview/apply/rollback IPC (HTTP stubbed)', 'card-data backup boundary', 'native backup save/open (file dialogs stubbed)',
+        'IndexedDB reload', 'full-width settings', 'manual card-data preview/apply/rollback IPC (HTTP stubbed)', 'classified per-card paired cache inventory and download IPC (HTTP stubbed)', 'card-data/image/failure/batch backup boundary', 'native backup save/open (file dialogs stubbed)',
         'ready-deck import', 'production nation-row and reserve assets', 'hover preview portal', 'HQ row and inclusive total', 'country confirmation cancel/focus', 'clipboard IPC and persistent same-code suppression (reads stubbed)'],
     }, null, 2));
     console.log('Desktop smoke passed: production resources, offline data/PNG, preload and backup IPC');

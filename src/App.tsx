@@ -47,6 +47,7 @@ import NewDeckDialog from './components/NewDeckDialog';
 import DeckFolders from './components/DeckFolders';
 import AboutPage from './components/AboutPage';
 import CardDataUpdater from './components/CardDataUpdater';
+import CardCacheManager from './components/CardCacheManager';
 import CustomSelect from './components/CustomSelect';
 import { nationOptions } from './components/CardFilterSelects';
 import { loadCardDatabase, type KardsCardRecord } from './types/card';
@@ -953,6 +954,7 @@ export default function App() {
       <button onClick={closeSettings} title="Ctrl+Enter 保存并返回；Esc 返回" className="rounded bg-kards-accent px-5 py-2 font-bold text-white">保存并返回</button>
     </div>
     <CardDataUpdater cards={cardDatabase} onApplied={cards => { setCardDatabase(cards); setCardDatabaseError(null); }} />
+    <CardCacheManager cards={cardDatabase} />
     <section className="glass-panel rounded-lg p-5 md:p-6">
       <h3 className="mb-6 text-lg font-bold text-kards-text">外观与本地数据</h3>
       <div className="grid grid-cols-1 gap-x-12 gap-y-8 lg:grid-cols-2">

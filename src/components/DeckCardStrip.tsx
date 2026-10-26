@@ -73,7 +73,7 @@ export default function DeckCardStrip({ card, importId, count, enabled = true, c
     if (!enabled || !card) return;
     let active = true;
     cacheCardImage(card, 'zh-Hans').then(url => { if (active) setSource(url); }).catch(() => {});
-    cacheCardImage(card, 'zh-Hans', 'current', 'thumbnail').then(url => { if (active) setThumbnail(url); }).catch(() => {});
+    cacheCardImage(card, 'zh-Hans', 'thumbnail').then(url => { if (active) setThumbnail(url); }).catch(() => {});
     return () => { active = false; };
   }, [card, enabled]);
   return <div ref={root} tabIndex={card ? 0 : undefined} aria-label={`${title}，${count} 张`} className="deck-card-strip" data-nation={nation || 'Unknown'} data-preview={!!preview && enabled} style={{ '--strip-color': appearance.color, '--strip-text': appearance.darkText ? '#12130e' : '#fff9e8' } as CSSProperties}
@@ -86,7 +86,7 @@ export default function DeckCardStrip({ card, importId, count, enabled = true, c
       </span>
       <span className="deck-card-name">{title}</span>
       <img className="deck-card-nation" src={appearance.icon} alt={factionLabel(card?.json.faction)} />
-      <span className="deck-card-thumbnail" data-thumbnail={!!card?.thumbUrl} aria-label={`${title}卡图缩略图`}>
+      <span className="deck-card-thumbnail" data-thumbnail="true" aria-label={`${title}卡图缩略图`}>
         {thumbnail ? <img src={thumbnail} alt="" onError={() => setThumbnail('')} /> : <ImageOff className="h-4 w-4 opacity-60" aria-hidden="true" />}
       </span>
     </div>

@@ -5,13 +5,15 @@
 ```text
 src/App.tsx                  桌面导航、卡组/收藏夹、全宽设置、用户备份入口
 src/components/CardDataUpdater 卡牌数据获取、差异筛选与逐字段预览、应用/回退
-src/components/CardLibrary  本地目录筛选、多语言、卡图版本和单卡详情
+src/components/CardCacheManager 设置中的逐卡缓存清单、筛选/重试
+src/components/CardLibrary  本地目录筛选、多语言和单卡详情
 src/components/DeckBuilder  构筑会话、草稿、规则配置、保存与导出
 src/types/card.ts           三项目共享卡牌记录、语言/阵营、快照读取
 src/lib/deckCode.ts         共享卡组码解码与编码（1/2/3/4 张区段）
 src/lib/deckRules.ts        可配置规则校验，只提示不阻止保存
 src/lib/cardFilters.ts      资料库/构筑共享筛选与构筑主盟国卡池边界
 src/lib/cardImages.ts       完整卡图/缩略图 URL 分键缓存、下载与请求去重
+src/lib/imageDownloads.ts  跨页面批量缓存任务与进度
 src/lib/cardData.ts         Kardsplayer 固定 GraphQL 查询、分页校验、多语言逐字段差异
 src/lib/cardImageDownload.ts 图片 URL 校验、AVIF/PNG/WebP/JPEG 签名与 MIME 识别
 src/lib/cardDatabase.ts     独立牌库快照的原子持久化
@@ -38,13 +40,14 @@ React 19 + TypeScript + Vite + Tailwind CSS 4，Electron 桌面壳。保留 Deck
 
 ## 本地数据边界
 
-- `public/data/cards.json`：只读 Kardsplayer 多语言快照，包含实际 imageUrl/thumbUrl；历史卡图版本不改变文字/属性。
+- `public/data/cards.json`：只读 Kardsplayer 多语言快照，包含实际 imageUrl/thumbUrl；卡图地址由卡牌数据指定，不提供历史版本切换。
 - `kards_card_database_v1`：独立可写牌库，包含 `schemaVersion: 1`、当前 `active`、上次 `previous`、待确认 `pending` 快照及 `lastCheckedAt`。每份快照保留数据、来源、获取/应用时间；不纳入用户备份。
 - `kards_decks` / `kards_collections`：用户卡组及收藏夹；保留旧合集的存储键和字段，界面改为列表内可展开分组。规则集和自定义规则字段兼容旧卡组；不再提供备注功能，旧备份中的备注不显示。
 - `kards_builder_draft`：当前构筑会话，自动保存，纳入用户备份。
 - `kards_settings`、`kards_custom_categories`、桌布键：继承的用户设置和图片。
-- `kards_card_image_v2_{importId}_{encodeURIComponent(resolvedURL)}`：完整图和缩略图各按解析后的实际 URL 缓存（含语言与版本）；URL 变化后下载新文件，回退可复用旧文件。
+- `kards_card_image_v2_{importId}_{encodeURIComponent(resolvedURL)}`：完整图和缩略图各按解析后的实际 URL 缓存；URL 变化后下载新文件，牌库回退可复用旧文件。
 - `kards_card_image_v1_{version}_{language}_{importId}`：仅兼容没有新图片 URL 的旧快照；两类普通卡图缓存均不纳入用户备份。
+- `kards_card_image_failures_v1` / `kards_card_image_batch_v1`：按实际图片 URL 保存失败原因/时间和最近批量范围，供设置页恢复失败清单与重试。它们不属于用户数据备份。
 - `deck_img_local_v1_{code}`：本地卡组图片缓存，纳入备份。每次生成重新读取现有卡图，避免永远停留在缺图状态。
 
 用户备份格式仍采用 schemaVersion 1，接受原 `kards-deck-collector` 和 `kards-local-tool` 标记，新备份使用 `kards-toolbox`。卡牌库和普通卡图缓存不能由用户备份覆盖。
@@ -61,7 +64,11 @@ React 19 + TypeScript + Vite + Tailwind CSS 4，Electron 桌面壳。保留 Deck
 
 获取只写入候选快照，应用后才切换共享牌库并重新计算卡组规则提示。当前、候选和回退数据写在同一个 IndexedDB 值内，写入失败不会出现半应用状态；应用失败保留候选，允许重试。回退同样先持久化成功，再切换界面。启动优先读取已应用快照，否则使用随包 Kardsplayer 快照；不在启动时静默迁移已应用的旧快照。未知卡仍保留卡组码和数量，以编号显示。
 
-牌库获取/应用保留全部已有卡图缓存；默认“当前卡图”使用新数据 URL 指定的版本，不能继续硬编码 v54。每次查看或批量缓存一张卡时，同时请求完整图与缩略图并按 URL 去重；单独失败不影响另一种图片显示，批量任务要求两种均完成，重试只补缺项。卡牌条使用缩略图，悬停预览与 PNG 导出使用完整图。桌面通过受限 `cards:fetch-image` IPC 和 `net.fetch` 下载原图，规避 CORS，按文件签名纠正源站 AVIF 的 octet-stream MIME；浏览器预览保留图片代理。
+牌库获取/应用保留全部已有卡图缓存；默认“当前卡图”使用新数据 URL 指定的版本，不能继续硬编码 v54。每次查看或批量缓存一张卡时，同时请求完整图与缩略图并按 URL 去重；单独失败不影响另一种图片显示，批量任务要求两种均完成，重试只补缺项。卡牌条固定读取缩略图，悬停预览与 PNG 导出使用完整图。对于没有图片 URL 的旧牌库记录，只按 `cardId + importId` 从随包目录借用缩略图地址，不修改当前应用牌库；若没有有效缩略图地址或文件不可用，条目显示缺图占位，不将完整图用于裁切。桌面通过受限 `cards:fetch-image` IPC 和 `net.fetch` 下载原图，规避 CORS，按文件签名纠正源站 AVIF 的 octet-stream MIME；浏览器预览保留图片代理。
+
+设置页 `CardCacheManager` 用 `localforage.keys()` 枚举缓存文件，按当前牌库和语言核对每张卡的完整图/缩略图。两者齐全记为已缓存，任一有持久失败记录记为缓存失败，其余记为未缓存；清单不发起图片请求，预览只读取当前页的本地图片。紧凑预览每行最多 10 张卡，每张卡右上角的删除按钮同时移除其完整图、缩略图和失败记录，不再列出历史地址及旧缓存的逐文件清单。失败记录以 URL 为键保存错误与时间，成功下载后清除。最近批量范围会跨页面持久化；设置页可按语言及范围搜索和分页，并继续缓存未缓存项或重试失败项。缓存键变化通知通过合并事件刷新已打开的清单。普通图片缓存、失败清单和批次范围均排除在用户备份之外，卡组图片仍依旧纳入备份。
+
+批量下载由模块级队列调度，默认每卡间隔 500ms、1 个并发卡牌任务；浮窗加减按钮可即时调整间隔（100ms–30s）和线程数（1–8）。同一卡的完整图与缩略图并行补齐，界面显示当前卡名和未完成的图片类型。所有任务共享启动间隔及连续失败退避，最高等待 30s；已有缓存不重置失败计数，重试延续持久失败次数。暂停及缩减线程不会中断已发出的图片请求；主动暂停从速度和剩余时间估算中扣除，卡间等待计入。
 
 详情展示新数据的费用、攻防、关键词、永久卡池、预备状态及 `BecomesVeteran:` / `VeteranOf:` / `can_create` 关联；未识别的关键词保留源字段。`attributes` 中 `OnlySpawnable` 也出现在可升老兵的原卡上，不能据此排除构筑；仍依据 `set` 为 OnlySpawnable/Special 判断衍生形态。第 50 步兵团原卡 lV 为 2/1 费用、3/2，老兵 Cr 为 2/1 费用、4/3、伏击，二者卡名相同，显示层为老兵追加标记。
 

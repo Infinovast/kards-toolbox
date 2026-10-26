@@ -50,7 +50,6 @@ export const CARD_LANGUAGES = [
 ] as const;
 
 export type CardLanguage = typeof CARD_LANGUAGES[number]['id'];
-export type CardImageVersion = number | 'current';
 export type CardImageKind = 'full' | 'thumbnail';
 
 export const CARD_FACTIONS = [
@@ -105,18 +104,21 @@ export function typeLabel(type?: string): string {
   return CARD_TYPES.find((item) => item.id === (type || '').toLowerCase())?.label || type || '未知';
 }
 
-export function cardImageUrl(card: KardsCardRecord, language: CardLanguage, version: string = 'current', kind: CardImageKind = 'full'): string {
+export function cardImageUrl(card: KardsCardRecord, language: CardLanguage, kind: CardImageKind = 'full'): string {
   const source = kind === 'thumbnail' ? card.thumbUrl || card.imageUrl : card.imageUrl;
   if (source) {
     const url = new URL(source, 'https://www.kardsplayer.com');
-    // The API supplies each card's actual image version; it need not match the
-    // newest game version. History changes only the picture, never the metadata.
-    url.pathname = url.pathname.replace(/\/card\/v\d+\/[^/]+\//, `/card/${version === 'current' ? url.pathname.match(/\/card\/(v\d+)\//)?.[1] : version}/${language}/`);
+    // Keep the image address supplied by the catalogue; only change its language.
+    url.pathname = url.pathname.replace(/(\/card\/v\d+\/)[^/]+\//, `$1${language}/`);
+    if (kind === 'thumbnail' && !card.thumbUrl) url.pathname = url.pathname.replace(/(\/card\/v\d+\/[^/]+\/)(?!thumb\/)/, '$1thumb/');
     return url.href;
   }
+  // Old catalogues have no thumbnail metadata. Resolve it from the bundled
+  // image index in cardImages rather than returning/cropping a full card.
+  if (kind === 'thumbnail') return '';
   const image = card.json.image;
   if (!image) return '';
-  const imagePath = `/images/card/${version === 'current' ? 'v54' : version}/${language}/${image}`
+  const imagePath = `/images/card/v54/${language}/${image}`
     .split('/')
     .map((part, index) => index < 4 ? part : encodeURIComponent(part))
     .join('/');

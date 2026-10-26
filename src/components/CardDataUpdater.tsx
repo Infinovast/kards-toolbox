@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Download, RotateCcw, Search, X } from 'lucide-react';
+import { Download, RotateCcw, Search, Trash2, X } from 'lucide-react';
 import { cardDisplayTitle, type KardsCardRecord } from '../types/card';
 import CustomSelect from './CustomSelect';
 import { compareCardData, type CardFieldChange } from '../lib/cardData';
-import { applyCardData, cancelCardDataCheck, checkCardData, initializeCardDataSync, rollbackCardData, useCardDataSync } from '../lib/cardDataSync';
+import { applyCardData, cancelCardDataCheck, checkCardData, deleteDownloadedCardData, initializeCardDataSync, rollbackCardData, useCardDataSync } from '../lib/cardDataSync';
 
 const labels: Record<string, string> = { cardId: '卡牌标识', imageUrl: '当前卡图地址', thumbUrl: '缩略图地址', reserved: '预备状态', title: '卡名', text: '卡牌文本', description: '描述', kredits: '费用', attack: '攻击力', defense: '防御力', rarity: '稀有度', faction: '阵营', type: '类型', set: '扩展包', image: '卡图路径', attributes: '关键词与老兵关系', operationCost: '行动费用', can_create: '衍生卡', exile: '放逐', permanent_pool: '常驻卡池', id: '卡牌标识', import_id: '卡组码编号' };
 const kindLabels = { added: '新增', changed: '修改', removed: '移除' };
@@ -36,6 +36,15 @@ export default function CardDataUpdater({ cards, onApplied }: { cards: KardsCard
     if (!window.confirm('回退至上次卡牌数据？卡组、设置、桌布和卡图缓存不会改变。')) return;
     try { onApplied(await rollbackCardData()); } catch { /* Keep the current database visible on failure. */ }
   };
+  const removeData = async (part: 'all' | 'active' | 'pending' | 'previous') => {
+    const label = { all: '全部下载的卡牌数据（含已应用、待应用和回退数据）及更新记录', active: '当前已应用的更新数据', pending: '待应用数据', previous: '回退数据' }[part];
+    if (!window.confirm(`删除${label}？${part === 'all' || part === 'active' ? '当前牌库将切回随包数据。' : ''}卡组和图片缓存会保留，需要时可重新获取数据。`)) return;
+    try {
+      const restored = await deleteDownloadedCardData(part);
+      if (restored) onApplied(restored);
+    } catch { /* The service exposes deletion errors inline. */ }
+  };
+  const hasDownloadedData = !!(sync.stored.active || sync.stored.pending || sync.stored.previous || sync.stored.lastCheckedAt);
 
   return <section aria-label="卡牌数据更新" className="mb-8 rounded-lg glass-panel p-5 md:p-6">
     <div className="flex flex-wrap items-start justify-between gap-4">
@@ -43,6 +52,7 @@ export default function CardDataUpdater({ cards, onApplied }: { cards: KardsCard
       <div className="flex flex-wrap gap-2">
         <button onClick={() => void checkCardData()} disabled={busy} className="flex items-center gap-2 rounded bg-kards-accent px-4 py-2 text-sm font-bold text-white disabled:opacity-40"><Download className="h-4 w-4" />{sync.status === 'fetching' ? '正在获取…' : '获取最新卡牌数据'}</button>
         <button onClick={rollback} disabled={busy || !sync.stored.previous} className="flex items-center gap-2 rounded border border-kards-border px-3 py-2 text-sm text-kards-text disabled:opacity-40"><RotateCcw className="h-4 w-4" />回退上次数据</button>
+        <button onClick={() => void removeData('all')} disabled={busy || !hasDownloadedData} className="flex items-center gap-2 rounded border border-kards-border px-3 py-2 text-sm text-kards-text hover:border-red-500/60 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-40"><Trash2 className="h-4 w-4" />删除全部下载数据</button>
       </div>
     </div>
     <dl className="mt-5 grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
@@ -51,7 +61,15 @@ export default function CardDataUpdater({ cards, onApplied }: { cards: KardsCard
       <div><dt className="text-kards-text-muted">最近应用</dt><dd className="mt-1 text-kards-text">{timeText(sync.stored.active?.appliedAt)}</dd></div>
       <div><dt className="text-kards-text-muted">更新来源</dt><dd className="mt-1 break-all text-kards-text">api.kardsplayer.com/graphql</dd></div>
     </dl>
-    <p className="mt-4 text-xs leading-6 text-kards-text-muted">数据获取不下载卡图文件。应用后，“当前卡图”按接口指定的地址和版本缓存，并同步缓存缩略图；地址变化时使用新缓存，已有缓存与历史卡图保留。卡牌数据与用户备份分开保存。</p>
+    <details className="mt-4 text-sm text-kards-text"><summary className="cursor-pointer rounded py-1">已下载的卡牌数据</summary>
+      <div className="mt-2 divide-y divide-kards-border">{(['active', 'pending', 'previous'] as const).map(part => {
+        const data = sync.stored[part];
+        const label = { active: '已应用的更新数据', pending: '待应用数据', previous: '回退数据' }[part];
+        return <div key={part} className="flex flex-wrap items-center justify-between gap-3 py-3"><div><span>{label}</span><p className="mt-1 text-xs text-kards-text-muted">{data ? `${data.cards.length.toLocaleString()} 张 · ${timeText(data.fetchedAt)}` : '未保存'}</p></div><button aria-label={`删除${label}`} disabled={busy || !data} onClick={() => void removeData(part)} className="flex items-center gap-1 rounded border border-kards-border px-2 py-1 text-xs hover:border-red-500/60 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-40"><Trash2 className="h-3.5 w-3.5" />删除</button></div>;
+      })}</div>
+      <p className="text-xs leading-6 text-kards-text-muted">随包牌库是应用内置资源，保留供离线使用；删除已应用的数据后将使用随包牌库。</p>
+    </details>
+    <p className="mt-4 text-xs leading-6 text-kards-text-muted">数据获取不下载卡图文件。应用后，卡图及缩略图按牌库指定的地址缓存；地址变化时使用新缓存。卡牌数据与用户备份分开保存。</p>
     {sync.status === 'fetching' && <div className="mt-4" role="status">
       <div className="flex items-center justify-between gap-3 text-sm text-kards-text"><span>已获取 {sync.completed.toLocaleString()} / {sync.total ? sync.total.toLocaleString() : '待确认'} 张 · 切换页面后继续获取</span><button onClick={cancelCardDataCheck} className="flex items-center gap-1 rounded border border-kards-border px-3 py-1"><X className="h-4 w-4" />取消获取</button></div>
       <progress aria-label="获取卡牌数据进度" value={sync.completed} max={sync.total || 1} className="mt-3 h-2 w-full accent-kards-accent" />

@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
-import { collectCardData, fetchKardsplayerCardPage, type CardDataStorage } from './cardData';
-import { readCardDataStorage, writeCardDataStorage } from './cardDatabase';
+import localforage from 'localforage';
+import { collectCardData, fetchKardsplayerCardPage, validateCardRecords, type CardDataStorage } from './cardData';
+import { CARD_DATABASE_KEY, readCardDataStorage, writeCardDataStorage } from './cardDatabase';
 import type { KardsCardRecord } from '../types/card';
 
 interface CardSyncState {
@@ -48,6 +49,32 @@ export async function checkCardData() {
 }
 
 export function cancelCardDataCheck() { controller?.abort(); }
+
+export async function deleteDownloadedCardData(part: 'all' | 'active' | 'pending' | 'previous' = 'all') {
+  await initializeCardDataSync();
+  if (state.status === 'fetching' || state.status === 'applying') throw new Error('请等待卡牌数据操作结束后再删除');
+  const previousStatus = state.status;
+  publish({ status: 'applying', error: null });
+  try {
+    const stored = await readCardDataStorage();
+    let cards: KardsCardRecord[] | undefined;
+    if (part === 'all' || part === 'active') {
+      const response = await fetch(new URL('./data/cards.json', window.location.href));
+      if (!response.ok) throw new Error('读取随包卡牌数据失败');
+      const bundled = await response.json() as { cards: KardsCardRecord[] };
+      cards = validateCardRecords(bundled.cards);
+    }
+    const next: CardDataStorage = part === 'all' ? { schemaVersion: 1 } : { ...stored, [part]: undefined };
+    if (part === 'all') await localforage.removeItem(CARD_DATABASE_KEY);
+    else await writeCardDataStorage(next);
+    const label = { all: '全部下载的卡牌数据及更新记录', active: '当前已应用的更新数据', pending: '待应用数据', previous: '回退数据' }[part];
+    publish({ status: next.pending ? 'ready' : 'idle', stored: next, completed: 0, total: 0, error: null, message: `已删除${label}。${cards ? '当前使用随包牌库。' : ''}` });
+    return cards;
+  } catch (error) {
+    publish({ status: previousStatus, error: error instanceof Error ? error.message : '删除卡牌数据失败，请重试' });
+    throw error;
+  }
+}
 
 export async function applyCardData(current: KardsCardRecord[]) {
   if (state.status !== 'ready' || !state.stored.pending) throw new Error('请先获取并检查最新数据');
