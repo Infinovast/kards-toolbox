@@ -11,7 +11,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'test-results/custom-filters'
 OUT.mkdir(parents=True, exist_ok=True)
-records = json.loads((ROOT / 'public/data/cards-v54.json').read_text(encoding='utf-8'))['cards']
+records = json.loads((ROOT / 'public/data/cards.json').read_text(encoding='utf-8'))['cards']
 specs = [
     ('德军步兵', 'Germany', 'infantry', 0, 'Standard', 'Base'),
     ('德军坦克', 'Germany', 'tank', 7, 'Elite', 'OceaniaStorm'),

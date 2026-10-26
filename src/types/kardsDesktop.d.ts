@@ -24,6 +24,7 @@ declare global {
   interface Window {
     kardsDesktop?: {
       fetchCardDataPage: (offset: number) => Promise<import('../lib/cardData').CardDataPage>;
+      fetchCardImage: (url: string) => Promise<string>;
       renderDeckImage: (request: import('../lib/deckRenderTypes').DeckRenderRequest) => Promise<string>;
       setTheme: (mode: 'dark' | 'light' | 'system') => Promise<boolean>;
       getAppInfo: () => Promise<KardsDesktopAppInfo>;

@@ -3,16 +3,20 @@ import { Download, Search, X } from 'lucide-react';
 import { CardFace } from './CardFace';
 import { startImageDownload, useImageDownload } from '../lib/imageDownloads';
 import { useDialogKeyboard } from '../lib/dialogKeyboard';
-import { EMPTY_CARD_FILTERS, matchesCardFilters, type CardFilters } from '../lib/cardFilters';
+import { EMPTY_CARD_FILTERS, isGeneratedCard, matchesCardFilters, type CardFilters } from '../lib/cardFilters';
 import CustomSelect from './CustomSelect';
-import CardFilterSelects from './CardFilterSelects';
+import CardFilterSelects, { expansionOptions } from './CardFilterSelects';
+import { cardKeywords, cardRelations } from '../lib/cardDetails';
 import {
   CARD_LANGUAGES,
   cardText,
   cardTitle,
+  cardDisplayTitle,
+  isVeteranCard,
   factionLabel,
   typeLabel,
   type CardLanguage,
+  type CardImageVersion,
   type KardsCardRecord,
 } from '../types/card';
 
@@ -23,11 +27,14 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
   const [filters, setFilters] = useState<CardFilters>({ ...EMPTY_CARD_FILTERS });
   const expansions = useMemo(() => [...new Set(cards.map((card) => card.json.set).filter(Boolean))].sort(), [cards]);
   const [language, setLanguage] = useState<CardLanguage>('zh-Hans');
-  const [version, setVersion] = useState(DEFAULT_VERSION);
+  const [version, setVersion] = useState<CardImageVersion>('current');
   const [page, setPage] = useState(1);
   const [selectedCard, setSelectedCard] = useState<KardsCardRecord | null>(null);
   const download = useImageDownload();
   const detailRef = useDialogKeyboard(!!selectedCard, () => setSelectedCard(null));
+  const cardsByCardId = useMemo(() => new Map(cards.map(card => [card.cardId, card])), [cards]);
+  const keywords = selectedCard ? cardKeywords(selectedCard, language) : [];
+  const relations = selectedCard ? cardRelations(selectedCard) : [];
 
   const filteredCards = useMemo(() => cards.filter(card => matchesCardFilters(card, filters)), [cards, filters]);
 
@@ -54,23 +61,23 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
           </div>
           <CardFilterSelects filters={filters} onChange={selectFilter} expansions={expansions} language={language} />
           <CustomSelect label="卡牌语言" value={language} onChange={value => setLanguage(value as CardLanguage)} options={CARD_LANGUAGES.map(item => ({ value: item.id, label: item.label }))} />
-          <CustomSelect label="卡图版本" value={String(version)} onChange={value => setVersion(Number(value))} options={Array.from({ length: 15 }, (_, index) => DEFAULT_VERSION - index).map(item => ({ value: String(item), label: `卡图 v${item}` }))} />
+          <CustomSelect label="卡图版本" value={String(version)} onChange={value => setVersion(value === 'current' ? value : Number(value))} options={[{ value: 'current', label: '当前卡图（数据指定）' }, ...Array.from({ length: 15 }, (_, index) => DEFAULT_VERSION - index).map(item => ({ value: String(item), label: `卡图 v${item}` }))]} />
           <button onClick={resetFilters} className="px-2 py-2 text-sm text-kards-text-muted hover:text-kards-text">重置筛选</button>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-1 text-xs text-kards-text-muted">
           <span>本地目录 {cards.length.toLocaleString()} 张 · 当前结果 {filteredCards.length.toLocaleString()} 张</span>
           <button disabled={!filteredCards.length || download.status === 'running'} onClick={() => {
-            if (filteredCards.length > 100 && !window.confirm(`下载当前筛选的全部 ${filteredCards.length.toLocaleString()} 张卡图（${language} / v${version}）？已有缓存会跳过；切换页面后仍会继续下载。`)) return;
+            if (filteredCards.length > 100 && !window.confirm(`下载当前筛选的全部 ${filteredCards.length.toLocaleString()} 张卡图及缩略图（${language} / ${version === 'current' ? '当前卡图' : `v${version}`}）？已有缓存会跳过；切换页面后仍会继续下载。`)) return;
             startImageDownload(filteredCards, language, version);
           }} className="flex items-center gap-1 rounded border border-kards-border glass-panel px-3 py-2 text-kards-text disabled:opacity-40"><Download className="h-3.5 w-3.5" />缓存筛选结果（{filteredCards.length.toLocaleString()} 张）</button>
         </div>
 
         <div data-testid="library-grid" className="card-gallery custom-scrollbar min-h-0 flex-1 overflow-y-auto pb-2">
           {pageCards.map((card) => (
-            <button key={card.importId} onClick={() => setSelectedCard(card)} className="card-tile card-action group text-left" aria-label={`查看${cardTitle(card, language)}`}>
+            <button key={card.importId} onClick={() => setSelectedCard(card)} className="card-tile card-action group text-left" aria-label={`查看${cardDisplayTitle(card, language)}`}>
               <CardFace card={card} language={language} version={version} />
-              <div className="card-caption" title={cardTitle(card, language)}>{cardTitle(card, language)}</div>
+              <div className="card-caption" title={cardDisplayTitle(card, language)}>{cardDisplayTitle(card, language)}</div>
             </button>
           ))}
           {pageCards.length === 0 && <div className="col-span-full py-16 text-center text-kards-text-muted">没有找到匹配的卡牌</div>}
@@ -87,9 +94,24 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
         <aside ref={detailRef} role="dialog" aria-modal="false" aria-label="卡牌详情" tabIndex={-1} className="glass-panel custom-scrollbar absolute bottom-5 right-5 top-5 z-30 flex w-[300px] max-w-[calc(100%-40px)] flex-col overflow-y-auto rounded-lg border border-kards-border p-4 shadow-xl">
           <button onClick={() => setSelectedCard(null)} aria-label="关闭卡牌详情" className="absolute right-3 top-3 z-10 rounded-full bg-black/60 p-1 text-white"><X className="h-4 w-4" /></button>
           <CardFace card={selectedCard} language={language} version={version} className="mx-auto mb-4 max-h-[55vh] w-full object-contain" />
-          <h2 className="text-lg font-bold text-kards-text">{cardTitle(selectedCard, language)}</h2>
-          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-kards-text-muted">{cardText(selectedCard, language)}</p>
-          <dl className="mt-4 grid grid-cols-2 gap-2 border-t border-kards-border pt-4 text-sm"><dt>阵营</dt><dd>{factionLabel(selectedCard.json.faction)}</dd><dt>类型</dt><dd>{typeLabel(selectedCard.json.type)}</dd><dt>费用</dt><dd>{selectedCard.json.kredits ?? 0}</dd><dt>稀有度</dt><dd>{selectedCard.json.rarity || '—'}</dd><dt>扩展包</dt><dd>{String(selectedCard.json.set || '—')}</dd><dt>卡牌 ID</dt><dd>{selectedCard.importId}</dd><dt>状态</dt><dd>{selectedCard.reserved ? '预备卡' : '现役'}</dd></dl>
+          <h2 className="text-lg font-bold text-kards-text">{cardDisplayTitle(selectedCard, language)}</h2>
+          {keywords.length > 0 && <p aria-label="卡牌关键词" className="mt-2 text-sm text-kards-status">{keywords.join(' · ')}</p>}
+          {cardText(selectedCard, language) && <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-kards-text-muted">{cardText(selectedCard, language)}</p>}
+          <dl className="mt-4 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-kards-border pt-4 text-sm text-kards-text">
+            <dt>阵营</dt><dd>{factionLabel(selectedCard.json.faction)}</dd><dt>类型</dt><dd>{typeLabel(selectedCard.json.type)}</dd>
+            <dt>部署费用</dt><dd>{selectedCard.json.kredits ?? '—'} K</dd>
+            {!['order', 'countermeasure'].includes(selectedCard.json.type || '') && <><dt>行动费用</dt><dd>{selectedCard.json.operationCost ?? '—'} K</dd><dt>攻击 / 生命</dt><dd>{selectedCard.json.attack ?? '—'} / {selectedCard.json.defense ?? '—'}</dd></>}
+            <dt>稀有度</dt><dd>{({ Standard: '普通', Limited: '稀有', Special: '罕见', Elite: '精英' })[selectedCard.json.rarity || ''] || selectedCard.json.rarity || '—'}</dd>
+            <dt>扩展包</dt><dd>{expansionOptions(expansions, language).find(option => option.value === selectedCard.json.set)?.label || selectedCard.json.set || '—'}</dd>
+            <dt>状态</dt><dd>{[selectedCard.reserved ? '预备卡' : '现役', isVeteranCard(selectedCard) ? '老兵形态' : isGeneratedCard(selectedCard) ? '衍生卡' : '可构筑'].join(' · ')}</dd>
+            <dt>永久卡池</dt><dd>{selectedCard.json.permanent_pool ? '是' : '否'}</dd><dt>卡组码编号</dt><dd>{selectedCard.importId}</dd>
+            <dt>卡牌 ID</dt><dd className="break-all">{selectedCard.cardId}</dd>
+          </dl>
+          {relations.length > 0 && <section aria-label="关联卡牌" className="mt-4 border-t border-kards-border pt-4"><h3 className="text-sm font-bold text-kards-text">关联卡牌</h3><div className="mt-2 flex flex-col gap-2">
+            {relations.map(({ cardId, label }) => { const related = cardsByCardId.get(cardId); return related
+              ? <button key={`${label}:${cardId}`} onClick={() => setSelectedCard(related)} className="rounded border border-kards-border bg-kards-input-bg px-3 py-2 text-left text-sm text-kards-text hover:border-kards-gold"><span className="mr-2 text-kards-text-muted">{label}</span>{cardDisplayTitle(related, language)}</button>
+              : <p key={`${label}:${cardId}`} className="break-all text-xs text-kards-text-muted">{label}：{cardId}（本地缺少资料，请在设置中更新）</p>; })}
+          </div></section>}
         </aside>
       )}
     </div>

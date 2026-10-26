@@ -13,7 +13,7 @@ export async function renderDeckImage(code: string, cards: KardsCardRecord[], ti
     background = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(blob); });
   }
   const request: DeckRenderRequest = { title, mainNation: factionLabel(deck.mainNation), allyNation: factionLabel(deck.allyNation), background: background?.startsWith('data:') ? background : null,
-    cards: await Promise.all(entries.map(async ([id, count]) => ({ id, count, name: index.has(id) ? cardTitle(index.get(id)!, 'zh-Hans') : `未知卡牌 ${id}`, rarity: index.get(id)?.json.rarity || '', image: await getCachedCardImage(id) }))) };
+    cards: await Promise.all(entries.map(async ([id, count]) => ({ id, count, name: index.has(id) ? cardTitle(index.get(id)!, 'zh-Hans') : `未知卡牌 ${id}`, rarity: index.get(id)?.json.rarity || '', image: index.has(id) ? await getCachedCardImage(index.get(id)!) : null }))) };
   if (window.kardsDesktop?.renderDeckImage) return window.kardsDesktop.renderDeckImage(request);
   return renderBrowserPreview(request, background);
 }

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { createPortal } from 'react-dom';
 import { ImageOff } from 'lucide-react';
 import { cacheCardImage } from '../lib/cardImages';
-import { cardTitle, factionLabel, type KardsCardRecord } from '../types/card';
+import { cardDisplayTitle, factionLabel, type KardsCardRecord } from '../types/card';
 import ReservedBadge from './ReservedBadge';
 
 // Median RGB of x=120..390, y=80..88 in the supplied 500px card headers.
@@ -40,11 +40,12 @@ export default function DeckCardStrip({ card, importId, count, enabled = true, c
   enabled?: boolean;
   controls?: ReactNode;
 }) {
-  const title = card ? cardTitle(card, 'zh-Hans') : `未知卡牌 ${importId}`;
+  const title = card ? cardDisplayTitle(card, 'zh-Hans') : `未知卡牌 ${importId}`;
   const nation = Object.keys(CARD_STRIP_NATIONS).find(key => key.toLowerCase() === card?.json.faction?.toLowerCase());
   const appearance = CARD_STRIP_NATIONS[nation || 'Neutral'];
   const isUnit = !!card && !['order', 'countermeasure'].includes((card.json.type || '').toLowerCase());
   const [source, setSource] = useState('');
+  const [thumbnail, setThumbnail] = useState('');
   const root = useRef<HTMLDivElement>(null);
   const [preview, setPreview] = useState<CSSProperties | null>(null);
   const showPreview = () => {
@@ -68,10 +69,11 @@ export default function DeckCardStrip({ card, importId, count, enabled = true, c
     return () => { window.removeEventListener('scroll', hide, true); window.removeEventListener('resize', hide); window.removeEventListener('blur', hide); window.removeEventListener('kards-deck-card-preview', otherPreview); };
   }, [preview]);
   useEffect(() => {
-    setSource('');
+    setSource(''); setThumbnail('');
     if (!enabled || !card) return;
     let active = true;
-    cacheCardImage(card, 'zh-Hans', 54).then(url => { if (active) setSource(url); }).catch(() => {});
+    cacheCardImage(card, 'zh-Hans').then(url => { if (active) setSource(url); }).catch(() => {});
+    cacheCardImage(card, 'zh-Hans', 'current', 'thumbnail').then(url => { if (active) setThumbnail(url); }).catch(() => {});
     return () => { active = false; };
   }, [card, enabled]);
   return <div ref={root} tabIndex={card ? 0 : undefined} aria-label={`${title}，${count} 张`} className="deck-card-strip" data-nation={nation || 'Unknown'} data-preview={!!preview && enabled} style={{ '--strip-color': appearance.color, '--strip-text': appearance.darkText ? '#12130e' : '#fff9e8' } as CSSProperties}
@@ -84,8 +86,8 @@ export default function DeckCardStrip({ card, importId, count, enabled = true, c
       </span>
       <span className="deck-card-name">{title}</span>
       <img className="deck-card-nation" src={appearance.icon} alt={factionLabel(card?.json.faction)} />
-      <span className="deck-card-thumbnail" aria-label={`${title}卡图缩略图`}>
-        {source ? <img src={source} alt="" onError={() => setSource('')} /> : <ImageOff className="h-4 w-4 opacity-60" aria-hidden="true" />}
+      <span className="deck-card-thumbnail" data-thumbnail={!!card?.thumbUrl} aria-label={`${title}卡图缩略图`}>
+        {thumbnail ? <img src={thumbnail} alt="" onError={() => setThumbnail('')} /> : <ImageOff className="h-4 w-4 opacity-60" aria-hidden="true" />}
       </span>
     </div>
     <span className="deck-card-count" aria-label={`${count} 张`}>{count}</span>

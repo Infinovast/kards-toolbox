@@ -4,7 +4,7 @@ import { decodeDeckCode, encodeDeckCode, findCardsByImportId } from './deckCode'
 import { DEFAULT_DECK_RULES, validateDeck } from './deckRules';
 import type { KardsCardRecord } from '../types/card';
 
-const cards = JSON.parse(readFileSync('public/data/cards-v54.json', 'utf8')).cards as KardsCardRecord[];
+const cards = JSON.parse(readFileSync('public/data/cards.json', 'utf8')).cards as KardsCardRecord[];
 const index = findCardsByImportId(cards);
 const sample = '%%31|3X5C6BhHm6qCqDrktFvhwJx5;66nwx0x3;3f4p6x7e7l;5Z';
 const decoded = decodeDeckCode(`  我的卡组\n${sample}\n复制到游戏中`);

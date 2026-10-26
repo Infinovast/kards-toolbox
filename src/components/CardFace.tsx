@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { cacheCardImage } from '../lib/cardImages';
-import { cardTitle, type CardLanguage, type KardsCardRecord } from '../types/card';
+import { cardDisplayTitle, type CardImageVersion, type CardLanguage, type KardsCardRecord } from '../types/card';
 
-export function CardFace({ card, language = 'zh-Hans', version = 54, enabled = true, className = '' }: {
-  card: KardsCardRecord; language?: CardLanguage; version?: number; enabled?: boolean; className?: string;
+export function CardFace({ card, language = 'zh-Hans', version = 'current', enabled = true, className = '' }: {
+  card: KardsCardRecord; language?: CardLanguage; version?: CardImageVersion; enabled?: boolean; className?: string;
 }) {
   const [source, setSource] = useState('');
   const [failed, setFailed] = useState(false);
@@ -14,10 +14,10 @@ export function CardFace({ card, language = 'zh-Hans', version = 54, enabled = t
     cacheCardImage(card, language, version).then(url => { if (active) setSource(url); })
       .catch(() => { if (active) setFailed(true); });
     return () => { active = false; };
-  }, [card.importId, language, version, enabled]);
+  }, [card, language, version, enabled]);
   return source
-    ? <img src={source} alt={cardTitle(card, language)} className={`card-face ${className}`} />
-    : <div className={`card-face card-face-placeholder ${className}`}><span>{cardTitle(card, language)}<br />{failed ? '卡图暂不可用' : '正在载入卡图…'}</span></div>;
+    ? <img src={source} alt={cardDisplayTitle(card, language)} className={`card-face ${className}`} />
+    : <div className={`card-face card-face-placeholder ${className}`}><span>{cardDisplayTitle(card, language)}<br />{failed ? '卡图暂不可用' : '正在载入卡图…'}</span></div>;
 }
 
 export const RARITY_SLOTS: Record<string, { max: number; color: string }> = {

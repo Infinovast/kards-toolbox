@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { CARD_DATA_URL, collectCardData, compareCardData, fetchOfficialCardPage, normalizeCardRecord, parseCardDataPage, validateCardRecords } from './cardData';
+import { CARD_DATA_URL, collectCardData, compareCardData, fetchKardsplayerCardPage, normalizeCardRecord, parseCardDataPage, validateCardRecords } from './cardData';
 
-const records = JSON.parse(readFileSync('public/data/cards-v54.json', 'utf8')).cards;
+const records = JSON.parse(readFileSync('public/data/cards.json', 'utf8')).cards;
 const local = records.slice(0, 3);
 const remote = structuredClone(local);
 remote[0].json.kredits++;
@@ -32,18 +32,36 @@ assert.throws(() => parseCardDataPage({ errors: [{ message: 'Unavailable' }], ..
 assert.throws(() => parseCardDataPage(payload([], 0)));
 assert.throws(() => parseCardDataPage({ data: { cards: {} } }));
 let requested = false;
-await fetchOfficialCardPage(100, (async (url, options) => {
+await fetchKardsplayerCardPage(100, (async (url, options) => {
   assert.equal(url, CARD_DATA_URL);
   const request = JSON.parse(String(options?.body));
-  assert.deepEqual(request.variables, { language: 'zh', first: 100, offset: 100, showSpawnables: true, showExiles: true, showReserved: true });
-  assert.ok(!request.query.includes('image('), 'card-data updates must not request/download artwork');
+  assert.deepEqual(request.variables, { language: 'zh', first: 100, offset: 100, showSpawnables: true, showExiles: false, showReserved: true });
+  assert.ok(request.query.includes('imageUrl: image(language: $language)'));
+  assert.ok(request.query.includes('thumbUrl: image(type: thumb, language: $language)'));
   requested = true;
   return new Response(JSON.stringify(payload()));
 }) as typeof fetch);
 assert.ok(requested);
-await assert.rejects(() => fetchOfficialCardPage(-1), /分页参数/);
-await assert.rejects(() => fetchOfficialCardPage(1.5), /分页参数/);
-await assert.rejects(() => fetchOfficialCardPage(0, (async () => new Response('offline', { status: 503 })) as typeof fetch), /503/);
+const relocated = structuredClone(local);
+relocated[0].imageUrl = relocated[0].imageUrl.replace('/v53/', '/v55/');
+relocated[0].thumbUrl = relocated[0].thumbUrl.replace('/v53/', '/v55/');
+assert.deepEqual(compareCardData(local, relocated)[0].fields.map(field => field.field), ['imageUrl', 'thumbUrl']);
+assert.equal(normalizeCardRecord({ ...local[0], imageUrl: new URL(local[0].imageUrl).pathname }).imageUrl, local[0].imageUrl);
+for (const url of ['https://example.com/images/card/v53/zh-Hans/card.avif', '/images/card/unknown/card.avif', '']) {
+  assert.throws(() => normalizeCardRecord({ ...local[0], imageUrl: url }), /卡图地址/);
+}
+const missingImage = structuredClone(local);
+delete missingImage[0].imageUrl;
+assert.throws(() => parseCardDataPage(payload(missingImage)), /图片地址/);
+const missingStats = structuredClone(local);
+delete missingStats[0].json.operationCost;
+assert.throws(() => parseCardDataPage(payload(missingStats)), /行动费用/);
+const oldSnapshot = local.map(({ imageUrl, thumbUrl, ...card }) => card);
+assert.equal(validateCardRecords(oldSnapshot).length, 3, 'older applied/rollback data must remain readable');
+assert.equal(compareCardData(oldSnapshot, local).length, 3, 'migration must preview the newly supplied URLs');
+await assert.rejects(() => fetchKardsplayerCardPage(-1), /分页参数/);
+await assert.rejects(() => fetchKardsplayerCardPage(1.5), /分页参数/);
+await assert.rejects(() => fetchKardsplayerCardPage(0, (async () => new Response('offline', { status: 503 })) as typeof fetch), /503/);
 
 const progress: number[] = [];
 const complete = await collectCardData(async offset => ({ cards: offset === 0 ? local.slice(0, 2) : local.slice(2), total: 3, hasNextPage: offset === 0 }), completed => progress.push(completed), new AbortController().signal, 0);
@@ -56,4 +74,4 @@ const abort = new AbortController();
 const interrupted = collectCardData(() => new Promise(() => {}), () => {}, abort.signal, 0);
 abort.abort();
 await assert.rejects(() => interrupted, error => error instanceof Error && error.name === 'AbortError');
-console.log('Card-data sync tests passed: same-count edits, multilingual diff, additions/removals, official request, incomplete/duplicate/changed pagination and cancellation');
+console.log('Card-data sync tests passed: same-count edits, multilingual diff, additions/removals, Kardsplayer request, incomplete/duplicate/changed pagination and cancellation');

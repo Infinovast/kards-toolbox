@@ -38,7 +38,7 @@ assert.ok(isInBuilderPool(changed({ rarity: 'Elite' }), 'Germany', 'Germany'), '
 assert.ok(isInBuilderPool(changed({ rarity: 'Special', set: 'Base' }), 'Germany', 'Soviet'), 'Special rarity is not the generated Special set');
 for (const set of ['OnlySpawnable', 'Special']) assert.ok(!isInBuilderPool(changed({ set }), 'Germany', 'Soviet'));
 
-const cards: KardsCardRecord[] = JSON.parse(readFileSync('public/data/cards-v54.json', 'utf8')).cards;
+const cards: KardsCardRecord[] = JSON.parse(readFileSync('public/data/cards.json', 'utf8')).cards;
 for (const card of cards.filter(card => isInBuilderPool(card, 'Japan', 'Germany'))) {
   assert.ok(['Japan', 'Germany'].includes(card.json.faction!));
   assert.ok(card.json.faction === 'Japan' || card.json.rarity !== 'Elite');

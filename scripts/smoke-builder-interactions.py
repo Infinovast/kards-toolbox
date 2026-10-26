@@ -11,7 +11,7 @@ sys.stderr.reconfigure(encoding="utf-8")
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "test-results/builder-interactions"
 OUT.mkdir(parents=True, exist_ok=True)
-records = json.loads((ROOT / "public/data/cards-v54.json").read_text(encoding="utf-8"))["cards"]
+records = json.loads((ROOT / "public/data/cards.json").read_text(encoding="utf-8"))["cards"]
 cards = copy.deepcopy(records[:12])
 specs = [
     ("主国步兵", "Germany", "Standard", "Base", "infantry", 1, False),

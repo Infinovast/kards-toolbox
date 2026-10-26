@@ -98,14 +98,15 @@ with sync_playwright() as playwright:
     seed = page.evaluate('''async () => {
       const {default: store} = await import('/node_modules/.vite/deps/localforage.js');
       const {encodeDeckCode} = await import('/src/lib/deckCode.ts');
-      const {cards} = await (await fetch('./data/cards-v54.json')).json();
+      const {cardImageUrl} = await import('/src/types/card.ts');
+      const {cards} = await (await fetch('./data/cards.json')).json();
       const chosen = [...new Set(cards.map(c=>c.json.faction))].map(n=>cards.find(c=>c.json.faction===n && c.json.image));
       const counts = new Map(chosen.map(c=>[c.importId, 1])); counts.set('ZZ', 2);
       const code = encodeDeckCode('Germany','Soviet',counts);
       const decks = await store.getItem('kards_decks');
       decks.push({id:'strips',name:'国家卡牌条验证',code,mainNation:'Germany',allyNation:'Soviet',isFavorite:false,isArena:false,totalCards:chosen.length+2,warnings:[],notes:'旧版备注'});
       await store.setItem('kards_decks',decks);
-      for(const c of chosen) await store.setItem(`kards_card_image_v1_54_zh-Hans_${c.importId}`, 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l1sAAAAASUVORK5CYII=');
+      for(const c of chosen) for (const kind of ['full', 'thumbnail']) await store.setItem(`kards_card_image_v2_${c.importId}_${encodeURIComponent(cardImageUrl(c,'zh-Hans','current',kind))}`, 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l1sAAAAASUVORK5CYII=');
       return {code, count:chosen.length+1};
     }''')
     page.reload()

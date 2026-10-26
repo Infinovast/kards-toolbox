@@ -12,7 +12,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'test-results/card-strips'
 OUT.mkdir(parents=True, exist_ok=True)
-cards = copy.deepcopy(json.loads((ROOT/'public/data/cards-v54.json').read_text(encoding='utf-8'))['cards'][:6])
+cards = copy.deepcopy(json.loads((ROOT/'public/data/cards.json').read_text(encoding='utf-8'))['cards'][:6])
 for card, (name, kind, operation, nation, reserved) in zip(cards, [
     ('零行动步兵', 'infantry', 0, 'Germany', False),
     ('行动坦克', 'tank', 2, 'Germany', True),
@@ -38,13 +38,14 @@ with sync_playwright() as playwright:
     code = page.evaluate('''async cards=>{
       const {default:store}=await import('/node_modules/.vite/deps/localforage.js');
       const {encodeDeckCode}=await import('/src/lib/deckCode.ts');
+      const {cardImageUrl}=await import('/src/types/card.ts');
       const code=encodeDeckCode('Germany','Anzac',new Map(cards.map((c,i)=>[c.importId,i===0?34:1])));
       await store.setItem('kards_card_database_v1',{schemaVersion:1,active:{cards,source:'bundled',fetchedAt:null}});
       await store.setItem('kards_decks',[
         {id:'strip-test',name:'卡牌条交互',code,mainNation:'Germany',allyNation:'Anzac',totalCards:39,isFavorite:false,isArena:false,warnings:[]},
         {id:'empty-test',name:'空白预览',code:'%%21|;;;',mainNation:'Britain',allyNation:'Germany',totalCards:0,isFavorite:false,isArena:false,warnings:[]}
       ]);
-      for(const c of cards) await store.setItem(`kards_card_image_v1_54_zh-Hans_${c.importId}`, 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l1sAAAAASUVORK5CYII=');
+      for(const c of cards) for (const kind of ['full', 'thumbnail']) await store.setItem(`kards_card_image_v2_${c.importId}_${encodeURIComponent(cardImageUrl(c,'zh-Hans','current',kind))}`, 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l1sAAAAASUVORK5CYII=');
       return code;
     }''',cards)
     page.reload(); page.wait_for_load_state('networkidle')

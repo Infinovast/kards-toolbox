@@ -10,7 +10,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "test-results/improvements"
 OUT.mkdir(parents=True, exist_ok=True)
-cards = json.loads((ROOT / "public/data/cards-v54.json").read_text(encoding="utf-8"))["cards"]
+cards = json.loads((ROOT / "public/data/cards.json").read_text(encoding="utf-8"))["cards"]
 art = (ROOT / "references/koishi-plugin-kardsman/data/kards/kards_cn/105 毫米轻型榴弹炮_3L.png").read_bytes()
 CODE = "%%31|3X5C6BhHm6qCqDrktFvhwJx5;66nwx0x3;3f4p6x7e7l;5Z"
 

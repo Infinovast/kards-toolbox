@@ -21,7 +21,7 @@ SHOTS = ROOT / ".impeccable" / "review"
 CODE = "%%31|3X5C6BhHm6qCqDrktFvhwJx5;66nwx0x3;3f4p6x7e7l;5Z"
 OUT.mkdir(parents=True, exist_ok=True)
 SHOTS.mkdir(parents=True, exist_ok=True)
-cards = json.loads((ROOT / "public/data/cards-v54.json").read_text(encoding="utf-8"))["cards"]
+cards = json.loads((ROOT / "public/data/cards.json").read_text(encoding="utf-8"))["cards"]
 
 
 def storage(page, key):

@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "test-results/card-sync"
 OUT.mkdir(parents=True, exist_ok=True)
 KEY = "kards_card_database_v1"
-records = json.loads((ROOT / "public/data/cards-v54.json").read_text(encoding="utf-8"))["cards"]
+records = json.loads((ROOT / "public/data/cards.json").read_text(encoding="utf-8"))["cards"]
 baseline = copy.deepcopy(records[:6])
 remote = copy.deepcopy(baseline)
 remote[0]["json"]["kredits"] += 1
@@ -42,8 +42,8 @@ with sync_playwright() as p:
     def api(route):
         request = route.request.post_data_json
         requests.append(request)
-        assert request["variables"]["showReserved"] and request["variables"]["showExiles"] and request["variables"]["showSpawnables"]
-        assert "image(" not in request["query"]
+        assert request["variables"]["showReserved"] and not request["variables"]["showExiles"] and request["variables"]["showSpawnables"]
+        assert "imageUrl: image(" in request["query"] and "thumbUrl: image(" in request["query"]
         if mode[0] == "error":
             route.fulfill(status=503, body="offline")
         elif mode[0] == "malformed":
@@ -56,7 +56,7 @@ with sync_playwright() as p:
             route.fulfill(json={"data": {"cards": {"edges": [{"node": c} for c in cards], "pageInfo": {"count": total, "hasNextPage": False}}}})
 
     def route_request(route):
-        if route.request.url == "https://herokuapi.kards.com/graphql":
+        if route.request.url == "https://api.kardsplayer.com/graphql":
             api(route)
         elif route.request.url.startswith(("http://127.0.0.1:5173", "ws://127.0.0.1:5173", "data:", "blob:")):
             route.continue_()
@@ -120,7 +120,7 @@ with sync_playwright() as p:
     assert store(page, "return (await store.getItem(value)).active.cards;", KEY) == baseline
     page.once("dialog", lambda dialog: dialog.accept())
     page.get_by_role("button", name="应用更新", exact=True).click()
-    expect(page.get_by_text("更新已应用，卡牌库和构筑已使用新数据。卡图缓存未改变。", exact=True)).to_be_visible()
+    expect(page.get_by_text("更新已应用，卡牌库和构筑已使用新数据。当前卡图按新地址加载，已有缓存保留。", exact=True)).to_be_visible()
     applied = store(page, "return await store.getItem(value);", KEY)
     assert applied["active"]["cards"] == remote and applied["previous"]["cards"] == baseline and not applied.get("pending")
     assert store(page, "return await store.getItem('kards_card_image_v1_54_zh-Hans_keep');") == sentinel
@@ -162,7 +162,7 @@ with sync_playwright() as p:
     assert not store(page, "return (await store.getItem(value)).pending;", KEY)
     mode[0] = "same"
     page.get_by_role("button", name="获取最新卡牌数据", exact=True).click()
-    expect(page.get_by_text("当前数据与官方数据一致，无需更新。", exact=True)).to_be_visible()
+    expect(page.get_by_text("当前数据与 Kardsplayer 数据一致，无需更新。", exact=True)).to_be_visible()
     expect(page.get_by_role("button", name="应用更新", exact=True)).to_be_disabled()
     page.set_viewport_size({"width": 980, "height": 640})
     select_value(page, "显示模式", "light")

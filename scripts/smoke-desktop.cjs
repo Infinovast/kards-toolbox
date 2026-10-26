@@ -56,7 +56,7 @@ async function main() {
     assert.ok(iconPaths.some(p => p.endsWith('KardsLogoWhite.png')));
 
     // Real artwork, repeated copies and the final HQ slot use the production Sharp IPC.
-    const records = JSON.parse(await fs.readFile(path.join(root, 'public/data/cards-v54.json'), 'utf8')).cards;
+    const records = JSON.parse(await fs.readFile(path.join(root, 'public/data/cards.json'), 'utf8')).cards;
     if (!skipVisual) {
     const imageDir = path.join(root, 'references/koishi-plugin-kardsman/data/kards/kards_cn');
     const files = await fs.readdir(imageDir);
@@ -136,7 +136,7 @@ async function main() {
       global.__cardRequests = [];
       const original = net.fetch.bind(net);
       net.fetch = async (url, options) => {
-        if (url === 'https://herokuapi.kards.com/graphql') {
+        if (url === 'https://api.kardsplayer.com/graphql') {
           global.__cardRequests.push(JSON.parse(options.body));
           return new Response(JSON.stringify({ data: { cards: { pageInfo: { count: cards.length, hasNextPage: false }, edges: cards.map(node => ({ node })) } } }), { status: 200 });
         }
@@ -154,9 +154,10 @@ async function main() {
     assert.equal(dataRequests.length, 1);
     assert.equal(dataRequests[0].variables.offset, 0);
     assert.ok(dataRequests[0].variables.showReserved && dataRequests[0].variables.showSpawnables);
-    assert.ok(!dataRequests[0].query.includes('image('));
+    assert.equal(dataRequests[0].variables.showExiles, false);
+    assert.ok(dataRequests[0].query.includes('imageUrl: image(') && dataRequests[0].query.includes('thumbUrl: image('));
     await page.getByRole('button', { name: '应用更新', exact: true }).click();
-    await expect(page.getByText('更新已应用，卡牌库和构筑已使用新数据。卡图缓存未改变。', { exact: true })).toBeVisible();
+    await expect(page.getByText('更新已应用，卡牌库和构筑已使用新数据。当前卡图按新地址加载，已有缓存保留。', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: '卡牌', exact: true }).click();
     await expect(page.getByText('本地目录 2 张 · 当前结果 2 张', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: '设置', exact: true }).click();

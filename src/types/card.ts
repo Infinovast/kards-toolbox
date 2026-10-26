@@ -6,6 +6,8 @@ export interface KardsCardRecord {
   cardId: string;
   importId: string;
   reserved?: boolean;
+  imageUrl?: string;
+  thumbUrl?: string;
   json: {
     id?: string;
     import_id?: string;
@@ -22,6 +24,8 @@ export interface KardsCardRecord {
     set?: string;
     image?: string;
     attributes?: string[];
+    can_create?: string[];
+    permanent_pool?: boolean;
     [key: string]: unknown;
   };
 }
@@ -46,6 +50,8 @@ export const CARD_LANGUAGES = [
 ] as const;
 
 export type CardLanguage = typeof CARD_LANGUAGES[number]['id'];
+export type CardImageVersion = number | 'current';
+export type CardImageKind = 'full' | 'thumbnail';
 
 export const CARD_FACTIONS = [
   { id: 'Germany', label: '德国' },
@@ -78,6 +84,14 @@ export function cardTitle(card: KardsCardRecord, language: CardLanguage): string
   return titles[language] || titles['zh-Hans'] || titles['en-EN'] || card.cardId;
 }
 
+export function isVeteranCard(card: KardsCardRecord): boolean {
+  return !!card.json.attributes?.some(attribute => attribute.startsWith('VeteranOf:'));
+}
+
+export function cardDisplayTitle(card: KardsCardRecord, language: CardLanguage): string {
+  return cardTitle(card, language) + (isVeteranCard(card) ? (language.startsWith('zh') ? '（老兵）' : ' (Veteran)') : '');
+}
+
 export function cardText(card: KardsCardRecord, language: CardLanguage): string {
   const text = card.json.text || card.json.description || {};
   return text[language] || text['zh-Hans'] || text['en-EN'] || '';
@@ -91,20 +105,28 @@ export function typeLabel(type?: string): string {
   return CARD_TYPES.find((item) => item.id === (type || '').toLowerCase())?.label || type || '未知';
 }
 
-export function cardImageUrl(card: KardsCardRecord, language: CardLanguage, version: string): string {
+export function cardImageUrl(card: KardsCardRecord, language: CardLanguage, version: string = 'current', kind: CardImageKind = 'full'): string {
+  const source = kind === 'thumbnail' ? card.thumbUrl || card.imageUrl : card.imageUrl;
+  if (source) {
+    const url = new URL(source, 'https://www.kardsplayer.com');
+    // The API supplies each card's actual image version; it need not match the
+    // newest game version. History changes only the picture, never the metadata.
+    url.pathname = url.pathname.replace(/\/card\/v\d+\/[^/]+\//, `/card/${version === 'current' ? url.pathname.match(/\/card\/(v\d+)\//)?.[1] : version}/${language}/`);
+    return url.href;
+  }
   const image = card.json.image;
   if (!image) return '';
-  const imagePath = `/images/card/${version}/${language}/${image}`
+  const imagePath = `/images/card/${version === 'current' ? 'v54' : version}/${language}/${image}`
     .split('/')
     .map((part, index) => index < 4 ? part : encodeURIComponent(part))
     .join('/');
-  return `https://images.weserv.nl/?url=ssl:www.kards.com${imagePath}&q=85`;
+  return `https://www.kards.com${imagePath}`;
 }
 
 export async function loadCardDatabase(): Promise<KardsCardRecord[]> {
   const stored = await readCardDataStorage();
   if (stored.active) return stored.active.cards;
-  const url = new URL('./data/cards-v54.json', window.location.href);
+  const url = new URL('./data/cards.json', window.location.href);
   const response = await fetch(url);
   if (!response.ok) throw new Error(`读取本地卡牌目录失败（${response.status}）`);
   const database = await response.json() as KardsCardDatabase;

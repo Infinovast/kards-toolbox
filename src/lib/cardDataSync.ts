@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { collectCardData, fetchOfficialCardPage, type CardDataStorage } from './cardData';
+import { collectCardData, fetchKardsplayerCardPage, type CardDataStorage } from './cardData';
 import { readCardDataStorage, writeCardDataStorage } from './cardDatabase';
 import type { KardsCardRecord } from '../types/card';
 
@@ -34,11 +34,11 @@ export async function checkCardData() {
     await writeCardDataStorage(stored);
     publish({ stored });
     const cards = await collectCardData(offset => window.kardsDesktop?.fetchCardDataPage
-      ? window.kardsDesktop.fetchCardDataPage(offset) : fetchOfficialCardPage(offset),
+      ? window.kardsDesktop.fetchCardDataPage(offset) : fetchKardsplayerCardPage(offset),
     (completed, total) => publish({ completed, total }), signal);
     signal.throwIfAborted();
     const fetchedAt = new Date().toISOString();
-    const next: CardDataStorage = { ...stored, pending: { cards, source: 'official', fetchedAt }, lastCheckedAt: fetchedAt };
+    const next: CardDataStorage = { ...stored, pending: { cards, source: 'kardsplayer', fetchedAt }, lastCheckedAt: fetchedAt };
     await writeCardDataStorage(next);
     publish({ stored: next, status: 'ready', message: '最新数据已获取，尚未应用。请核对差异后应用更新。' });
   } catch (error) {
@@ -58,7 +58,7 @@ export async function applyCardData(current: KardsCardRecord[]) {
     const next: CardDataStorage = { ...stored, previous: stored.active || (current.length ? { cards: current, source: 'bundled', fetchedAt: null } : undefined),
       active: { ...stored.pending, appliedAt: new Date().toISOString() }, pending: undefined };
     await writeCardDataStorage(next);
-    publish({ status: 'applied', stored: next, message: '更新已应用，卡牌库和构筑已使用新数据。卡图缓存未改变。' });
+    publish({ status: 'applied', stored: next, message: '更新已应用，卡牌库和构筑已使用新数据。当前卡图按新地址加载，已有缓存保留。' });
     return next.active.cards;
   } catch (error) {
     publish({ status: 'ready', error: error instanceof Error ? error.message : '写入失败，当前数据未改变' });
