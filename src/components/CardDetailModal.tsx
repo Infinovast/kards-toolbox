@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Shield, X } from 'lucide-react';
 import { CardFace } from './CardFace';
@@ -10,31 +10,87 @@ import { cardDisplayTitle, cardText, factionLabel, isVeteranCard, typeLabel, typ
 import ReservedBadge from './ReservedBadge';
 import { CardText } from './CardText';
 import type { HeadquartersAsset } from '../lib/cardAssets';
+import { captureCardDetailOrigin, type CardDetailOrigin } from '../lib/cardDetailOrigin';
 
-export default function CardDetailModal({ card: initialCard, headquarters, cards, language = 'zh-Hans', onClose }: {
+export default function CardDetailModal({ card: initialCard, headquarters, origin, cards, language = 'zh-Hans', onClose }: {
   card?: KardsCardRecord;
   headquarters?: HeadquartersAsset;
+  origin?: CardDetailOrigin;
   cards: KardsCardRecord[];
   language?: CardLanguage;
   onClose: () => void;
 }) {
   const [card, setCard] = useState<KardsCardRecord | null>(initialCard || null);
   const panel = useRef<HTMLElement>(null);
+  const art = useRef<HTMLDivElement>(null);
+  const backdrop = useRef<HTMLDivElement>(null);
+  const entrance = useRef<Animation | null>(null);
+  const exit = useRef<Animation | null>(null);
+  const backdropExit = useRef<Animation | null>(null);
+  const closing = useRef(false);
+  const requestCloseRef = useRef<() => void>(() => {});
+  const [isClosing, setIsClosing] = useState(false);
+  const [arrived, setArrived] = useState(!origin);
   const close = useRef(onClose);
   close.current = onClose;
   useEffect(() => { setCard(initialCard || null); }, [initialCard, headquarters]);
+  useLayoutEffect(() => {
+    const element = art.current;
+    if (!element || !origin || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setArrived(true);
+      return;
+    }
+    const target = element.getBoundingClientRect();
+    if (!target.width || !target.height) { setArrived(true); return; }
+    setArrived(false);
+    const x = origin.left + origin.width / 2 - target.left - target.width / 2;
+    const y = origin.top + origin.height / 2 - target.top - target.height / 2;
+    const animation = element.animate([
+      { transform: `translate(${x}px, ${y}px) scale(${origin.width / target.width}, ${origin.height / target.height})`, opacity: origin.kind === 'strip' ? 0 : 1 },
+      { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+    ], { duration: origin.kind === 'strip' ? 480 : 420, easing: 'cubic-bezier(0.65, 0, 0.35, 1)', fill: 'both' });
+    entrance.current = animation;
+    animation.onfinish = () => { if (!closing.current) setArrived(true); animation.cancel(); };
+    // Finish cleanly when the destination changes while the card is moving.
+    const finish = () => { if (!closing.current) animation.finish(); };
+    window.addEventListener('resize', finish);
+    return () => { window.removeEventListener('resize', finish); animation.onfinish = null; animation.cancel(); };
+  }, [origin]);
+  const requestClose = () => {
+    if (closing.current) return;
+    closing.current = true;
+    setIsClosing(true);
+    const element = art.current;
+    if (!element) { close.current(); return; }
+    const current = getComputedStyle(element);
+    const from = { transform: current.transform, opacity: current.opacity };
+    entrance.current?.cancel();
+    const target = element.getBoundingClientRect();
+    const destination = origin?.element?.isConnected ? captureCardDetailOrigin(origin.element, origin.kind, origin.image) : origin;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const transform = destination && !reduced
+      ? `translate(${destination.left + destination.width / 2 - target.left - target.width / 2}px, ${destination.top + destination.height / 2 - target.top - target.height / 2}px) scale(${destination.width / target.width}, ${destination.height / target.height})`
+      : 'none';
+    const duration = reduced ? 80 : 320;
+    exit.current = element.animate([from, { transform, opacity: destination?.kind === 'pool' && !reduced ? 1 : 0 }],
+      { duration, easing: 'cubic-bezier(0.65, 0, 0.35, 1)', fill: 'both' });
+    backdropExit.current = backdrop.current?.animate([{ opacity: 1 }, { opacity: 0 }], { duration, fill: 'both' }) || null;
+    exit.current.onfinish = () => close.current();
+  };
+  requestCloseRef.current = requestClose;
   useEffect(() => {
     const previous = document.activeElement;
-    panel.current?.focus();
+    panel.current?.focus({ preventScroll: true });
     window.dispatchEvent(new CustomEvent('kards-deck-card-preview', { detail: null }));
     const keydown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.isComposing || event.key !== 'Escape') return;
       event.preventDefault(); event.stopPropagation();
-      close.current();
+      requestCloseRef.current();
     };
     document.addEventListener('keydown', keydown, true);
     return () => {
       document.removeEventListener('keydown', keydown, true);
+      exit.current?.cancel(); backdropExit.current?.cancel();
       if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
     };
   }, []);
@@ -51,15 +107,20 @@ export default function CardDetailModal({ card: initialCard, headquarters, cards
   const rarity = ({ Standard: '普通', Limited: '稀有', Special: '罕见', Elite: '精英' })[card?.json.rarity || ''] || card?.json.rarity || headquarters?.rarity || '—';
   const setName = card ? expansionOptions([card.json.set || ''], language).find(option => option.value === card.json.set)?.label || card.json.set || '—' : '';
   const faction = card?.json.faction || (headquarters?.nation === 'Blank' ? 'Neutral' : headquarters?.nation) || 'Neutral';
-  return createPortal(<div className="card-detail-overlay">
-    <div className="card-detail-backdrop" onClick={onClose} />
+  return createPortal(<div className="card-detail-overlay" data-phase={isClosing ? 'closing' : arrived ? 'ready' : 'moving'} data-origin={origin?.kind}>
+    <div ref={backdrop} className="card-detail-backdrop" onClick={requestClose} />
     <section ref={panel} role="dialog" aria-modal="true" aria-label={'卡牌详情：' + title}
-      tabIndex={-1} onKeyDown={handleDialogKeys} onClick={event => {
-        if (!(event.target as HTMLElement).closest('.card-detail-panel, .card-detail-art, .card-detail-close')) onClose();
+      tabIndex={-1} onKeyDown={event => {
+        if ((!arrived || isClosing) && event.key === 'Tab') {
+          event.preventDefault();
+          panel.current?.querySelector<HTMLButtonElement>('.card-detail-close')?.focus();
+        } else handleDialogKeys(event);
+      }} onClick={event => {
+        if (!(event.target as HTMLElement).closest('.card-detail-panel, .card-detail-art, .card-detail-close')) requestClose();
       }} className="card-detail-dialog custom-scrollbar">
-      <button data-dialog-cancel aria-label="关闭卡牌详情" onClick={onClose} className="card-detail-close"><X className="h-5 w-5" /></button>
+      <button data-dialog-cancel aria-label="关闭卡牌详情" onClick={requestClose} className="card-detail-close"><X className="h-5 w-5" /></button>
       <div className="card-detail-layout">
-        <aside className="card-detail-panel custom-scrollbar">
+        <aside inert={!arrived || isClosing} className="card-detail-panel custom-scrollbar">
           <h2 className="flex items-center gap-3 text-lg font-bold"><span className="h-7 w-7">{card ? <FilterIcon name={type + '.svg'} /> : <Shield className="h-7 w-7" />}</span>{card ? typeLabel(type) : '总部'}</h2>
           <div className="mt-4 flex items-center gap-3 text-sm"><span className="h-6 w-6"><FilterIcon name={faction.toLowerCase() + '.svg'} fullColor={faction === 'Neutral'} /></span>{factionLabel(faction)}</div>
           {keywords.length > 0 && <section className="card-detail-section">
@@ -72,8 +133,8 @@ export default function CardDetailModal({ card: initialCard, headquarters, cards
             <p>{card.json.permanent_pool ? '常备卡池' : '轮换卡池'}</p>
           </section> : <section className="card-detail-section text-sm"><p>{rarity}</p></section>}
         </aside>
-        <div className="card-detail-art">{card ? <CardFace card={card} /> : <img src={headquarters!.image} alt={title} className="card-face" />}</div>
-        <div className="card-detail-panel custom-scrollbar">
+        <div ref={art} className="card-detail-art">{card ? <CardFace card={card} initialSource={card === initialCard ? origin?.image : undefined} /> : <img src={headquarters!.image} alt={title} className="card-face" />}</div>
+        <div inert={!arrived || isClosing} className="card-detail-panel custom-scrollbar">
           <h1 className="text-2xl font-bold">{title}</h1>
           {card && cardText(card, language) && <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-kards-text"><CardText text={cardText(card, language)} /></p>}
           {card && <dl className="card-detail-section grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-3 text-sm">

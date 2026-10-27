@@ -7,6 +7,8 @@ import { handleDialogKeys } from '../lib/dialogKeyboard';
 import DeckCardStrip, { DeckHeadquartersStrip } from './DeckCardStrip';
 import CustomSelect from './CustomSelect';
 import PageIndicator from './PageIndicator';
+import useCardPoolLayout from '../lib/useCardPoolLayout';
+import { captureCardDetailOrigin, type CardDetailOrigin } from '../lib/cardDetailOrigin';
 import CardDetailModal from './CardDetailModal';
 import CardFilterSelects, { CostFilterButtons, nationOptions } from './CardFilterSelects';
 import { decodeDeckCode, encodeDeckCode, findCardsByImportId } from '../lib/deckCode';
@@ -15,6 +17,7 @@ import { defaultHeadquartersForNation, type HeadquartersAsset } from '../lib/car
 import { CardFace, RaritySlots } from './CardFace';
 import ReservedBadge from './ReservedBadge';
 import DeckCountIndicator from './DeckCountIndicator';
+import DeckCardMotion, { useDeckCardMotion } from './DeckCardMotion';
 import { EMPTY_CARD_FILTERS, isGeneratedCard, isInBuilderPool, matchesCardFilters, type CardFilters } from '../lib/cardFilters';
 import { deckBuilderReducer, type DeckBuilderState } from '../lib/deckBuilderHistory';
 
@@ -75,6 +78,7 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [selectedCard, setSelectedCard] = useState<KardsCardRecord | null>(null);
   const [selectedHeadquarters, setSelectedHeadquarters] = useState<HeadquartersAsset | null>(null);
+  const [detailOrigin, setDetailOrigin] = useState<CardDetailOrigin | undefined>();
   const cardClickTimer = useRef<number | undefined>(undefined);
   const cancelCardClick = () => { window.clearTimeout(cardClickTimer.current); cardClickTimer.current = undefined; };
   useEffect(() => { if (!active) { setSelectedCard(null); setSelectedHeadquarters(null); } return cancelCardClick; }, [active, filters, page]);
@@ -139,10 +143,12 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
   }, [mainNation, allyNation, headquartersId, ruleSet, customRules, entries, deckName, deckId, draftLoaded]);
 
   const cardsById = useMemo(() => findCardsByImportId(cards), [cards]);
+  const cardMotion = useDeckCardMotion(rootRef, entries, cardsById, active);
   const rules = ruleSet === 'custom' ? customRules : DEFAULT_DECK_RULES[ruleSet];
   const totalCards = [...entries.values()].reduce((sum, count) => sum + count, 0);
   const warnings = validateDeck(entries, cardsById, mainNation, allyNation, rules);
   const matchingCards = useMemo(() => cards.filter(card => isInBuilderPool(card, mainNation, allyNation) && matchesCardFilters(card, filters)), [cards, mainNation, allyNation, filters]);
+  const pool = useCardPoolLayout('builder', matchingCards.length, page, setPage);
   const expansions = useMemo(() => [...new Set(cards.filter(card => !isGeneratedCard(card)).map(card => card.json.set).filter(Boolean))].sort(), [cards]);
   const sortedEntries = useMemo(() => [...entries].sort(([leftId], [rightId]) => {
     const left = cardsById.get(leftId), right = cardsById.get(rightId);
@@ -157,10 +163,13 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
   const mainCount = 1 + [...entries].reduce((sum, [id, count]) => sum + (cardsById.get(id)?.json.faction?.toLowerCase() === mainNation.toLowerCase() ? count : 0), 0);
   const hasReservedCards = [...entries.keys()].some(id => cardsById.get(id)?.reserved);
 
-  const adjustCard = (importId: string, change: number) => {
+  const adjustCard = (importId: string, change: number, source?: HTMLElement) => {
+    const currentCount = entries.get(importId) || 0;
+    if ((change < 0 && !currentCount) || (change > 0 && currentCount >= 999)) return;
     if (change > 0 && totalWithHeadquarters >= deckLimit) {
       showToast(`卡组的卡牌不能超过 ${deckLimit} 张`);
     }
+    cardMotion.prepare(importId, source);
     dispatch({ type: 'edit', update: current => {
     const count = Math.max(0, Math.min(999, (current.entries.get(importId) || 0) + change));
     if (count === (current.entries.get(importId) || 0)) return {};
@@ -169,6 +178,14 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
     else next.set(importId, count);
     return { entries: next };
     } });
+  };
+  const changeHistory = (type: 'undo' | 'redo') => {
+    cancelCardClick();
+    const target = type === 'undo' ? history.past.at(-1) : history.future[0];
+    const changedId = target && [...new Set([...entries.keys(), ...target.entries.keys()])]
+      .find(id => entries.get(id) !== target.entries.get(id));
+    if (changedId) cardMotion.prepare(changedId);
+    dispatch({ type });
   };
   const hasDragType = (event: DragEvent, type: string) => Array.from(event.dataTransfer.types).includes(type);
   const handleDropToDeck = (event: DragEvent) => {
@@ -238,7 +255,7 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
       const key = event.key.toLowerCase();
       if (key === 'z' || key === 'y') {
         event.preventDefault();
-        dispatch({ type: key === 'y' || event.shiftKey ? 'redo' : 'undo' });
+        changeHistory(key === 'y' || event.shiftKey ? 'redo' : 'undo');
       }
     }
   }} className="flex h-full min-h-0 flex-col gap-3 p-4 outline-none">
@@ -256,24 +273,26 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
     <div className="flex min-h-0 flex-1 gap-4">
     <section className="flex min-w-0 flex-1 flex-col gap-3 overflow-hidden">
       <p className="text-xs text-kards-text-muted">找到 {matchingCards.length} 张</p>
-      <div data-testid="builder-grid" onDragOver={event => { if (hasDragType(event, DECK_CARD_DRAG_TYPE)) { event.preventDefault(); setDragOverZone('pool'); } }} onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragOverZone(null); }} onDrop={handleDropToPool} className={`card-gallery card-gallery-builder custom-scrollbar min-h-0 flex-1 overflow-y-auto rounded pb-2 ${dragOverZone === 'pool' ? 'ring-2 ring-kards-gold/70' : ''}`}>
-        {matchingCards.slice((page - 1) * 60, page * 60).map((card) => <div key={card.importId} className="card-tile">
+      <div ref={pool.ref} style={pool.style} data-testid="builder-grid" data-capacity={pool.capacity} onDragOver={event => { if (hasDragType(event, DECK_CARD_DRAG_TYPE)) { event.preventDefault(); setDragOverZone('pool'); } }} onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragOverZone(null); }} onDrop={handleDropToPool} className={`card-gallery card-gallery-builder min-h-0 flex-1 rounded ${dragOverZone === 'pool' ? 'ring-2 ring-kards-gold/70' : ''}`}>
+        {matchingCards.slice(pool.start, pool.end).map((card) => <div key={card.importId} data-pool-card-id={card.importId} className="card-tile">
           <button disabled={!active || !draftLoaded} draggable={active} onDragStart={event => { cancelCardClick(); event.dataTransfer.setData(POOL_CARD_DRAG_TYPE, card.importId); event.dataTransfer.effectAllowed = 'copy'; }}
             onClick={event => {
               cancelCardClick();
-              if (event.detail === 0) setSelectedCard(card);
-              else if (event.detail === 1) cardClickTimer.current = window.setTimeout(() => setSelectedCard(card), 500);
+              const origin = captureCardDetailOrigin(event.currentTarget, 'pool');
+              const open = () => { setDetailOrigin(origin); setSelectedCard(card); };
+              if (event.detail === 0) open();
+              else if (event.detail === 1) cardClickTimer.current = window.setTimeout(open, 500);
             }}
-            onDoubleClick={event => { event.preventDefault(); cancelCardClick(); adjustCard(card.importId, 1); }}
-            onContextMenu={event => { event.preventDefault(); cancelCardClick(); adjustCard(card.importId, -1); }}
+            onDoubleClick={event => { event.preventDefault(); cancelCardClick(); adjustCard(card.importId, 1, event.currentTarget); }}
+            onContextMenu={event => { event.preventDefault(); cancelCardClick(); adjustCard(card.importId, -1, event.currentTarget); }}
             aria-label={'查看' + cardDisplayTitle(card, 'zh-Hans')} title={cardDisplayTitle(card, 'zh-Hans')} className="card-action group block w-full text-left">
             <span className="library-card-art"><CardFace card={card} enabled={active} />{card.reserved && <ReservedBadge className="library-reserved-badge" />}</span>
           </button>
           <RaritySlots rarity={card.json.rarity} count={entries.get(card.importId) || 0} />
         </div>)}
-        {!matchingCards.length && <p className="col-span-full py-10 text-center text-sm text-kards-text-muted">没有匹配的卡牌，请调整筛选条件或右侧主盟国</p>}
+        {!matchingCards.length && <p className="col-span-full self-center text-center text-sm text-kards-text-muted">没有匹配的卡牌，请调整筛选条件或右侧主盟国</p>}
       </div>
-      <div className="flex shrink-0 items-center justify-center gap-3 text-xs text-kards-text"><button disabled={page <= 1} onClick={() => setPage(page - 1)} className="rounded border border-kards-border px-3 py-1 disabled:opacity-40">上一页</button><PageIndicator page={page} pageCount={Math.max(1, Math.ceil(matchingCards.length / 60))} onChange={setPage} /><button disabled={page * 60 >= matchingCards.length} onClick={() => setPage(page + 1)} className="rounded border border-kards-border px-3 py-1 disabled:opacity-40">下一页</button></div>
+      <div className="flex shrink-0 items-center justify-center gap-3 text-xs text-kards-text"><button disabled={pool.page <= 1} onClick={() => setPage(pool.page - 1)} className="rounded border border-kards-border px-3 py-1 disabled:opacity-40">上一页</button><PageIndicator page={pool.page} pageCount={pool.pageCount} onChange={setPage} /><button disabled={pool.page >= pool.pageCount} onClick={() => setPage(pool.page + 1)} className="rounded border border-kards-border px-3 py-1 disabled:opacity-40">下一页</button></div>
     </section>
     <aside onDragOver={event => { if (hasDragType(event, POOL_CARD_DRAG_TYPE)) { event.preventDefault(); setDragOverZone('deck'); } }} onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragOverZone(null); }} onDrop={handleDropToDeck} className={`flex w-[300px] shrink-0 flex-col gap-3 overflow-hidden rounded-lg border border-kards-border glass-panel p-4 xl:w-[340px] ${dragOverZone === 'deck' ? 'ring-2 ring-kards-gold/70' : ''}`}>
       <div className="flex items-center justify-between gap-2"><h2 className="font-bold text-kards-text">{deckId ? '编辑卡组' : '当前卡组'}</h2><DeckCountIndicator compact mainNation={mainNation} allyNation={allyNation} mainCount={mainCount} allyCount={allyCount} total={totalWithHeadquarters} limit={deckLimit} /></div>
@@ -289,11 +308,11 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
         <label className="text-xs text-kards-text"><input type="checkbox" checked={customRules.allowGenerated} onChange={event => setCustomRules({ ...customRules, allowGenerated: event.target.checked })} /> 允许导入的衍生卡</label>
       </div>}
       <div aria-label="构筑卡牌列表" className="min-h-16 space-y-1">
-        <DeckHeadquartersStrip nation={mainNation} headquartersId={headquartersId} onClick={setSelectedHeadquarters} />
+        <DeckHeadquartersStrip nation={mainNation} headquartersId={headquartersId} onClick={(headquarters, origin) => { setDetailOrigin(origin); setSelectedHeadquarters(headquarters); }} />
         {sortedEntries.map(([id, count]) => {
           const card = cardsById.get(id);
           return <div key={id} className="deck-builder-card-row"><DeckCardStrip card={card} importId={id} count={count} enabled={active && draftLoaded} draggable={active}
-            onClick={() => { if (card) setSelectedCard(card); }} onDoubleClick={() => adjustCard(id, 1)} onRemove={() => adjustCard(id, -1)}
+            onClick={origin => { if (card) { setDetailOrigin(origin); setSelectedCard(card); } }} onDoubleClick={() => adjustCard(id, 1)} onRemove={() => adjustCard(id, -1)}
             onDragStart={event => { cancelCardClick(); event.dataTransfer.setData(DECK_CARD_DRAG_TYPE, id); event.dataTransfer.effectAllowed = 'move'; }} onDragEnd={() => setDragOverZone(null)} /></div>;
         })}
         {!entries.size && <p className="py-10 text-center text-sm text-kards-text-muted">从左侧选择卡牌开始构筑</p>}
@@ -302,20 +321,21 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
       {message && <p role="status" className="custom-scrollbar max-h-16 shrink-0 overflow-y-auto text-xs text-kards-text-muted">{message}</p>}
       </div>
       <div aria-label="构筑操作" className="builder-actions">
-        <button type="button" onClick={() => dispatch({ type: 'undo' })} disabled={!history.past.length} aria-label="撤回" title="撤回 · Ctrl+Z"><Undo2 className="h-5 w-5" /></button>
-        <button type="button" onClick={() => dispatch({ type: 'redo' })} disabled={!history.future.length} aria-label="重做" title="重做 · Ctrl+Y / Ctrl+Shift+Z"><Redo2 className="h-5 w-5" /></button>
+        <button type="button" onClick={() => changeHistory('undo')} disabled={!history.past.length} aria-label="撤回" title="撤回 · Ctrl+Z"><Undo2 className="h-5 w-5" /></button>
+        <button type="button" onClick={() => changeHistory('redo')} disabled={!history.future.length} aria-label="重做" title="重做 · Ctrl+Y / Ctrl+Shift+Z"><Redo2 className="h-5 w-5" /></button>
         <button type="button" onClick={() => isDirty || !deckId ? saveDeck() : leaveBuilder()} disabled={!draftLoaded} aria-label="保存并退出" title="保存并退出 · Ctrl+Enter" className="builder-save">{isDirty ? <Save className="h-6 w-6" /> : <Check className="h-6 w-6" />}</button>
       </div>
     </aside>
     </div>
-    {active && (selectedCard || selectedHeadquarters) && <CardDetailModal card={selectedCard || undefined} headquarters={selectedHeadquarters || undefined} cards={cards} onClose={() => { setSelectedCard(null); setSelectedHeadquarters(null); }} />}
+    {active && <DeckCardMotion flights={cardMotion.flights} onFinish={cardMotion.finish} />}
+    {active && (selectedCard || selectedHeadquarters) && <CardDetailModal card={selectedCard || undefined} headquarters={selectedHeadquarters || undefined} origin={detailOrigin} cards={cards} onClose={() => { setSelectedCard(null); setSelectedHeadquarters(null); }} />}
     {active && pendingNation && createPortal(<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div onClick={() => setPendingNation(null)} className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm" />
-      <section role="dialog" aria-modal="true" aria-label="确认更换国家" tabIndex={-1} onKeyDown={handleDialogKeys} className="glass-panel relative w-full max-w-md rounded-lg border border-kards-border p-6 shadow-2xl">
-        <h2 className="mb-4 text-lg font-bold text-kards-text">更换{pendingNation.field === 'main' ? '主国' : '盟国'}？</h2>
-        <p className="text-sm text-kards-text">{factionLabel(pendingNation.field === 'main' ? mainNation : allyNation)} → {factionLabel(pendingNation.value)}</p>
-        <p className="mt-3 text-sm leading-6 text-kards-text-muted">现有卡牌将保留，不符合新国家的卡牌会显示规则提示。确认后更新构筑卡池。</p>
-        <div className="mt-5 flex justify-end gap-3">
+      <section role="dialog" aria-modal="true" aria-label="确认更换国家" tabIndex={-1} onKeyDown={handleDialogKeys} className="builder-confirm-dialog glass-panel relative w-full max-w-md rounded-lg border border-kards-border p-6 shadow-2xl">
+        <h2 className="builder-confirm-title">更换{pendingNation.field === 'main' ? '主国' : '盟国'}？</h2>
+        <p className="builder-confirm-description">{factionLabel(pendingNation.field === 'main' ? mainNation : allyNation)} → {factionLabel(pendingNation.value)}</p>
+        <p className="mt-3 text-xs leading-6 text-kards-text-muted">现有卡牌将保留，不符合新国家的卡牌会显示规则提示。确认后更新构筑卡池。</p>
+        <div className="mt-5 flex justify-center gap-3">
           <button data-dialog-cancel onClick={() => setPendingNation(null)} className="rounded border border-kards-border px-4 py-2 text-sm text-kards-text">取消</button>
           <button data-dialog-confirm onClick={() => {
             dispatch({ type: 'edit', update: pendingNation.field === 'main'
@@ -329,10 +349,11 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
     {active && toast && createPortal(<div role="status" className="builder-toast">{toast}</div>, document.body)}
     {active && confirmToast && createPortal(<div className="fixed inset-0 z-[95] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm" onClick={cancelConfirmation} />
-      <section role="dialog" aria-modal="true" aria-label="确认保存修改" tabIndex={-1} onKeyDown={handleDialogKeys} className="glass-panel relative w-full max-w-md rounded-lg border border-kards-border p-6 shadow-2xl">
+      <section role="dialog" aria-modal="true" aria-label="确认保存修改" tabIndex={-1} onKeyDown={handleDialogKeys} className="builder-confirm-dialog glass-panel relative w-full max-w-md rounded-lg border border-kards-border p-6 shadow-2xl">
         <button data-dialog-cancel onClick={cancelConfirmation} aria-label="关闭保存确认" className="absolute right-3 top-3 rounded p-1 text-kards-text-muted hover:text-kards-text"><X className="h-4 w-4" /></button>
-        <p className="whitespace-pre-line text-sm leading-7 text-kards-text">{confirmToast.message}</p>
-        <div className="mt-5 flex justify-end gap-3">
+        <h2 className="builder-confirm-title">{confirmToast.message.split('\n')[0]}</h2>
+        {confirmToast.message.includes('\n') && <p className="builder-confirm-description whitespace-pre-line">{confirmToast.message.split('\n').slice(1).join('\n')}</p>}
+        <div className="mt-5 flex justify-center gap-3">
           <button onClick={discardOrCancel} className="rounded border border-kards-border px-4 py-2 text-sm text-kards-text">放弃</button>
           <button data-dialog-confirm onClick={discardOrConfirmSave} className="rounded bg-kards-accent px-4 py-2 text-sm font-bold text-white">保存</button>
         </div>

@@ -112,7 +112,7 @@ export const HEADQUARTERS_STACKS = [
   { id: 'Britain', label: '英国', nation: 'Britain', scope: 'main' as const },
   { id: 'Japan', label: '日本', nation: 'Japan', scope: 'main' as const },
   { id: 'Germany', label: '德国', nation: 'Germany', scope: 'main' as const },
-  { id: 'Common', label: '通用', nation: 'Blank', scope: 'common' as const },
+  { id: 'Common', label: '中立', nation: 'Blank', scope: 'common' as const },
 ].map(category => ({
   ...category,
   cards: HEADQUARTERS.filter(item => item.scope === category.scope && item.nation === category.nation),

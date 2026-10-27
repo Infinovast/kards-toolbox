@@ -2,7 +2,7 @@ import type { CardLanguage, KardsCardRecord } from '../types/card';
 
 const keywordNames: Record<string, string> = {
   blitz: '闪击', guard: '守护', smokescreen: '烟幕', fury: '奋战', ambush: '伏击',
-  shock: '冲击', alpine: '山地', pincer: '钳击', mobilize: '动员',
+  shock: '冲击', alpine: '山地', pincer: '钳击', mobilize: '动员', salvage: '收缴'
 };
 
 export function cardKeywords(card: KardsCardRecord, language: CardLanguage): string[] {

@@ -1,7 +1,7 @@
 {
   "name": "kards-toolbox",
   "private": true,
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "KARDS Toolbox — local-first card library and deck manager for Windows.",
   "type": "module",
   "main": "dist-electron/main.cjs",

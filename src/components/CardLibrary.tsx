@@ -5,6 +5,7 @@ import { startImageDownload, useImageDownload } from '../lib/imageDownloads';
 import { useDismissiblePanel } from '../lib/dialogKeyboard';
 import { EMPTY_CARD_FILTERS, isGeneratedCard, matchesCardFilters, type CardFilters } from '../lib/cardFilters';
 import PageIndicator from './PageIndicator';
+import useCardPoolLayout from '../lib/useCardPoolLayout';
 import { CardText } from './CardText';
 import CardFilterSelects, { CostFilterButtons, expansionOptions } from './CardFilterSelects';
 import { cardKeywords, cardRelations } from '../lib/cardDetails';
@@ -21,8 +22,6 @@ import {
   typeLabel,
   type KardsCardRecord,
 } from '../types/card';
-
-const PAGE_SIZE = 36;
 
 export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
   const [filters, setFilters] = useState<CardFilters>({ ...EMPTY_CARD_FILTERS });
@@ -49,6 +48,12 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
       || factions.includes(stack.id === 'Common' ? 'neutral' : stack.nation.toLowerCase()));
   }, [filters]);
   const expandedStack = visibleHeadquartersStacks.find(stack => stack.id === expandedHeadquarters);
+  const poolItems = useMemo(() => [
+    ...visibleHeadquartersStacks.map(stack => ({ kind: 'headquarters' as const, stack })),
+    ...filteredCards.map(card => ({ kind: 'card' as const, card })),
+  ], [visibleHeadquartersStacks, filteredCards]);
+  const pool = useCardPoolLayout('library', poolItems.length, page, setPage);
+  const pageItems = poolItems.slice(pool.start, pool.end);
 
   useEffect(() => {
     if (!expandedStack) return;
@@ -68,9 +73,6 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
         && previous instanceof HTMLElement && previous.isConnected) previous.focus();
     };
   }, [expandedStack]);
-
-  const pageCount = Math.max(1, Math.ceil(filteredCards.length / PAGE_SIZE));
-  const pageCards = filteredCards.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const selectFilter = (value: CardFilters) => {
     setFilters(value);
@@ -110,22 +112,26 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
           }} className="flex items-center gap-1 rounded border border-kards-border glass-panel px-3 py-2 text-kards-text disabled:opacity-40"><Download className="h-3.5 w-3.5" />缓存筛选结果（{filteredCards.length.toLocaleString()} 张）</button>
         </div>
 
-        <div data-testid="library-grid" className="card-gallery card-gallery-library custom-scrollbar min-h-0 flex-1 overflow-y-auto pb-2">
-          {page === 1 && visibleHeadquartersStacks.map(stack => <button key={stack.id} type="button" aria-haspopup="dialog" aria-expanded={expandedHeadquarters === stack.id} aria-label={`展开${stack.label}总部`} onClick={() => setExpandedHeadquarters(stack.id)} className="card-tile hq-stack-tile card-action group">
-            <span className="hq-stack-art" aria-hidden="true">{stack.cards.map((headquarters, index) => <img key={headquarters.id} src={headquarters.image} alt="" style={{ transform: `translate(${index * 3}px, ${index * 2}px) rotate(${(index - (stack.cards.length - 1) / 2) * 1.4}deg)`, zIndex: index + 1 }} />)}</span>
-          </button>)}
-          {pageCards.map((card) => (
-            <button key={card.importId} onClick={() => setSelectedCard(card)} className="card-tile card-action group text-left" title={cardDisplayTitle(card, language)} aria-label={`查看${cardDisplayTitle(card, language)}`}>
+        <div ref={pool.ref} style={pool.style} data-testid="library-grid" data-capacity={pool.capacity} className="card-gallery card-gallery-library min-h-0 flex-1">
+          {pageItems.map(item => {
+            if (item.kind === 'headquarters') return <button key={item.stack.id} type="button" aria-haspopup="dialog" aria-expanded={expandedHeadquarters === item.stack.id} aria-label={`展开${item.stack.label}总部`} onClick={() => setExpandedHeadquarters(item.stack.id)} className="card-tile hq-stack-tile card-action group">
+            <span className="hq-stack-art" aria-hidden="true">{item.stack.cards.map((headquarters, index) => {
+              const offset = index - (item.stack.cards.length - 1) / 2;
+              return <img key={headquarters.id} src={headquarters.image} alt="" style={{ transform: `translateX(${offset * 3}px) rotate(${offset * 1.4}deg)`, zIndex: index + 1 }} />;
+            })}</span>
+          </button>;
+            const { card } = item;
+            return <button key={card.importId} onClick={() => setSelectedCard(card)} className="card-tile card-action group text-left" title={cardDisplayTitle(card, language)} aria-label={`查看${cardDisplayTitle(card, language)}`}>
               <span className="library-card-art"><CardFace card={card} />{card.reserved && <ReservedBadge className="library-reserved-badge" />}</span>
-            </button>
-          ))}
-          {pageCards.length === 0 && !visibleHeadquartersStacks.length && <div className="col-span-full py-16 text-center text-kards-text-muted">没有找到匹配的卡牌</div>}
+            </button>;
+          })}
+          {!poolItems.length && <div className="col-span-full self-center text-center text-kards-text-muted">没有找到匹配的卡牌</div>}
         </div>
 
         <div className="flex items-center justify-center gap-4 text-sm text-kards-text">
-          <button onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page <= 1} className="rounded border border-kards-border px-3 py-1 disabled:opacity-40">上一页</button>
-          <PageIndicator page={page} pageCount={pageCount} onChange={setPage} />
-          <button onClick={() => setPage((current) => Math.min(pageCount, current + 1))} disabled={page >= pageCount} className="rounded border border-kards-border px-3 py-1 disabled:opacity-40">下一页</button>
+          <button onClick={() => setPage(pool.page - 1)} disabled={pool.page <= 1} className="rounded border border-kards-border px-3 py-1 disabled:opacity-40">上一页</button>
+          <PageIndicator page={pool.page} pageCount={pool.pageCount} onChange={setPage} />
+          <button onClick={() => setPage(pool.page + 1)} disabled={pool.page >= pool.pageCount} className="rounded border border-kards-border px-3 py-1 disabled:opacity-40">下一页</button>
         </div>
       </section>
 

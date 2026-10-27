@@ -43,6 +43,7 @@ import ImageDownloadProgress from './components/ImageDownloadProgress';
 import { handleDialogKeys, useDismissiblePanel, useModalFocus } from './lib/dialogKeyboard';
 import CardLibrary from './components/CardLibrary';
 import CardDetailModal from './components/CardDetailModal';
+import type { CardDetailOrigin } from './lib/cardDetailOrigin';
 import DeckBuilder, { type BuilderDeck } from './components/DeckBuilder';
 import DeckCardStrip, { DeckHeadquartersStrip } from './components/DeckCardStrip';
 import DeckCountIndicator from './components/DeckCountIndicator';
@@ -271,6 +272,7 @@ export default function App() {
   const [showHeadquartersModal, setShowHeadquartersModal] = useState<string | null>(null);
   const [detailCard, setDetailCard] = useState<KardsCardRecord | null>(null);
   const [detailHeadquarters, setDetailHeadquarters] = useState<HeadquartersAsset | null>(null);
+  const [detailOrigin, setDetailOrigin] = useState<CardDetailOrigin | undefined>();
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [addingTagToDeckId, setAddingTagToDeckId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1444,9 +1446,9 @@ export default function App() {
                   </div>
                 </div>
                 <ul aria-label="卡组紧凑列表" className="space-y-0.5 text-sm">
-                  <li><DeckHeadquartersStrip nation={selectedDeck.mainNation} headquartersId={selectedDeck.headquartersId} onClick={headquarters => { selectDeck(selectedDeck.id); setDetailHeadquarters(headquarters); }} /></li>
-                  {previewEntries.map(entry => <li key={entry.id}><DeckCardStrip card={entry.card} importId={entry.id} count={entry.count} onClick={() => {
-                    if (entry.card) { selectDeck(selectedDeck.id); setDetailCard(entry.card); }
+                  <li><DeckHeadquartersStrip nation={selectedDeck.mainNation} headquartersId={selectedDeck.headquartersId} onClick={(headquarters, origin) => { selectDeck(selectedDeck.id); setDetailOrigin(origin); setDetailHeadquarters(headquarters); }} /></li>
+                  {previewEntries.map(entry => <li key={entry.id}><DeckCardStrip card={entry.card} importId={entry.id} count={entry.count} onClick={origin => {
+                    if (entry.card) { selectDeck(selectedDeck.id); setDetailOrigin(origin); setDetailCard(entry.card); }
                   }} /></li>)}
                 </ul>
               </div>
@@ -1537,7 +1539,7 @@ export default function App() {
     </div>
 
       <ImageDownloadProgress />
-      {activeMenu === 'decks' && (detailCard || detailHeadquarters) && <CardDetailModal card={detailCard || undefined} headquarters={detailHeadquarters || undefined} cards={cardDatabase} onClose={() => { setDetailCard(null); setDetailHeadquarters(null); }} />}
+      {activeMenu === 'decks' && (detailCard || detailHeadquarters) && <CardDetailModal card={detailCard || undefined} headquarters={detailHeadquarters || undefined} origin={detailOrigin} cards={cardDatabase} onClose={() => { setDetailCard(null); setDetailHeadquarters(null); }} />}
 
       {/* --- Clipboard Import Prompt --- */}
       <AnimatePresence>

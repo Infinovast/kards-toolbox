@@ -2,19 +2,19 @@ import { useEffect, useState } from 'react';
 import { cacheCardImage } from '../lib/cardImages';
 import { cardDisplayTitle, type KardsCardRecord } from '../types/card';
 
-export function CardFace({ card, enabled = true, className = '' }: {
-  card: KardsCardRecord; enabled?: boolean; className?: string;
+export function CardFace({ card, enabled = true, className = '', initialSource = '' }: {
+  card: KardsCardRecord; enabled?: boolean; className?: string; initialSource?: string;
 }) {
-  const [source, setSource] = useState('');
+  const [source, setSource] = useState(initialSource);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     if (!enabled) return;
     let active = true;
-    setFailed(false); setSource('');
+    setFailed(false); setSource(initialSource);
     cacheCardImage(card).then(url => { if (active) setSource(url); })
       .catch(() => { if (active) setFailed(true); });
     return () => { active = false; };
-  }, [card, enabled]);
+  }, [card, enabled, initialSource]);
   return source
     ? <img src={source} alt={cardDisplayTitle(card, 'zh-Hans')} className={`card-face ${className}`} />
     : <div className={`card-face card-face-placeholder ${className}`}><span>{cardDisplayTitle(card, 'zh-Hans')}<br />{failed ? '卡图暂不可用' : '正在载入卡图…'}</span></div>;

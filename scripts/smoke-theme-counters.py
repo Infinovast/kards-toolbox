@@ -49,9 +49,9 @@ with sync_playwright() as p:
     page.get_by_role('button', name='卡牌', exact=True).click()
     gallery = page.get_by_test_id('library-grid')
     expect(gallery.locator('.card-caption')).to_have_count(0)
-    assert gallery.evaluate('el => parseFloat(getComputedStyle(el).rowGap)') == 6
+    assert gallery.evaluate('el => parseFloat(getComputedStyle(el).rowGap)') == 20
     card_tile = gallery.locator('.card-tile:not(.hq-stack-tile)').first
-    assert card_tile.bounding_box()['width'] <= 164
+    assert card_tile.bounding_box()['width'] <= 168
     for selector in ['.card-tile', '.card-action', '.library-card-art', '.card-face']:
         assert all(color == 'rgba(0, 0, 0, 0)' for color in gallery.locator(selector).evaluate_all('els => els.map(el => getComputedStyle(el).backgroundColor)'))
     page.get_by_role('button', name='卡组', exact=True).click()
@@ -80,10 +80,13 @@ with sync_playwright() as p:
     counter = details.locator('.deck-count-indicator')
     expect(counter.locator('.deck-count-value')).to_have_text('40/40')
     def check_headquarters_alignment(root):
-        hq = root.locator('.deck-headquarters-strip .deck-card-strip-body').bounding_box()
-        row = root.locator('.deck-card-strip .deck-card-strip-body').first.bounding_box()
-        assert abs(hq['x'] - row['x']) < 1
-        assert abs(hq['x'] + hq['width'] - row['x'] - row['width']) < 1
+        # Read both rows in one frame while the floating sidebar may still be entering.
+        gaps = root.evaluate("""el => {
+          const hq = el.querySelector('.deck-headquarters-strip .deck-card-strip-body').getBoundingClientRect();
+          const row = el.querySelector('.deck-card-strip .deck-card-strip-body').getBoundingClientRect();
+          return [Math.abs(hq.left - row.left), Math.abs(hq.right - row.right)];
+        }""")
+        assert max(gaps) < 1, gaps
     check_headquarters_alignment(details)
     normal_size = counter.locator('.deck-count-nation').first.evaluate('el => parseFloat(getComputedStyle(el).fontSize)')
     details.get_by_role('button', name='编辑卡组', exact=True).click()
