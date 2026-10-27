@@ -40,6 +40,7 @@ import { extractDeckCodeFromText, inferDeckTitleFromText } from './lib/deckImpor
 import ImageDownloadProgress from './components/ImageDownloadProgress';
 import { handleDialogKeys, useDismissiblePanel, useModalFocus } from './lib/dialogKeyboard';
 import CardLibrary from './components/CardLibrary';
+import CardDetailModal from './components/CardDetailModal';
 import DeckBuilder, { type BuilderDeck } from './components/DeckBuilder';
 import DeckCardStrip, { DeckHeadquartersStrip } from './components/DeckCardStrip';
 import ReservedBadge from './components/ReservedBadge';
@@ -51,7 +52,7 @@ import CardCacheManager from './components/CardCacheManager';
 import CustomSelect from './components/CustomSelect';
 import { nationOptions } from './components/CardFilterSelects';
 import { loadCardDatabase, type KardsCardRecord } from './types/card';
-import { CARD_BACK_CATEGORIES, CARD_BACKS, DEFAULT_CARD_BACK, DEFAULT_TABLECLOTH, USER_TABLECLOTHS, cardBackForDeck, cardBackIsAvailable, defaultCardBackForNation, headquartersForDeck, headquartersOptions, resolveSelectedTablecloth, tableclothForHeadquarters } from './lib/cardAssets';
+import { CARD_BACK_CATEGORIES, CARD_BACKS, DEFAULT_CARD_BACK, DEFAULT_TABLECLOTH, USER_TABLECLOTHS, cardBackForDeck, cardBackIsAvailable, defaultCardBackForNation, headquartersForDeck, headquartersOptions, resolveSelectedTablecloth, tableclothForHeadquarters, type HeadquartersAsset } from './lib/cardAssets';
 
 // --- Types ---
 type Nation = 'Germany' | 'Soviet' | 'USA' | 'Japan' | 'Britain' | 'Finland' | 'Italy' | 'France' | 'Poland' | 'Anzac';
@@ -198,7 +199,7 @@ const NATION_FLAG_ASSETS: Record<string, string> = {
   it: '/assets/flags/Italy.svg',
   pl: '/assets/flags/Poland.svg',
   fi: '/assets/flags/Finland.svg',
-  an: '/assets/flags/anzac.svg',
+  an: '/assets/flags/au.svg',
 };
 
 const getFlagUrl = (nationCode: string) => {
@@ -245,6 +246,7 @@ export default function App() {
 
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
   const [hoveredDeckId, setHoveredDeckId] = useState<string | null>(null);
+  const deckHoverOpenTimer = useRef<number | null>(null);
   const deckHoverCloseTimer = useRef<number | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showNewDeckModal, setShowNewDeckModal] = useState(false);
@@ -262,6 +264,9 @@ export default function App() {
   const [builderRevision, setBuilderRevision] = useState(0);
   const [errorStatus, setErrorStatus] = useState<string | null>(null);
   const [showCardBackModal, setShowCardBackModal] = useState<string | null>(null);
+  const [showHeadquartersModal, setShowHeadquartersModal] = useState<string | null>(null);
+  const [detailCard, setDetailCard] = useState<KardsCardRecord | null>(null);
+  const [detailHeadquarters, setDetailHeadquarters] = useState<HeadquartersAsset | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [addingTagToDeckId, setAddingTagToDeckId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -269,12 +274,32 @@ export default function App() {
   const [filterAllyNation, setFilterAllyNation] = useState<Nation | 'All'>('All');
   const [filterTag, setFilterTag] = useState<string | 'All'>('All');
 
+  const clearDeckHoverOpen = () => {
+    if (deckHoverOpenTimer.current !== null) window.clearTimeout(deckHoverOpenTimer.current);
+    deckHoverOpenTimer.current = null;
+  };
   const clearDeckHoverClose = () => {
     if (deckHoverCloseTimer.current !== null) window.clearTimeout(deckHoverCloseTimer.current);
     deckHoverCloseTimer.current = null;
   };
-  const hoverDeck = (id: string) => { clearDeckHoverClose(); setHoveredDeckId(id); };
+  const hoverDeck = (id: string) => {
+    clearDeckHoverOpen();
+    clearDeckHoverClose();
+    if (selectedDeckId || activeMenu !== 'decks' || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+    deckHoverOpenTimer.current = window.setTimeout(() => {
+      setHoveredDeckId(id);
+      deckHoverOpenTimer.current = null;
+    }, 300);
+  };
+  const selectDeck = (id: string) => {
+    clearDeckHoverOpen();
+    clearDeckHoverClose();
+    setHoveredDeckId(null);
+    setSelectedDeckId(id);
+  };
   const scheduleDeckHoverClose = () => {
+    clearDeckHoverOpen();
+    if (showCardBackModal || showHeadquartersModal) return;
     if (document.querySelector('.custom-select-popover')) return;
     clearDeckHoverClose();
     deckHoverCloseTimer.current = window.setTimeout(() => { setHoveredDeckId(null); deckHoverCloseTimer.current = null; }, 180);
@@ -284,13 +309,23 @@ export default function App() {
     setSelectedDeckId(null);
     setHoveredDeckId(null);
     setAddingTagToDeckId(null);
+    if (deckHoverOpenTimer.current !== null) window.clearTimeout(deckHoverOpenTimer.current);
+    deckHoverOpenTimer.current = null;
     if (deckHoverCloseTimer.current !== null) window.clearTimeout(deckHoverCloseTimer.current);
     deckHoverCloseTimer.current = null;
     requestAnimationFrame(() => { if (opener?.isConnected) opener.focus(); });
   }, []);
-  useEffect(() => () => clearDeckHoverClose(), []);
-  useEffect(() => { if (activeMenu !== 'decks') setHoveredDeckId(null); }, [activeMenu]);
+  useEffect(() => () => { clearDeckHoverOpen(); clearDeckHoverClose(); }, []);
+  useEffect(() => {
+    clearDeckHoverOpen();
+    if (activeMenu !== 'decks' || selectedDeckId) {
+      clearDeckHoverClose();
+      setHoveredDeckId(null);
+    }
+  }, [activeMenu, selectedDeckId]);
   const deckDetailsRef = useDismissiblePanel(activeMenu === 'decks' && !!(selectedDeckId || hoveredDeckId), closeDeckDetails, () => {
+    clearDeckHoverOpen();
+    clearDeckHoverClose();
     setSelectedDeckId(null);
     setHoveredDeckId(null);
     setAddingTagToDeckId(null);
@@ -428,6 +463,11 @@ export default function App() {
   }, [customCategories, dataLoaded]);
 
   const [effectiveIsDarkMode, setEffectiveIsDarkMode] = useState(true);
+
+  useEffect(() => {
+    const icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    if (icon) icon.href = new URL('./assets/kards_logos/Common/' + (effectiveIsDarkMode ? 'KardsLogoWhite_icon.png' : 'KardsLogoBlack_icon.png'), document.baseURI).href;
+  }, [effectiveIsDarkMode]);
 
   useEffect(() => {
     if (!dataLoaded) return;
@@ -700,7 +740,8 @@ export default function App() {
     return merged;
   }, [customCategories, decks, showCardBackModal]);
 
-  const activeDeckId = hoveredDeckId || selectedDeckId;
+  const activeDeckId = selectedDeckId || hoveredDeckId;
+  const headquartersModalDeck = decks.find(deck => deck.id === showHeadquartersModal);
   const selectedDeck = decks.find(d => d.id === activeDeckId);
   const deckInFocus = activeMenu === 'builder' ? builderDeck : activeMenu === 'decks' ? selectedDeck : null;
   const focusedNation = deckInFocus
@@ -1151,7 +1192,7 @@ export default function App() {
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-3">
             <img 
-              src={effectiveIsDarkMode ? "/assets/kards_logos/Common/KardsLogoWhite.png" : "/assets/kards_logos/Common/KardsLogoBlack.png"}
+              src={effectiveIsDarkMode ? "/assets/kards_logos/Common/KardsLogoWhite_icon.png" : "/assets/kards_logos/Common/KardsLogoBlack_icon.png"}
               alt="KARDS Logo" 
               className="h-16 w-auto transition-opacity"
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
@@ -1196,14 +1237,14 @@ export default function App() {
       <div data-testid="workspace" className="relative flex min-h-0 flex-1 overflow-hidden" style={{ backgroundImage: activeTablecloth ? `url("${activeTablecloth}")` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' }}>
         
         {/* Left Sidebar */}
-        <aside aria-label="主导航" className="glass-panel w-24 shrink-0 flex flex-col gap-1 p-1 z-10 border-r border-kards-border transition-colors duration-300">
-          <SidebarButton active={activeMenu === 'decks' || activeMenu === 'builder'} onClick={() => setActiveMenu('decks')} icon={<Library className="w-8 h-8" />} label="卡组" />
-          <SidebarButton active={activeMenu === 'cards'} onClick={() => setActiveMenu('cards')} icon={<Library className="w-8 h-8" />} label="卡牌" />
+        {activeMenu !== 'builder' && <aside aria-label="主导航" className="glass-panel w-24 shrink-0 flex flex-col gap-1 p-1 z-10 border-r border-kards-border transition-colors duration-300">
+          <SidebarButton active={activeMenu === 'decks'} onClick={() => setActiveMenu('decks')} icon={<Library className="w-8 h-8" />} label="卡组" />
+          <SidebarButton active={activeMenu === 'cards'} onClick={() => setActiveMenu('cards')} icon={<img src={effectiveIsDarkMode ? "/assets/kards_logos/Common/KardsLogoWhite_cards.png" : "/assets/kards_logos/Common/KardsLogoBlack_cards.png"} alt="" className="h-8 w-8 object-contain" />} label="卡牌" />
           <div aria-label="应用工具" className="mt-auto flex flex-col gap-1 border-t border-kards-border pt-1">
             <SidebarButton active={showTableclothModal} onClick={() => setShowTableclothModal(true)} icon={<Palette className="w-6 h-6" />} label="桌布" />
             <SidebarButton active={activeMenu === 'settings'} onClick={() => { if (activeMenu !== 'settings') setSettingsReturnMenu(activeMenu); setActiveMenu('settings'); }} icon={<Settings className="w-6 h-6" />} label="设置" />
           </div>
-        </aside>
+        </aside>}
 
         {/* Center Grid */}
         <main className="min-w-0 flex-1 overflow-hidden relative transition-colors duration-300">
@@ -1261,7 +1302,7 @@ export default function App() {
             )}
             {activeMenu === 'builder' && cardDatabaseLoading && <p className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</p>}
             {activeMenu === 'builder' && cardDatabaseError && <p className="p-6 text-red-400">{cardDatabaseError}</p>}
-            {!cardDatabaseLoading && !cardDatabaseError && builderDeck && <div className={`h-full w-full max-w-[1800px] shrink-0 ${activeMenu === 'builder' ? '' : 'hidden'}`}><DeckBuilder active={activeMenu === 'builder'} key={builderRevision} cards={cardDatabase} initialDeck={builderDeck} onSave={handleSaveBuiltDeck} onPreview={handleGetDeckImage} onBack={() => { setActiveMenu('decks'); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('[aria-label="主导航"] button')?.focus()); }} /></div>}
+            {!cardDatabaseLoading && !cardDatabaseError && builderDeck && <div className={`h-full w-full max-w-[1800px] shrink-0 ${activeMenu === 'builder' ? '' : 'hidden'}`}><DeckBuilder active={activeMenu === 'builder'} key={builderRevision} cards={cardDatabase} initialDeck={builderDeck} onSave={handleSaveBuiltDeck} onBack={() => { setActiveMenu('decks'); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('[aria-label="主导航"] button')?.focus()); }} /></div>}
             {activeMenu === 'settings' && settingsPage}
             {activeMenu === 'about' && <AboutPage onBack={() => setActiveMenu(aboutReturnMenu)} />}
             {activeMenu === 'decks' && <div className="mb-6 flex w-full max-w-7xl flex-wrap items-center justify-between gap-3">
@@ -1286,7 +1327,7 @@ export default function App() {
                     key={deck.id}
                     deck={deck}
                     selected={activeDeckId === deck.id}
-                    onClick={() => setSelectedDeckId(deck.id)}
+                    onClick={() => selectDeck(deck.id)}
                     onHover={() => hoverDeck(deck.id)}
                     onHoverLeave={scheduleDeckHoverClose}
                     onDoubleClick={() => openDeckEditor(deck)}
@@ -1318,7 +1359,7 @@ export default function App() {
               folders={collections}
               decks={sortedDecks}
               selectedDeckId={activeDeckId}
-              onSelect={deck => setSelectedDeckId(deck.id)}
+              onSelect={deck => selectDeck(deck.id)}
               onHover={deck => hoverDeck(deck.id)}
               onHoverLeave={scheduleDeckHoverClose}
               onEdit={deck => { const stored = decks.find(item => item.id === deck.id); if (stored) openDeckEditor(stored); }}
@@ -1334,7 +1375,7 @@ export default function App() {
 
         {/* Non-modal details float over the unchanged deck workspace. */}
         {activeMenu === 'decks' && selectedDeck && (
-          <aside ref={deckDetailsRef} data-deck-details role="dialog" aria-modal="false" aria-label="卡组详情" tabIndex={-1} onMouseEnter={clearDeckHoverClose} onMouseLeave={scheduleDeckHoverClose}
+          <aside ref={deckDetailsRef} data-deck-details role="dialog" aria-modal="false" aria-label="卡组详情" tabIndex={-1} onMouseEnter={() => { clearDeckHoverOpen(); clearDeckHoverClose(); }} onMouseLeave={scheduleDeckHoverClose}
             className="glass-panel absolute bottom-5 right-5 top-5 z-30 flex w-[320px] max-w-[calc(100%-136px)] flex-col overflow-hidden rounded-lg border border-kards-border shadow-xl"
           >
               <motion.div 
@@ -1354,19 +1395,21 @@ export default function App() {
                   aria-label="管理卡组名称"
                   onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.blur(); } }}
                   onChange={(e) => handleNameChange(selectedDeck.id, e.target.value)}
-                  className="text-xl font-bold tracking-tight mb-4 text-center bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-kards-gold/30 rounded w-full"
+                  className="deck-name-input mb-4"
                 />
                 
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-kards-text-muted">
                   <span>{selectedDeck.totalCards + 1} 张（含总部）</span>
                   <div className="flex min-w-0 items-center gap-2">
-                    <CustomSelect label="更换总部" value={headquartersForDeck(selectedDeck.headquartersId, selectedDeck.mainNation)?.groupId || ''} onChange={headquartersId => setDecks(current => current.map(deck => deck.id === selectedDeck.id ? { ...deck, headquartersId } : deck))} className="max-w-[150px]" options={headquartersOptions(selectedDeck.mainNation).map(headquarters => ({ value: headquarters.groupId, label: headquarters.name }))} />
-                    <button onClick={() => setShowCardBackModal(selectedDeck.id)} className="shrink-0 rounded border border-kards-border px-2 py-1">更换卡背</button>
+                    <button onClick={() => { selectDeck(selectedDeck.id); setShowHeadquartersModal(selectedDeck.id); }} className="shrink-0 rounded border border-kards-border px-2 py-1">更换总部</button>
+                    <button onClick={() => { selectDeck(selectedDeck.id); setShowCardBackModal(selectedDeck.id); }} className="shrink-0 rounded border border-kards-border px-2 py-1">更换卡背</button>
                   </div>
                 </div>
                 <ul aria-label="卡组紧凑列表" className="space-y-0.5 text-sm">
-                  <li><DeckHeadquartersStrip nation={selectedDeck.mainNation} headquartersId={selectedDeck.headquartersId} /></li>
-                  {previewEntries.map(entry => <li key={entry.id}><DeckCardStrip card={entry.card} importId={entry.id} count={entry.count} /></li>)}
+                  <li><DeckHeadquartersStrip nation={selectedDeck.mainNation} headquartersId={selectedDeck.headquartersId} onClick={headquarters => { selectDeck(selectedDeck.id); setDetailHeadquarters(headquarters); }} /></li>
+                  {previewEntries.map(entry => <li key={entry.id}><DeckCardStrip card={entry.card} importId={entry.id} count={entry.count} onClick={() => {
+                    if (entry.card) { selectDeck(selectedDeck.id); setDetailCard(entry.card); }
+                  }} /></li>)}
                 </ul>
               </div>
 
@@ -1456,6 +1499,7 @@ export default function App() {
     </div>
 
       <ImageDownloadProgress />
+      {activeMenu === 'decks' && (detailCard || detailHeadquarters) && <CardDetailModal card={detailCard || undefined} headquarters={detailHeadquarters || undefined} cards={cardDatabase} onClose={() => { setDetailCard(null); setDetailHeadquarters(null); }} />}
 
       {/* --- Clipboard Import Prompt --- */}
       <AnimatePresence>
@@ -1729,6 +1773,37 @@ export default function App() {
         )}
       </AnimatePresence>
       <AnimatePresence>
+        {headquartersModalDeck && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowHeadquartersModal(null)} className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm" />
+            <motion.section role="dialog" aria-modal="true" aria-label="更换总部" tabIndex={-1} onKeyDown={handleDialogKeys}
+              initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="glass-panel military-border relative flex max-h-[80vh] w-full max-w-4xl flex-col p-8 shadow-2xl">
+              <button data-dialog-cancel onClick={() => setShowHeadquartersModal(null)} aria-label="关闭更换总部" className="absolute right-4 top-4 text-kards-text-muted hover:text-kards-text"><X className="h-6 w-6" /></button>
+              <h3 className="mb-6 flex shrink-0 items-center gap-3 border-b border-kards-border pb-4 text-2xl font-bold"><ImageIcon className="h-6 w-6 text-kards-gold" />更换总部</h3>
+              <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto">
+                <div className="deck-asset-grid headquarters-choice-grid">
+                  {headquartersOptions(headquartersModalDeck.mainNation).map(headquarters => (
+                    <button key={headquarters.groupId} type="button" aria-label={'使用总部 ' + headquarters.name}
+                      aria-pressed={headquartersForDeck(headquartersModalDeck.headquartersId, headquartersModalDeck.mainNation)?.groupId === headquarters.groupId}
+                      className="deck-asset-choice card-action group flex min-w-0 flex-col items-center"
+                      onClick={() => {
+                        setDecks(current => current.map(deck => deck.id === headquartersModalDeck.id ? { ...deck, headquartersId: headquarters.groupId } : deck));
+                        setShowHeadquartersModal(null);
+                      }}>
+                      <span className="deck-asset-art military-border relative block w-full bg-kards-input-bg shadow-lg"><img src={headquarters.image} alt="" className="card-face h-full w-full object-contain" /></span>
+                      <span className="mt-2 w-full truncate px-1 text-center text-xs text-kards-text-muted group-hover:text-kards-text" title={headquarters.name}>{headquarters.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </motion.section>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {showCardBackModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div 
@@ -1739,14 +1814,14 @@ export default function App() {
               className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm"
             />
             <motion.div 
-              role="dialog" aria-modal="true" tabIndex={-1} onKeyDown={handleDialogKeys}
+              role="dialog" aria-modal="true" aria-label="更换卡背" tabIndex={-1} onKeyDown={handleDialogKeys}
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               className="glass-panel relative w-full max-w-4xl max-h-[80vh] bg-kards-gray military-border p-8 shadow-2xl flex flex-col"
             >
               <button 
-                data-dialog-cancel onClick={() => setShowCardBackModal(null)}
+                data-dialog-cancel onClick={() => setShowCardBackModal(null)} aria-label="关闭更换卡背"
                 className="absolute top-4 right-4 text-kards-text-muted hover:text-kards-text"
               >
                 <X className="w-6 h-6" />
@@ -1847,7 +1922,7 @@ export default function App() {
                         暂无自定义卡背
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                      <div className="deck-asset-grid">
                         {category.backs.map((back: any) => (
                           <div 
                             key={back.id}

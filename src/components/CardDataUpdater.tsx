@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Download, RotateCcw, Search, Trash2, X } from 'lucide-react';
 import { cardDisplayTitle, type KardsCardRecord } from '../types/card';
 import CustomSelect from './CustomSelect';
+import PageIndicator from './PageIndicator';
 import { compareCardData, type CardFieldChange } from '../lib/cardData';
 import type { CardDataSource } from '../lib/cardData';
 import { applyCardData, cancelCardDataCheck, checkCardData, deleteDownloadedCardData, initializeCardDataSync, rollbackCardData, useCardDataSync } from '../lib/cardDataSync';
@@ -101,7 +102,7 @@ export default function CardDataUpdater({ cards, onApplied }: { cards: KardsCard
           </details>)}
           {!filtered.length && <p className="py-6 text-sm text-kards-text-muted">没有符合条件的差异</p>}
         </div>
-        <div className="mt-4 flex items-center justify-center gap-4 text-xs text-kards-text"><button disabled={page <= 1} onClick={() => setPage(page - 1)} className="rounded border border-kards-border px-3 py-1 disabled:opacity-40">上一页差异</button><span>{page} / {Math.max(1, Math.ceil(filtered.length / 30))}</span><button disabled={page * 30 >= filtered.length} onClick={() => setPage(page + 1)} className="rounded border border-kards-border px-3 py-1 disabled:opacity-40">下一页差异</button></div>
+        <div className="mt-4 flex items-center justify-center gap-4 text-xs text-kards-text"><button disabled={page <= 1} onClick={() => setPage(page - 1)} className="rounded border border-kards-border px-3 py-1 disabled:opacity-40">上一页差异</button><PageIndicator page={page} pageCount={Math.max(1, Math.ceil(filtered.length / 30))} onChange={setPage} /><button disabled={page * 30 >= filtered.length} onClick={() => setPage(page + 1)} className="rounded border border-kards-border px-3 py-1 disabled:opacity-40">下一页差异</button></div>
       </>}
     </div>}
   </section>;

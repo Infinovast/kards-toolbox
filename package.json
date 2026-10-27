@@ -1,7 +1,7 @@
 {
   "name": "kards-toolbox",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "KARDS Toolbox — local-first card library and deck manager for Windows.",
   "type": "module",
   "main": "dist-electron/main.cjs",
@@ -29,7 +29,8 @@
     "lint": "tsc --noEmit",
     "test:deck-import": "tsx src/lib/deckImport.test.ts",
     "test": "npm run test:deck-import && tsx src/lib/deckCode.test.ts && tsx src/lib/backup.test.ts && tsx electron/userDataPath.test.ts && tsx src/lib/cardData.test.ts && tsx src/lib/cardAssets.test.ts && tsx src/lib/cardFilters.test.ts && tsx src/lib/cardImages.test.ts",
-    "test:desktop": "node scripts/smoke-desktop.cjs"
+    "test:desktop": "node scripts/smoke-desktop.cjs",
+    "app": "start \"\" \"release/win-unpacked/kards_toolbox.exe\""
   },
   "build": {
     "appId": "com.kards.localtool",
@@ -67,13 +68,17 @@
       "main": "dist-electron/main.cjs"
     },
     "win": {
+      "executableName": "kards_toolbox",
       "signAndEditExecutable": true,
       "target": [
         "nsis",
         "portable",
         "dir"
       ],
-      "icon": "public/assets/kards_logos/Common/KardsLogoBlack.png"
+      "icon": "public/assets/kards_logos/Common/KardsLogoBlack_icon.png"
+    },
+    "portable": {
+      "artifactName": "kards_toolbox.exe"
     },
     "nsis": {
       "oneClick": false,

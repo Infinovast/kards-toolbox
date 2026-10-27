@@ -2,9 +2,10 @@ import { useEffect, useRef, useState, type CSSProperties, type DragEvent, type R
 import { createPortal } from 'react-dom';
 import { ImageOff } from 'lucide-react';
 import { cacheCardImage } from '../lib/cardImages';
-import { headquartersForDeck } from '../lib/cardAssets';
+import { headquartersForDeck, type HeadquartersAsset } from '../lib/cardAssets';
 import { cardDisplayTitle, factionLabel, type KardsCardRecord } from '../types/card';
 import ReservedBadge from './ReservedBadge';
+import { RARITY_SLOTS } from './CardFace';
 
 // Median RGB of x=120..390, y=80..88 in the supplied 500px card headers.
 // references/cards contains nine nations plus Neutral; ANZAC keeps its existing color.
@@ -26,14 +27,14 @@ const HEADQUARTERS: Record<string, string> = {
   Britain: 'ALAM EL HALFA', Germany: 'DANZIG', Soviet: 'STALINGRAD', Japan: 'TRUK', USA: 'CHERBOURG',
 };
 
-export function DeckHeadquartersStrip({ nation, headquartersId }: { nation: string; headquartersId?: string }) {
+export function DeckHeadquartersStrip({ nation, headquartersId, onClick }: { nation: string; headquartersId?: string; onClick?: (headquarters: HeadquartersAsset) => void }) {
   const appearance = CARD_STRIP_NATIONS[nation] || CARD_STRIP_NATIONS.Neutral;
   const headquarters = headquartersForDeck(headquartersId, nation);
   const title = headquarters?.name || HEADQUARTERS[nation] || `${factionLabel(nation)}总部`;
   const root = useRef<HTMLDivElement>(null);
   const [preview, setPreview] = useState<CSSProperties | null>(null);
   const showPreview = () => {
-    if (!headquarters) return;
+    if (!headquarters || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
     const bounds = root.current?.getBoundingClientRect();
     if (!bounds) return;
     const width = Math.min(250, (window.innerHeight - 32) * 618 / 867, bounds.left - 24);
@@ -52,13 +53,15 @@ export function DeckHeadquartersStrip({ nation, headquartersId }: { nation: stri
     window.addEventListener('kards-deck-card-preview', otherPreview);
     return () => { window.removeEventListener('scroll', hide, true); window.removeEventListener('resize', hide); window.removeEventListener('blur', hide); window.removeEventListener('kards-deck-card-preview', otherPreview); };
   }, [preview]);
-  return <div ref={root} className="deck-headquarters-strip" aria-label={`主国总部 ${title}`} style={{ '--strip-color': appearance.color, '--strip-text': appearance.darkText ? '#12130e' : '#fff9e8' } as CSSProperties} onMouseEnter={showPreview} onMouseLeave={() => setPreview(null)} onFocus={showPreview} onBlur={() => setPreview(null)}>
+  return <div ref={root} className="deck-headquarters-strip" role={onClick ? 'button' : undefined} tabIndex={onClick ? 0 : undefined} aria-label={`主国总部 ${title}`} style={{ '--strip-color': appearance.color, '--strip-text': appearance.darkText ? '#12130e' : '#fff9e8' } as CSSProperties} onMouseEnter={showPreview} onMouseLeave={() => setPreview(null)} onFocus={showPreview} onBlur={() => setPreview(null)}
+    onClick={() => { if (headquarters && onClick) { setPreview(null); onClick(headquarters); } }}
+    onKeyDown={event => { if (!event.nativeEvent.isComposing && !event.ctrlKey && !event.metaKey && (event.key === 'Enter' || event.key === ' ') && headquarters && onClick) { event.preventDefault(); event.stopPropagation(); setPreview(null); onClick(headquarters); } }}>
     <div className="deck-card-strip-body"><span className="deck-card-name">{title}</span><img className="deck-card-nation" src={appearance.icon} alt={factionLabel(nation)} /></div>
     {headquarters && preview && createPortal(<div role="tooltip" aria-label={`${title}总部大图`} className="deck-card-preview glass-panel" style={preview}><img className="card-face" src={headquarters.image} alt={title} /></div>, document.body)}
   </div>;
 }
 
-export default function DeckCardStrip({ card, importId, count, enabled = true, controls, draggable = false, onDragStart, onDragEnd }: {
+export default function DeckCardStrip({ card, importId, count, enabled = true, controls, draggable = false, onDragStart, onDragEnd, onClick, onDoubleClick, onRemove }: {
   card?: KardsCardRecord;
   importId: string;
   count: number;
@@ -67,6 +70,9 @@ export default function DeckCardStrip({ card, importId, count, enabled = true, c
   draggable?: boolean;
   onDragStart?: (event: DragEvent<HTMLDivElement>) => void;
   onDragEnd?: (event: DragEvent<HTMLDivElement>) => void;
+  onClick?: () => void;
+  onDoubleClick?: () => void;
+  onRemove?: () => void;
 }) {
   const title = card ? cardDisplayTitle(card, 'zh-Hans') : `未知卡牌 ${importId}`;
   const nation = Object.keys(CARD_STRIP_NATIONS).find(key => key.toLowerCase() === card?.json.faction?.toLowerCase());
@@ -76,6 +82,9 @@ export default function DeckCardStrip({ card, importId, count, enabled = true, c
   const [thumbnail, setThumbnail] = useState('');
   const root = useRef<HTMLDivElement>(null);
   const [preview, setPreview] = useState<CSSProperties | null>(null);
+  const clickTimer = useRef<number | undefined>(undefined);
+  const cancelClick = () => { window.clearTimeout(clickTimer.current); clickTimer.current = undefined; };
+  useEffect(() => { if (!enabled) cancelClick(); return cancelClick; }, [enabled, card]);
   const showPreview = () => {
     if (!enabled || !card || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
     const bounds = root.current?.getBoundingClientRect();
@@ -104,11 +113,26 @@ export default function DeckCardStrip({ card, importId, count, enabled = true, c
     cacheCardImage(card, 'zh-Hans', 'thumbnail').then(url => { if (active) setThumbnail(url); }).catch(() => {});
     return () => { active = false; };
   }, [card, enabled]);
-  return <div ref={root} tabIndex={card ? 0 : undefined} aria-label={`${title}，${count} 张`} className="deck-card-strip" data-nation={nation || 'Unknown'} data-preview={!!preview && enabled} style={{ '--strip-color': appearance.color, '--strip-text': appearance.darkText ? '#12130e' : '#fff9e8' } as CSSProperties}
+  return <div ref={root} tabIndex={card ? 0 : undefined} role={onClick ? 'button' : undefined} aria-label={`${title}，${count} 张`} className="deck-card-strip" data-nation={nation || 'Unknown'} data-preview={!!preview && enabled} style={{ '--strip-color': appearance.color, '--strip-text': appearance.darkText ? '#12130e' : '#fff9e8', '--rarity-color': (RARITY_SLOTS[card?.json.rarity || 'Standard'] || RARITY_SLOTS.Standard).color } as CSSProperties}
+    onClick={event => {
+      if (!enabled || !onClick || (event.target as HTMLElement).closest('.deck-card-controls')) return;
+      cancelClick();
+      if (!onDoubleClick || event.detail === 0) { setPreview(null); onClick(); }
+      else if (event.detail === 1) clickTimer.current = window.setTimeout(() => { setPreview(null); onClick(); }, 500);
+    }}
+    onDoubleClick={event => {
+      if (!enabled || !onDoubleClick || (event.target as HTMLElement).closest('.deck-card-controls')) return;
+      event.preventDefault(); cancelClick(); setPreview(null); onDoubleClick();
+    }}
+    onContextMenu={event => { if (enabled && onRemove) { event.preventDefault(); cancelClick(); setPreview(null); onRemove(); } }}
     onMouseEnter={showPreview} onMouseLeave={() => setPreview(null)} onFocus={showPreview} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setPreview(null); }}
-    onKeyDown={event => { if (preview && event.key === 'Escape' && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); setPreview(null); } }}>
+    onKeyDown={event => {
+      if (event.nativeEvent.isComposing) return;
+      if (preview && event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setPreview(null); }
+      else if (enabled && onClick && !event.ctrlKey && !event.metaKey && (event.key === 'Enter' || event.key === ' ') && event.target === event.currentTarget) { event.preventDefault(); event.stopPropagation(); cancelClick(); setPreview(null); onClick(); }
+    }}>
     <span className="deck-card-marker">{card?.reserved && <ReservedBadge />}</span>
-    <div className="deck-card-strip-body" draggable={draggable} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+    <div className="deck-card-strip-body" draggable={draggable} onDragStart={event => { cancelClick(); setPreview(null); onDragStart?.(event); }} onDragEnd={onDragEnd}>
       <span className="deck-card-cost" aria-label={card ? isUnit ? `部署花费 ${card.json.kredits ?? '?'}，行动花费 ${card.json.operationCost ?? '?'}` : `花费 ${card.json.kredits ?? '?'}` : '费用未知'}>
         <span className="deck-card-deployment" style={(card?.json.kredits ?? 0) >= 10 ? { fontSize: 21 } : undefined}>{card?.json.kredits ?? '?'}</span><small>K</small>{isUnit && <span className="deck-card-operation">{card.json.operationCost ?? '?'}</span>}
       </span>

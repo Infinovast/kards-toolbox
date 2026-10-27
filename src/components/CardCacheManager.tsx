@@ -4,6 +4,7 @@ import { CARD_LANGUAGES, cardDisplayTitle, type CardLanguage, type KardsCardReco
 import { deleteCachedImages, getCachedCardImage, readCardImageCache, useCardImageCacheRevision, type CardCacheEntry } from '../lib/cardImages';
 import { startImageDownload, useImageDownload } from '../lib/imageDownloads';
 import CustomSelect from './CustomSelect';
+import PageIndicator from './PageIndicator';
 
 type CacheSnapshot = Awaited<ReturnType<typeof readCardImageCache>>;
 const labels = { cached: '已缓存', missing: '未缓存', failed: '缓存失败', running: '正在缓存' };
@@ -143,6 +144,6 @@ export default function CardCacheManager({ cards }: { cards: KardsCardRecord[] }
         </article>;
       })}
     </div>}
-    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-kards-text-muted"><span aria-live="polite">共 {filtered.length} 张 · 第 {currentPage} / {pages} 页</span><div className="flex gap-2"><button onClick={() => setPage(currentPage - 1)} disabled={currentPage <= 1} className="rounded border border-kards-border px-3 py-1.5 disabled:opacity-40">上一页</button><button onClick={() => setPage(currentPage + 1)} disabled={currentPage >= pages} className="rounded border border-kards-border px-3 py-1.5 disabled:opacity-40">下一页</button></div></div>
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-kards-text-muted"><div className="flex items-center gap-1" aria-live="polite"><span>共 {filtered.length} 张 ·</span><PageIndicator page={currentPage} pageCount={pages} onChange={setPage} /></div><div className="flex gap-2"><button onClick={() => setPage(currentPage - 1)} disabled={currentPage <= 1} className="rounded border border-kards-border px-3 py-1.5 disabled:opacity-40">上一页</button><button onClick={() => setPage(currentPage + 1)} disabled={currentPage >= pages} className="rounded border border-kards-border px-3 py-1.5 disabled:opacity-40">下一页</button></div></div>
   </section>;
 }

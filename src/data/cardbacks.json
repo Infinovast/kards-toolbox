@@ -9,162 +9,35 @@
   },
   "categories": [
     {
-      "id": "common",
-      "name": "通用",
-      "scope": "common",
-      "backs": [
-        {
-          "id": "cardback-013",
-          "name": "2019年锦标赛2",
-          "file": "/assets/cardbacks/Common/cardback-013.png",
-          "scope": "common"
-        },
-        {
-          "id": "cardback-014",
-          "name": "白银",
-          "file": "/assets/cardbacks/Common/cardback-014.png",
-          "scope": "common"
-        },
-        {
-          "id": "cardback-015",
-          "name": "步兵徽章",
-          "file": "/assets/cardbacks/Common/cardback-015.png",
-          "scope": "common"
-        },
-        {
-          "id": "cardback-016",
-          "name": "帝国大将",
-          "file": "/assets/cardbacks/Common/cardback-016.png",
-          "scope": "common"
-        },
-        {
-          "id": "cardback-017",
-          "name": "第13机械化师",
-          "file": "/assets/cardbacks/Common/cardback-017.png",
-          "scope": "common"
-        },
-        {
-          "id": "cardback-018",
-          "name": "第27装甲旅",
-          "file": "/assets/cardbacks/Common/cardback-018.png",
-          "scope": "common"
-        },
-        {
-          "id": "cardback-019",
-          "name": "第42师",
-          "file": "/assets/cardbacks/Common/cardback-019.png",
-          "scope": "common"
-        },
-        {
-          "id": "cardback-020",
-          "name": "第6联队",
-          "file": "/assets/cardbacks/Common/cardback-020.png",
-          "scope": "common"
-        },
-        {
-          "id": "cardback-021",
-          "name": "黑铁",
-          "file": "/assets/cardbacks/Common/cardback-021.png",
-          "scope": "common"
-        },
-        {
-          "id": "cardback-022",
-          "name": "幻影师",
-          "file": "/assets/cardbacks/Common/cardback-022.png",
-          "scope": "common"
-        },
-        {
-          "id": "cardback-023",
-          "name": "黄金",
-          "file": "/assets/cardbacks/Common/cardback-023.png",
-          "scope": "common"
-        },
-        {
-          "id": "cardback-024",
-          "name": "锦标赛限定",
-          "file": "/assets/cardbacks/Common/cardback-024.png",
-          "scope": "common"
-        },
-        {
-          "id": "cardback-025",
-          "name": "经典",
-          "file": "/assets/cardbacks/Common/cardback-025.png",
-          "scope": "common"
-        },
-        {
-          "id": "cardback-026",
-          "name": "精英",
-          "file": "/assets/cardbacks/Common/cardback-026.png",
-          "scope": "common"
-        },
-        {
-          "id": "cardback-027",
-          "name": "陆军飞行战队",
-          "file": "/assets/cardbacks/Common/cardback-027.png",
-          "scope": "common"
-        },
-        {
-          "id": "cardback-028",
-          "name": "青铜",
-          "file": "/assets/cardbacks/Common/cardback-028.png",
-          "scope": "common"
-        },
-        {
-          "id": "cardback-029",
-          "name": "疫情",
-          "file": "/assets/cardbacks/Common/cardback-029.png",
-          "scope": "common"
-        },
-        {
-          "id": "cardback-030",
-          "name": "Alpha",
-          "file": "/assets/cardbacks/Common/cardback-030.png",
-          "scope": "common"
-        },
-        {
-          "id": "cardback-031",
-          "name": "Alpha老兵",
-          "file": "/assets/cardbacks/Common/cardback-031.png",
-          "scope": "common"
-        },
-        {
-          "id": "cardback-032",
-          "name": "Beta老兵",
-          "file": "/assets/cardbacks/Common/cardback-032.png",
-          "scope": "common"
-        },
-        {
-          "id": "cardback-033",
-          "name": "D日",
-          "file": "/assets/cardbacks/Common/cardback-033.png",
-          "scope": "common"
-        },
-        {
-          "id": "cardback-034",
-          "name": "mobilebeta",
-          "file": "/assets/cardbacks/Common/cardback-034.png",
-          "scope": "common"
-        },
-        {
-          "id": "cardback-035",
-          "name": "OCC冠军",
-          "file": "/assets/cardbacks/Common/cardback-035.png",
-          "scope": "common"
-        },
-        {
-          "id": "cardback-036",
-          "name": "Steam",
-          "file": "/assets/cardbacks/Common/cardback-036.png",
-          "scope": "common"
-        }
-      ]
-    },
-    {
       "id": "main-britain",
-      "name": "英国主国",
+      "name": "英国",
       "scope": "main",
       "nation": "Britain",
       "backs": [
+        {
+          "id": "cardback-010",
+          "name": "英国基础",
+          "file": "/assets/cardbacks/Britain/cardback-010.png",
+          "scope": "main",
+          "nation": "Britain",
+          "isDefault": true
+        },
+        {
+          "id": "cardback-012",
+          "name": "英国老兵",
+          "file": "/assets/cardbacks/Britain/cardback-012.png",
+          "scope": "main",
+          "nation": "Britain",
+          "isDefault": false
+        },
+        {
+          "id": "cardback-011",
+          "name": "英国空军",
+          "file": "/assets/cardbacks/Britain/cardback-011.png",
+          "scope": "main",
+          "nation": "Britain",
+          "isDefault": false
+        },
         {
           "id": "cardback-005",
           "name": "第18步兵师",
@@ -204,36 +77,12 @@
           "scope": "main",
           "nation": "Britain",
           "isDefault": false
-        },
-        {
-          "id": "cardback-010",
-          "name": "英国基础",
-          "file": "/assets/cardbacks/Britain/cardback-010.png",
-          "scope": "main",
-          "nation": "Britain",
-          "isDefault": true
-        },
-        {
-          "id": "cardback-011",
-          "name": "英国空军",
-          "file": "/assets/cardbacks/Britain/cardback-011.png",
-          "scope": "main",
-          "nation": "Britain",
-          "isDefault": false
-        },
-        {
-          "id": "cardback-012",
-          "name": "英国老兵",
-          "file": "/assets/cardbacks/Britain/cardback-012.png",
-          "scope": "main",
-          "nation": "Britain",
-          "isDefault": false
         }
       ]
     },
     {
       "id": "main-germany",
-      "name": "德国主国",
+      "name": "德国",
       "scope": "main",
       "nation": "Germany",
       "backs": [
@@ -246,6 +95,14 @@
           "isDefault": true
         },
         {
+          "id": "cardback-039",
+          "name": "德国老兵",
+          "file": "/assets/cardbacks/Germany/cardback-039.png",
+          "scope": "main",
+          "nation": "Germany",
+          "isDefault": false
+        },
+        {
           "id": "cardback-038",
           "name": "德国空军",
           "file": "/assets/cardbacks/Germany/cardback-038.png",
@@ -254,9 +111,9 @@
           "isDefault": false
         },
         {
-          "id": "cardback-039",
-          "name": "德国老兵",
-          "file": "/assets/cardbacks/Germany/cardback-039.png",
+          "id": "cardback-043",
+          "name": "战争海军",
+          "file": "/assets/cardbacks/Germany/cardback-043.png",
           "scope": "main",
           "nation": "Germany",
           "isDefault": false
@@ -286,14 +143,6 @@
           "isDefault": false
         },
         {
-          "id": "cardback-043",
-          "name": "战争海军",
-          "file": "/assets/cardbacks/Germany/cardback-043.png",
-          "scope": "main",
-          "nation": "Germany",
-          "isDefault": false
-        },
-        {
           "id": "cardback-044",
           "name": "T306步兵师德国",
           "file": "/assets/cardbacks/Germany/cardback-044.png",
@@ -305,22 +154,30 @@
     },
     {
       "id": "main-japan",
-      "name": "日本主国",
+      "name": "日本",
       "scope": "main",
       "nation": "Japan",
       "backs": [
         {
-          "id": "cardback-045",
-          "name": "帝国军星",
-          "file": "/assets/cardbacks/Japan/cardback-045.png",
+          "id": "cardback-048",
+          "name": "日本基础",
+          "file": "/assets/cardbacks/Japan/cardback-048.png",
+          "scope": "main",
+          "nation": "Japan",
+          "isDefault": true
+        },
+        {
+          "id": "cardback-050",
+          "name": "日本老兵",
+          "file": "/assets/cardbacks/Japan/cardback-050.png",
           "scope": "main",
           "nation": "Japan",
           "isDefault": false
         },
         {
-          "id": "cardback-046",
-          "name": "第1坦克团",
-          "file": "/assets/cardbacks/Japan/cardback-046.png",
+          "id": "cardback-049",
+          "name": "日本空军",
+          "file": "/assets/cardbacks/Japan/cardback-049.png",
           "scope": "main",
           "nation": "Japan",
           "isDefault": false
@@ -334,25 +191,17 @@
           "isDefault": false
         },
         {
-          "id": "cardback-048",
-          "name": "日本基础",
-          "file": "/assets/cardbacks/Japan/cardback-048.png",
-          "scope": "main",
-          "nation": "Japan",
-          "isDefault": true
-        },
-        {
-          "id": "cardback-049",
-          "name": "日本空军",
-          "file": "/assets/cardbacks/Japan/cardback-049.png",
+          "id": "cardback-045",
+          "name": "帝国军星",
+          "file": "/assets/cardbacks/Japan/cardback-045.png",
           "scope": "main",
           "nation": "Japan",
           "isDefault": false
         },
         {
-          "id": "cardback-050",
-          "name": "日本老兵",
-          "file": "/assets/cardbacks/Japan/cardback-050.png",
+          "id": "cardback-046",
+          "name": "第1坦克团",
+          "file": "/assets/cardbacks/Japan/cardback-046.png",
           "scope": "main",
           "nation": "Japan",
           "isDefault": false
@@ -377,26 +226,10 @@
     },
     {
       "id": "main-soviet",
-      "name": "苏联主国",
+      "name": "苏联",
       "scope": "main",
       "nation": "Soviet",
       "backs": [
-        {
-          "id": "cardback-053",
-          "name": "红军",
-          "file": "/assets/cardbacks/Soviet/cardback-053.png",
-          "scope": "main",
-          "nation": "Soviet",
-          "isDefault": false
-        },
-        {
-          "id": "cardback-054",
-          "name": "苏联海军旗",
-          "file": "/assets/cardbacks/Soviet/cardback-054.png",
-          "scope": "main",
-          "nation": "Soviet",
-          "isDefault": false
-        },
         {
           "id": "cardback-055",
           "name": "苏联基础",
@@ -406,9 +239,9 @@
           "isDefault": true
         },
         {
-          "id": "cardback-056",
-          "name": "苏联近卫军",
-          "file": "/assets/cardbacks/Soviet/cardback-056.png",
+          "id": "cardback-058",
+          "name": "苏联老兵",
+          "file": "/assets/cardbacks/Soviet/cardback-058.png",
           "scope": "main",
           "nation": "Soviet",
           "isDefault": false
@@ -422,9 +255,25 @@
           "isDefault": false
         },
         {
-          "id": "cardback-058",
-          "name": "苏联老兵",
-          "file": "/assets/cardbacks/Soviet/cardback-058.png",
+          "id": "cardback-054",
+          "name": "苏联海军旗",
+          "file": "/assets/cardbacks/Soviet/cardback-054.png",
+          "scope": "main",
+          "nation": "Soviet",
+          "isDefault": false
+        },
+        {
+          "id": "cardback-056",
+          "name": "苏联近卫军",
+          "file": "/assets/cardbacks/Soviet/cardback-056.png",
+          "scope": "main",
+          "nation": "Soviet",
+          "isDefault": false
+        },
+        {
+          "id": "cardback-053",
+          "name": "红军",
+          "file": "/assets/cardbacks/Soviet/cardback-053.png",
           "scope": "main",
           "nation": "Soviet",
           "isDefault": false
@@ -449,10 +298,42 @@
     },
     {
       "id": "main-usa",
-      "name": "美国主国",
+      "name": "美国",
       "scope": "main",
       "nation": "USA",
       "backs": [
+        {
+          "id": "cardback-063",
+          "name": "美国基础",
+          "file": "/assets/cardbacks/USA/cardback-063.png",
+          "scope": "main",
+          "nation": "USA",
+          "isDefault": true
+        },
+        {
+          "id": "cardback-065",
+          "name": "美国老兵",
+          "file": "/assets/cardbacks/USA/cardback-065.png",
+          "scope": "main",
+          "nation": "USA",
+          "isDefault": false
+        },
+        {
+          "id": "cardback-064",
+          "name": "美国空军",
+          "file": "/assets/cardbacks/USA/cardback-064.png",
+          "scope": "main",
+          "nation": "USA",
+          "isDefault": false
+        },
+        {
+          "id": "cardback-068",
+          "name": "USAAF",
+          "file": "/assets/cardbacks/USA/cardback-068.png",
+          "scope": "main",
+          "nation": "USA",
+          "isDefault": false
+        },
         {
           "id": "cardback-061",
           "name": "第12航空队",
@@ -465,30 +346,6 @@
           "id": "cardback-062",
           "name": "第3步兵师",
           "file": "/assets/cardbacks/USA/cardback-062.png",
-          "scope": "main",
-          "nation": "USA",
-          "isDefault": false
-        },
-        {
-          "id": "cardback-063",
-          "name": "美国基础",
-          "file": "/assets/cardbacks/USA/cardback-063.png",
-          "scope": "main",
-          "nation": "USA",
-          "isDefault": true
-        },
-        {
-          "id": "cardback-064",
-          "name": "美国空军",
-          "file": "/assets/cardbacks/USA/cardback-064.png",
-          "scope": "main",
-          "nation": "USA",
-          "isDefault": false
-        },
-        {
-          "id": "cardback-065",
-          "name": "美国老兵",
-          "file": "/assets/cardbacks/USA/cardback-065.png",
           "scope": "main",
           "nation": "USA",
           "isDefault": false
@@ -508,20 +365,12 @@
           "scope": "main",
           "nation": "USA",
           "isDefault": false
-        },
-        {
-          "id": "cardback-068",
-          "name": "USAAF",
-          "file": "/assets/cardbacks/USA/cardback-068.png",
-          "scope": "main",
-          "nation": "USA",
-          "isDefault": false
         }
       ]
     },
     {
       "id": "ally-finland",
-      "name": "Finland盟国",
+      "name": "芬兰",
       "scope": "ally",
       "nation": "Finland",
       "backs": [
@@ -537,7 +386,7 @@
     },
     {
       "id": "ally-france",
-      "name": "France盟国",
+      "name": "法国",
       "scope": "ally",
       "nation": "France",
       "backs": [
@@ -553,7 +402,7 @@
     },
     {
       "id": "ally-italy",
-      "name": "Italy盟国",
+      "name": "意大利",
       "scope": "ally",
       "nation": "Italy",
       "backs": [
@@ -569,7 +418,7 @@
     },
     {
       "id": "ally-poland",
-      "name": "Poland盟国",
+      "name": "波兰",
       "scope": "ally",
       "nation": "Poland",
       "backs": [
@@ -585,7 +434,7 @@
     },
     {
       "id": "ally-anzac",
-      "name": "ANZAC盟国",
+      "name": "澳新军团",
       "scope": "ally",
       "nation": "Anzac",
       "backs": [
@@ -596,6 +445,157 @@
           "scope": "ally",
           "nation": "Anzac",
           "isDefault": true
+        }
+      ]
+    },
+    {
+      "id": "common",
+      "name": "通用",
+      "scope": "common",
+      "backs": [
+        {
+          "id": "cardback-025",
+          "name": "经典",
+          "file": "/assets/cardbacks/Common/cardback-025.png",
+          "scope": "common"
+        },
+        {
+          "id": "cardback-030",
+          "name": "Alpha",
+          "file": "/assets/cardbacks/Common/cardback-030.png",
+          "scope": "common"
+        },
+        {
+          "id": "cardback-031",
+          "name": "Alpha老兵",
+          "file": "/assets/cardbacks/Common/cardback-031.png",
+          "scope": "common"
+        },
+        {
+          "id": "cardback-032",
+          "name": "Beta老兵",
+          "file": "/assets/cardbacks/Common/cardback-032.png",
+          "scope": "common"
+        },
+        {
+          "id": "cardback-034",
+          "name": "mobilebeta",
+          "file": "/assets/cardbacks/Common/cardback-034.png",
+          "scope": "common"
+        },
+        {
+          "id": "cardback-029",
+          "name": "疫情",
+          "file": "/assets/cardbacks/Common/cardback-029.png",
+          "scope": "common"
+        },
+        {
+          "id": "cardback-035",
+          "name": "OCC冠军",
+          "file": "/assets/cardbacks/Common/cardback-035.png",
+          "scope": "common"
+        },
+        {
+          "id": "cardback-036",
+          "name": "Steam",
+          "file": "/assets/cardbacks/Common/cardback-036.png",
+          "scope": "common"
+        },
+        {
+          "id": "cardback-013",
+          "name": "2019年锦标赛2",
+          "file": "/assets/cardbacks/Common/cardback-013.png",
+          "scope": "common"
+        },
+        {
+          "id": "cardback-024",
+          "name": "锦标赛限定",
+          "file": "/assets/cardbacks/Common/cardback-024.png",
+          "scope": "common"
+        },
+        {
+          "id": "cardback-015",
+          "name": "步兵徽章",
+          "file": "/assets/cardbacks/Common/cardback-015.png",
+          "scope": "common"
+        },
+        {
+          "id": "cardback-016",
+          "name": "帝国大将",
+          "file": "/assets/cardbacks/Common/cardback-016.png",
+          "scope": "common"
+        },
+        {
+          "id": "cardback-017",
+          "name": "第13机械化师",
+          "file": "/assets/cardbacks/Common/cardback-017.png",
+          "scope": "common"
+        },
+        {
+          "id": "cardback-018",
+          "name": "第27装甲旅",
+          "file": "/assets/cardbacks/Common/cardback-018.png",
+          "scope": "common"
+        },
+        {
+          "id": "cardback-019",
+          "name": "第42师",
+          "file": "/assets/cardbacks/Common/cardback-019.png",
+          "scope": "common"
+        },
+        {
+          "id": "cardback-020",
+          "name": "第6联队",
+          "file": "/assets/cardbacks/Common/cardback-020.png",
+          "scope": "common"
+        },
+        {
+          "id": "cardback-022",
+          "name": "幻影师",
+          "file": "/assets/cardbacks/Common/cardback-022.png",
+          "scope": "common"
+        },
+        {
+          "id": "cardback-027",
+          "name": "陆军飞行战队",
+          "file": "/assets/cardbacks/Common/cardback-027.png",
+          "scope": "common"
+        },
+        {
+          "id": "cardback-033",
+          "name": "D日",
+          "file": "/assets/cardbacks/Common/cardback-033.png",
+          "scope": "common"
+        },
+        {
+          "id": "cardback-021",
+          "name": "黑铁",
+          "file": "/assets/cardbacks/Common/cardback-021.png",
+          "scope": "common"
+        },
+        {
+          "id": "cardback-028",
+          "name": "青铜",
+          "file": "/assets/cardbacks/Common/cardback-028.png",
+          "scope": "common"
+        },
+        {
+          "id": "cardback-014",
+          "name": "白银",
+          "file": "/assets/cardbacks/Common/cardback-014.png",
+          "scope": "common"
+        },
+        {
+          "id": "cardback-023",
+          "name": "黄金",
+          "file": "/assets/cardbacks/Common/cardback-023.png",
+          "scope": "common"
+        },
+        {
+          "id": "cardback-026",
+          "name": "精英",
+          "file": "/assets/cardbacks/Common/cardback-026.png",
+          "scope": "common"
         }
       ]
     }

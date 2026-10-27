@@ -1,10 +1,12 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download, Search, X } from 'lucide-react';
 import { CardFace } from './CardFace';
 import { startImageDownload, useImageDownload } from '../lib/imageDownloads';
 import { useDismissiblePanel } from '../lib/dialogKeyboard';
 import { EMPTY_CARD_FILTERS, isGeneratedCard, matchesCardFilters, type CardFilters } from '../lib/cardFilters';
 import CustomSelect from './CustomSelect';
+import PageIndicator from './PageIndicator';
+import { CardText } from './CardText';
 import CardFilterSelects, { expansionOptions } from './CardFilterSelects';
 import { cardKeywords, cardRelations } from '../lib/cardDetails';
 import { HEADQUARTERS_STACKS, type HeadquartersAsset } from '../lib/cardAssets';
@@ -22,20 +24,6 @@ import {
 } from '../types/card';
 
 const PAGE_SIZE = 36;
-const CARD_TEXT_KEYWORDS = /情报(?:X|\d+)|被收缴|部署|亡计|伏击|免疫|动员|压制|奋战|守护|山地|情报|控制|流亡|烟幕|重甲|钳击|闪击|收缴|撤退|抑制|转换|抉择|冲击|协力|开发|战斗(?!机)|抽取|老兵|隐蔽|预报/gu;
-
-function emphasizeCardText(text: string) {
-  const result: ReactNode[] = [];
-  let cursor = 0;
-  for (const match of text.matchAll(CARD_TEXT_KEYWORDS)) {
-    const index = match.index ?? 0;
-    if (index > cursor) result.push(text.slice(cursor, index));
-    result.push(<strong key={`${index}-${match[0]}`} className="font-bold text-kards-text">{match[0]}</strong>);
-    cursor = index + match[0].length;
-  }
-  if (cursor < text.length) result.push(text.slice(cursor));
-  return result;
-}
 
 export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
   const [filters, setFilters] = useState<CardFilters>({ ...EMPTY_CARD_FILTERS });
@@ -45,6 +33,7 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
   const [selectedCard, setSelectedCard] = useState<KardsCardRecord | null>(null);
   const [selectedHeadquarters, setSelectedHeadquarters] = useState<HeadquartersAsset | null>(null);
   const [expandedHeadquarters, setExpandedHeadquarters] = useState<string | null>(null);
+  const headquartersDialogRef = useRef<HTMLElement>(null);
   const download = useImageDownload();
   const closeDetails = () => { setSelectedCard(null); setSelectedHeadquarters(null); };
   const detailRef = useDismissiblePanel(!!selectedCard || !!selectedHeadquarters, closeDetails);
@@ -53,6 +42,33 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
   const relations = selectedCard ? cardRelations(selectedCard) : [];
 
   const filteredCards = useMemo(() => cards.filter(card => matchesCardFilters(card, filters)), [cards, filters]);
+  const visibleHeadquartersStacks = useMemo(() => {
+    if (filters.query.trim() || filters.cardType.length || filters.cost.length || filters.rarity.length
+      || filters.expansion !== 'All' || filters.status !== 'All') return [];
+    const factions = filters.factions.map(faction => faction.toLowerCase());
+    return HEADQUARTERS_STACKS.filter(stack => !factions.length
+      || factions.includes(stack.id === 'Common' ? 'neutral' : stack.nation.toLowerCase()));
+  }, [filters]);
+  const expandedStack = visibleHeadquartersStacks.find(stack => stack.id === expandedHeadquarters);
+
+  useEffect(() => {
+    if (!expandedStack) return;
+    const previous = document.activeElement;
+    const panel = headquartersDialogRef.current;
+    panel?.focus();
+    const keydown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing || event.key !== 'Escape'
+        || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+      event.preventDefault(); event.stopPropagation();
+      setExpandedHeadquarters(null);
+    };
+    document.addEventListener('keydown', keydown);
+    return () => {
+      document.removeEventListener('keydown', keydown);
+      if ((document.activeElement === document.body || (document.activeElement && panel?.contains(document.activeElement)))
+        && previous instanceof HTMLElement && previous.isConnected) previous.focus();
+    };
+  }, [expandedStack]);
 
   const pageCount = Math.max(1, Math.ceil(filteredCards.length / PAGE_SIZE));
   const pageCards = filteredCards.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -60,13 +76,15 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
   const selectFilter = (value: CardFilters) => {
     setFilters(value);
     setPage(1);
+    setExpandedHeadquarters(null);
   };
-  const resetFilters = () => { setFilters({ ...EMPTY_CARD_FILTERS }); setPage(1); };
+  const resetFilters = () => { setFilters({ ...EMPTY_CARD_FILTERS }); setPage(1); setExpandedHeadquarters(null); };
 
   return (
     <div onKeyDown={event => {
       if (event.defaultPrevented || event.nativeEvent.isComposing || event.key !== 'Escape' || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
-      if (selectedCard) { event.preventDefault(); setSelectedCard(null); }
+      if (selectedCard || selectedHeadquarters) { event.preventDefault(); closeDetails(); }
+      else if (expandedStack) { event.preventDefault(); setExpandedHeadquarters(null); }
       else if ((event.target as HTMLElement).tagName !== 'SELECT') { event.preventDefault(); resetFilters(); }
     }} className="relative flex h-full min-h-0 gap-4 p-5">
       <section className="flex min-w-0 flex-1 flex-col gap-4 overflow-hidden">
@@ -89,29 +107,42 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
         </div>
 
         <div data-testid="library-grid" className="card-gallery custom-scrollbar min-h-0 flex-1 overflow-y-auto pb-2">
-          {page === 1 && HEADQUARTERS_STACKS.map(stack => <button key={stack.id} type="button" aria-expanded={expandedHeadquarters === stack.id} aria-label={`${expandedHeadquarters === stack.id ? '收起' : '展开'}${stack.label}总部`} onClick={() => setExpandedHeadquarters(current => current === stack.id ? null : stack.id)} className="card-tile hq-stack-tile card-action group">
+          {page === 1 && visibleHeadquartersStacks.map(stack => <button key={stack.id} type="button" aria-haspopup="dialog" aria-expanded={expandedHeadquarters === stack.id} aria-label={`展开${stack.label}总部`} onClick={() => setExpandedHeadquarters(stack.id)} className="card-tile hq-stack-tile card-action group">
             <span className="hq-stack-art" aria-hidden="true">{stack.cards.map((headquarters, index) => <img key={headquarters.id} src={headquarters.image} alt="" style={{ transform: `translate(${index * 3}px, ${index * 2}px) rotate(${(index - (stack.cards.length - 1) / 2) * 1.4}deg)`, zIndex: index + 1 }} />)}</span>
           </button>)}
-          {page === 1 && expandedHeadquarters && <div aria-label={`${HEADQUARTERS_STACKS.find(stack => stack.id === expandedHeadquarters)?.label || ''}总部卡牌`} className="col-span-full grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-3">
-            {HEADQUARTERS_STACKS.find(stack => stack.id === expandedHeadquarters)?.cards.map(headquarters => <button key={headquarters.id} type="button" title={`${headquarters.name} · ${headquarters.nation}`} onClick={() => { setSelectedCard(null); setSelectedHeadquarters(headquarters); }} aria-label={`查看总部卡牌：${headquarters.name}`} className="hq-expanded-card card-action min-w-0">
-              <img src={headquarters.image} alt="" className="hq-expanded-card-art" />
-            </button>)}
-          </div>}
           {pageCards.map((card) => (
             <button key={card.importId} onClick={() => setSelectedCard(card)} className="card-tile card-action group text-left" aria-label={`查看${cardDisplayTitle(card, language)}`}>
               <span className="library-card-art"><CardFace card={card} language={language} />{card.reserved && <ReservedBadge className="library-reserved-badge" />}</span>
               <div className="card-caption" title={cardDisplayTitle(card, language)}>{cardDisplayTitle(card, language)}</div>
             </button>
           ))}
-          {pageCards.length === 0 && <div className="col-span-full py-16 text-center text-kards-text-muted">没有找到匹配的卡牌</div>}
+          {pageCards.length === 0 && !visibleHeadquartersStacks.length && <div className="col-span-full py-16 text-center text-kards-text-muted">没有找到匹配的卡牌</div>}
         </div>
 
         <div className="flex items-center justify-center gap-4 text-sm text-kards-text">
           <button onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page <= 1} className="rounded border border-kards-border px-3 py-1 disabled:opacity-40">上一页</button>
-          <span>{page} / {pageCount}</span>
+          <PageIndicator page={page} pageCount={pageCount} onChange={setPage} />
           <button onClick={() => setPage((current) => Math.min(pageCount, current + 1))} disabled={page >= pageCount} className="rounded border border-kards-border px-3 py-1 disabled:opacity-40">下一页</button>
         </div>
       </section>
+
+      {expandedStack && <div className="absolute inset-0 z-20 flex items-center justify-center p-5">
+        <div onClick={() => setExpandedHeadquarters(null)} className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm" />
+        <section ref={headquartersDialogRef} role="dialog" aria-modal="false" aria-label={expandedStack.label + '总部卡牌'} tabIndex={-1}
+          className="headquarters-gallery-dialog glass-panel relative flex w-full max-w-4xl flex-col rounded-lg border border-kards-border p-5 shadow-2xl">
+          <div className="mb-4 flex shrink-0 items-center justify-between gap-3 border-b border-kards-border pb-3">
+            <h2 className="text-lg font-bold text-kards-text">{expandedStack.label}总部</h2>
+            <button onClick={() => setExpandedHeadquarters(null)} aria-label="关闭总部卡牌" className="rounded p-1 text-kards-text-muted hover:text-kards-text"><X className="h-5 w-5" /></button>
+          </div>
+          <div className="custom-scrollbar grid min-h-0 grid-cols-[repeat(auto-fill,minmax(112px,1fr))] gap-3 overflow-y-auto">
+            {expandedStack.cards.map(headquarters => <button key={headquarters.id} type="button" title={headquarters.name}
+              onClick={() => { setSelectedCard(null); setSelectedHeadquarters(headquarters); }}
+              aria-label={'查看总部卡牌：' + headquarters.name} className="hq-expanded-card card-action min-w-0">
+              <img src={headquarters.image} alt="" className="card-face hq-expanded-card-art" />
+            </button>)}
+          </div>
+        </section>
+      </div>}
 
       {selectedCard && (
         <aside ref={detailRef} role="dialog" aria-modal="false" aria-label="卡牌详情" tabIndex={-1} className="glass-panel custom-scrollbar absolute bottom-5 right-5 top-5 z-30 flex w-[300px] max-w-[calc(100%-40px)] flex-col overflow-y-auto rounded-lg border border-kards-border p-4 shadow-xl">
@@ -119,7 +150,7 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
           <CardFace card={selectedCard} language={language} className="mx-auto mb-4 max-h-[55vh] w-full object-contain" />
           <h2 className="text-lg font-bold text-kards-text">{cardDisplayTitle(selectedCard, language)}</h2>
           {keywords.length > 0 && <p aria-label="卡牌关键词" className="mt-2 text-sm text-kards-status">{keywords.join(' · ')}</p>}
-          {cardText(selectedCard, language) && <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-kards-text-muted">{emphasizeCardText(cardText(selectedCard, language))}</p>}
+          {cardText(selectedCard, language) && <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-kards-text-muted"><CardText text={cardText(selectedCard, language)} /></p>}
           <dl className="mt-4 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-kards-border pt-4 text-sm text-kards-text">
             <dt>阵营</dt><dd>{factionLabel(selectedCard.json.faction)}</dd><dt>类型</dt><dd>{typeLabel(selectedCard.json.type)}</dd>
             <dt>部署费用</dt><dd>{selectedCard.json.kredits ?? '—'} K</dd>
