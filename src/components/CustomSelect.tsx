@@ -143,8 +143,15 @@ export default function CustomSelect(props: Props) {
         else if (event.key === 'Escape' && open) { event.preventDefault(); event.stopPropagation(); close(); }
       }}>
       <span className="custom-select-value">
-        {selected.slice(0, 2).map(option => option.icon && <span key={option.value} className="custom-select-icon" aria-hidden="true">{option.icon}</span>)}
-        <span className="truncate">{selected.length > 1 ? `${placeholder} · ${selected.length}` : selected[0]?.iconOnly ? <span className="sr-only">{selected[0].label}</span> : selected[0]?.label || placeholder}</span>
+        {props.multiple && selected.length > 0 ? <>
+          <span className="custom-select-selection-icons" aria-hidden="true">
+            {selected.map(option => option.icon && <span key={option.value} className="custom-select-icon">{option.icon}</span>)}
+          </span>
+          <span className="sr-only">{selected.map(option => option.label).join('、')}</span>
+        </> : <>
+          {selected[0]?.icon && <span className="custom-select-icon" aria-hidden="true">{selected[0].icon}</span>}
+          <span className="truncate">{selected[0]?.iconOnly ? <span className="sr-only">{selected[0].label}</span> : selected[0]?.label || placeholder}</span>
+        </>}
       </span>
       <ChevronDown aria-hidden="true" className={`h-3.5 w-3.5 shrink-0 ${open ? 'rotate-180' : ''}`} />
     </button>

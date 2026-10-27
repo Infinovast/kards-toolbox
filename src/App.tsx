@@ -11,6 +11,8 @@ import {
   Star, 
   Settings, 
   Info,
+  Moon,
+  Sun,
   Shield, 
   Sword, 
   Library, 
@@ -43,6 +45,7 @@ import CardLibrary from './components/CardLibrary';
 import CardDetailModal from './components/CardDetailModal';
 import DeckBuilder, { type BuilderDeck } from './components/DeckBuilder';
 import DeckCardStrip, { DeckHeadquartersStrip } from './components/DeckCardStrip';
+import DeckCountIndicator from './components/DeckCountIndicator';
 import ReservedBadge from './components/ReservedBadge';
 import NewDeckDialog from './components/NewDeckDialog';
 import DeckFolders from './components/DeckFolders';
@@ -52,7 +55,7 @@ import CardCacheManager from './components/CardCacheManager';
 import CustomSelect from './components/CustomSelect';
 import { nationOptions } from './components/CardFilterSelects';
 import { loadCardDatabase, type KardsCardRecord } from './types/card';
-import { CARD_BACK_CATEGORIES, CARD_BACKS, DEFAULT_CARD_BACK, DEFAULT_TABLECLOTH, USER_TABLECLOTHS, cardBackForDeck, cardBackIsAvailable, defaultCardBackForNation, headquartersForDeck, headquartersOptions, resolveSelectedTablecloth, tableclothForHeadquarters, type HeadquartersAsset } from './lib/cardAssets';
+import { CARD_BACK_CATEGORIES, CARD_BACKS, DEFAULT_CARD_BACK, DEFAULT_TABLECLOTH, TABLECLOTHS, USER_TABLECLOTHS, cardBackForDeck, cardBackIsAvailable, defaultCardBackForNation, headquartersForDeck, headquartersOptions, resolveSelectedTablecloth, tableclothForHeadquarters, type HeadquartersAsset } from './lib/cardAssets';
 
 // --- Types ---
 type Nation = 'Germany' | 'Soviet' | 'USA' | 'Japan' | 'Britain' | 'Finland' | 'Italy' | 'France' | 'Poland' | 'Anzac';
@@ -261,6 +264,7 @@ export default function App() {
   const settingsPageRef = useRef<HTMLElement>(null);
   useEffect(() => { if (activeMenu === 'settings') settingsPageRef.current?.focus(); }, [activeMenu]);
   const [builderDeck, setBuilderDeck] = useState<BuilderDeck | null>(null);
+  const builderExitRequest = useRef<((afterLeave?: () => void) => void) | null>(null);
   const [builderRevision, setBuilderRevision] = useState(0);
   const [errorStatus, setErrorStatus] = useState<string | null>(null);
   const [showCardBackModal, setShowCardBackModal] = useState<string | null>(null);
@@ -568,36 +572,70 @@ export default function App() {
   const [collectionToDelete, setCollectionToDelete] = useState<Collection | null>(null);
   const [collectionToRename, setCollectionToRename] = useState<Collection | null>(null);
   const [renameCollectionName, setRenameCollectionName] = useState('');
-  const [deckImageModal, setDeckImageModal] = useState<{show: boolean, deck: Pick<Deck, 'name' | 'code'> | null, loading: boolean, imageUrl: string | null, error: string | null}>({show: false, deck: null, loading: false, imageUrl: null, error: null});
+  const [deckImageModal, setDeckImageModal] = useState<{show: boolean, deck: Pick<Deck, 'name' | 'code' | 'headquartersId' | 'ruleSet' | 'customRules'> | null, loading: boolean, imageUrl: string | null, error: string | null, tablecloth: string}>({show: false, deck: null, loading: false, imageUrl: null, error: null, tablecloth: DEFAULT_TABLECLOTH});
+  const [tableclothPickerForImage, setTableclothPickerForImage] = useState(false);
   const deckImageRequest = useRef(0);
-  const closeDeckImage = () => { deckImageRequest.current++; setDeckImageModal(current => ({ ...current, show: false })); };
+  const closeDeckImage = () => { deckImageRequest.current++; setTableclothPickerForImage(false); setDeckImageModal(current => ({ ...current, show: false })); };
 
   const [cropQueue, setCropQueue] = useState<{ url: string, type: 'tablecloth' | 'cardback', category?: string, name?: string }[]>([]);
   const [cropState, setCropState] = useState<{ crop: { x: number, y: number }, zoom: number }>({ crop: { x: 0, y: 0 }, zoom: 1 });
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'tablecloth' | 'cardback', id: string, catId?: string } | null>(null);
 
-  const getOrGenerateDeckImage = async (deck: Pick<Deck, 'name' | 'code' | 'headquartersId'> & { mainNation?: string }) => {
+  const getOrGenerateDeckImage = async (deck: Pick<Deck, 'name' | 'code' | 'headquartersId' | 'ruleSet' | 'customRules'> & { mainNation?: string }, backgroundOverride?: string) => {
     const mainNation = deck.mainNation || decodeDeckCode(deck.code).mainNation;
     const headquarters = headquartersForDeck(deck.headquartersId, mainNation);
-    const background = tableclothForHeadquarters(headquarters?.groupId) || selectedTablecloth;
-    const imageData = await renderDeckImage(deck.code, cardDatabase, deck.name, background, deck.headquartersId);
+    const background = backgroundOverride || tableclothForHeadquarters(headquarters?.groupId) || selectedTablecloth;
+    const limit = (deck.ruleSet === 'custom' ? deck.customRules?.deckSize ?? DEFAULT_DECK_RULES.standard.deckSize : DEFAULT_DECK_RULES.standard.deckSize) + 1;
+    const imageData = await renderDeckImage(deck.code, cardDatabase, deck.name, background, deck.headquartersId, limit);
     await localforage.setItem(`deck_img_local_v1_${deck.code}`, imageData);
     return imageData;
   };
 
-  const handleGetDeckImage = async (deck: Pick<Deck, 'name' | 'code' | 'headquartersId'> & { mainNation?: string }) => {
+  const handleGetDeckImage = async (deck: Pick<Deck, 'name' | 'code' | 'headquartersId' | 'ruleSet' | 'customRules'> & { mainNation?: string }) => {
     const request = ++deckImageRequest.current;
-    setDeckImageModal({ show: true, deck, loading: true, imageUrl: null, error: null });
+    const mainNation = deck.mainNation || decodeDeckCode(deck.code).mainNation;
+    const background = tableclothForHeadquarters(headquartersForDeck(deck.headquartersId, mainNation)?.groupId) || selectedTablecloth;
+    setDeckImageModal({ show: true, deck, loading: true, imageUrl: null, error: null, tablecloth: background });
     try {
-      const imageData = await getOrGenerateDeckImage(deck);
+      const imageData = await getOrGenerateDeckImage(deck, background);
       if (request !== deckImageRequest.current) return;
-      setDeckImageModal({ show: true, deck, loading: false, imageUrl: imageData, error: null });
+      setDeckImageModal(current => ({ ...current, show: true, deck, loading: false, imageUrl: imageData, error: null }));
     } catch (err: any) {
       if (request !== deckImageRequest.current) return;
-      setDeckImageModal({ show: true, deck, loading: false, imageUrl: null, error: err.message });
+      setDeckImageModal(current => ({ ...current, show: true, deck, loading: false, imageUrl: null, error: err.message }));
     }
   };
+
+  const chooseTableclothForDeckImage = async (tablecloth: string) => {
+    setShowTableclothModal(false);
+    setTableclothPickerForImage(false);
+    const deck = deckImageModal.deck;
+    if (!deck) return;
+    const request = ++deckImageRequest.current;
+    setDeckImageModal(current => ({ ...current, loading: true, imageUrl: null, error: null, tablecloth }));
+    try {
+      const imageData = await getOrGenerateDeckImage(deck, tablecloth);
+      if (request !== deckImageRequest.current) return;
+      setDeckImageModal(current => ({ ...current, loading: false, imageUrl: imageData, tablecloth }));
+    } catch (err: any) {
+      if (request !== deckImageRequest.current) return;
+      setDeckImageModal(current => ({ ...current, loading: false, imageUrl: null, error: err.message, tablecloth }));
+    }
+  };
+  const openTableclothPicker = (forDeckImage = false) => {
+    setTableclothPickerForImage(forDeckImage);
+    setShowTableclothModal(true);
+  };
+  const closeTableclothPicker = () => {
+    setShowTableclothModal(false);
+    setTableclothPickerForImage(false);
+  };
+  const chooseTablecloth = (tablecloth: string) => {
+    if (tableclothPickerForImage) void chooseTableclothForDeckImage(tablecloth);
+    else setSelectedTablecloth(tablecloth);
+  };
+  const activeTableclothChoice = tableclothPickerForImage ? deckImageModal.tablecloth : selectedTablecloth;
 
   const refreshAfterBackupImport = async () => {
     const loadedDecks = await localforage.getItem<Deck[]>('kards_decks');
@@ -764,6 +802,10 @@ export default function App() {
       .map(([id, count]) => ({ id, count, card: index.get(id) })); }
     catch { return []; }
   }, [selectedDeck?.code, cardDatabase]);
+  const previewTotalCards = previewEntries.reduce((sum, entry) => sum + entry.count, 1);
+  const previewAllyCount = selectedDeck?.mainNation === selectedDeck?.allyNation ? 0 : previewEntries.reduce((sum, entry) => sum + (entry.card?.json.faction?.toLowerCase() === selectedDeck?.allyNation?.toLowerCase() ? entry.count : 0), 0);
+  const previewMainCount = 1 + previewEntries.reduce((sum, entry) => sum + (entry.card?.json.faction?.toLowerCase() === selectedDeck?.mainNation.toLowerCase() ? entry.count : 0), 0);
+  const previewDeckLimit = selectedDeck?.ruleSet === 'custom' ? (selectedDeck.customRules?.deckSize ?? DEFAULT_DECK_RULES.standard.deckSize) + 1 : DEFAULT_DECK_RULES.standard.deckSize + 1;
 
   const handleCloseImportModal = () => {
     setShowImportModal(false);
@@ -914,7 +956,8 @@ export default function App() {
 
       if (currentCrop.type === 'tablecloth') {
         setCustomTablecloths(prev => [...prev, croppedImage]);
-        setSelectedTablecloth(croppedImage);
+        if (tableclothPickerForImage) await chooseTableclothForDeckImage(croppedImage);
+        else setSelectedTablecloth(croppedImage);
       } else if (currentCrop.type === 'cardback' && currentCrop.category) {
         setCustomCategories(prev => {
           const newCatId = currentCrop.category!;
@@ -995,32 +1038,21 @@ export default function App() {
 
   const settingsPage = <section ref={settingsPageRef} tabIndex={-1} onKeyDown={event => {
     if (event.nativeEvent.isComposing || event.defaultPrevented || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
-    if (event.key === 'Escape' || (event.key === 'Enter' && (event.ctrlKey || event.metaKey))) { event.preventDefault(); closeSettings(); }
+    if (event.key === 'Escape') { event.preventDefault(); closeSettings(); }
   }} aria-label="应用设置" data-testid="settings-page" className="w-full p-5 outline-none md:p-8">
     <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-      <div><h2 className="text-2xl font-bold text-kards-text">设置</h2><p className="mt-2 text-sm text-kards-text-muted">管理卡牌数据、界面外观与本地备份。外观设置自动保存。</p></div>
-      <button onClick={closeSettings} title="Ctrl+Enter 保存并返回；Esc 返回" className="rounded bg-kards-accent px-5 py-2 font-bold text-white">保存并返回</button>
+      <h2 className="text-2xl font-bold text-kards-text">设置</h2>
     </div>
     <CardDataUpdater cards={cardDatabase} onApplied={cards => { setCardDatabase(cards); setCardDatabaseError(null); }} />
     <CardCacheManager cards={cardDatabase} />
     <section className="glass-panel rounded-lg p-5 md:p-6">
       <h3 className="mb-6 text-lg font-bold text-kards-text">外观与本地数据</h3>
       <div className="grid grid-cols-1 gap-x-12 gap-y-8 lg:grid-cols-2">
-                {/* Display Mode */}
-                <div className="flex items-center justify-between">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-bold text-kards-text tracking-wider">显示模式</span>
-                    <span className="text-[10px] text-kards-text-muted uppercase tracking-tighter">切换应用视觉主题</span>
-                  </div>
-                  <CustomSelect label="显示模式" value={settings.displayMode} onChange={value => setSettings(s => ({ ...s, displayMode: value as AppSettings['displayMode'] }))} options={[{ value: 'system', label: '跟随系统' }, { value: 'dark', label: '深色模式' }, { value: 'light', label: '浅色模式' }]} />
-                </div>
-
                 {/* Light Theme Color Picker (Only show if not dark) */}
                 {(!effectiveIsDarkMode) && (
                   <div className="flex items-center justify-between">
                     <div className="flex flex-col">
                       <span className="text-sm font-bold text-kards-text tracking-wider">浅色主题色</span>
-                      <span className="text-[10px] text-kards-text-muted uppercase tracking-tighter">自定义背景色阶</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <button
@@ -1055,8 +1087,8 @@ export default function App() {
                     className="w-full accent-kards-gold h-1.5 bg-kards-panel-alt rounded-lg appearance-none cursor-pointer"
                   />
                   <div className="flex justify-between text-[10px] text-kards-text-muted font-bold uppercase tracking-widest">
-                    <span>Brutalist</span>
-                    <span>Modern</span>
+                    <span>直角</span>
+                    <span>圆角</span>
                   </div>
                 </div>
 
@@ -1156,7 +1188,6 @@ export default function App() {
                 <div className="space-y-3 pt-2 border-t border-kards-border">
                   <div className="flex flex-col gap-1">
                     <span className="text-sm font-bold text-kards-text tracking-wider">数据备份</span>
-                    <span className="text-[10px] text-kards-text-muted uppercase tracking-tighter">导出或导入桌面版数据</span>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <button
@@ -1177,7 +1208,6 @@ export default function App() {
                   )}
                 </div>
 
-                <p className="border-t border-kards-border pt-4 text-xs leading-relaxed text-kards-text-muted">卡组图片完全在本机生成。已缓存的卡图离线可用，未缓存的卡图使用文字占位。牌库同步不会在后台自动执行。</p>
       </div>
       <div className="mt-6 border-t border-kards-border pt-4">
         <button onClick={() => setSettings(DEFAULT_SETTINGS)} className="rounded border border-kards-border px-4 py-2 text-sm text-kards-text hover:border-kards-gold">重置外观默认值</button>
@@ -1223,7 +1253,15 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-3">
+          <button type="button" onClick={() => setSettings(current => ({ ...current, displayMode: effectiveIsDarkMode ? 'light' : 'dark' }))}
+            disabled={!dataLoaded} aria-label={effectiveIsDarkMode ? '切换到浅色模式' : '切换到深色模式'} title={effectiveIsDarkMode ? '切换到浅色模式' : '切换到深色模式'} className="p-2 text-kards-text-muted hover:bg-kards-panel-hover hover:text-kards-text transition-colors disabled:opacity-40">
+            {effectiveIsDarkMode ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+          </button>
           <button onClick={() => {
+            if (activeMenu === 'builder') {
+              builderExitRequest.current?.(() => { setAboutReturnMenu('decks'); setActiveMenu('about'); });
+              return;
+            }
             if (activeMenu !== 'about') setAboutReturnMenu(activeMenu);
             setActiveMenu('about');
           }} aria-label="关于" title="关于 KARDS Toolbox" className="p-2 hover:bg-kards-panel-hover transition-colors group">
@@ -1239,9 +1277,9 @@ export default function App() {
         {/* Left Sidebar */}
         {activeMenu !== 'builder' && <aside aria-label="主导航" className="glass-panel w-24 shrink-0 flex flex-col gap-1 p-1 z-10 border-r border-kards-border transition-colors duration-300">
           <SidebarButton active={activeMenu === 'decks'} onClick={() => setActiveMenu('decks')} icon={<Library className="w-8 h-8" />} label="卡组" />
-          <SidebarButton active={activeMenu === 'cards'} onClick={() => setActiveMenu('cards')} icon={<img src={effectiveIsDarkMode ? "/assets/kards_logos/Common/KardsLogoWhite_cards.png" : "/assets/kards_logos/Common/KardsLogoBlack_cards.png"} alt="" className="h-8 w-8 object-contain" />} label="卡牌" />
+          <SidebarButton active={activeMenu === 'cards'} onClick={() => setActiveMenu('cards')} icon={<img src={effectiveIsDarkMode ? "/assets/kards_logos/Common/KardsLogoBeige_cards.png" : "/assets/kards_logos/Common/KardsLogoBlack_cards.png"} alt="" className="h-8 w-8 object-contain" />} label="卡牌" />
           <div aria-label="应用工具" className="mt-auto flex flex-col gap-1 border-t border-kards-border pt-1">
-            <SidebarButton active={showTableclothModal} onClick={() => setShowTableclothModal(true)} icon={<Palette className="w-6 h-6" />} label="桌布" />
+            <SidebarButton active={showTableclothModal} onClick={() => openTableclothPicker()} icon={<Palette className="w-6 h-6" />} label="桌布" />
             <SidebarButton active={activeMenu === 'settings'} onClick={() => { if (activeMenu !== 'settings') setSettingsReturnMenu(activeMenu); setActiveMenu('settings'); }} icon={<Settings className="w-6 h-6" />} label="设置" />
           </div>
         </aside>}
@@ -1302,7 +1340,7 @@ export default function App() {
             )}
             {activeMenu === 'builder' && cardDatabaseLoading && <p className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</p>}
             {activeMenu === 'builder' && cardDatabaseError && <p className="p-6 text-red-400">{cardDatabaseError}</p>}
-            {!cardDatabaseLoading && !cardDatabaseError && builderDeck && <div className={`h-full w-full max-w-[1800px] shrink-0 ${activeMenu === 'builder' ? '' : 'hidden'}`}><DeckBuilder active={activeMenu === 'builder'} key={builderRevision} cards={cardDatabase} initialDeck={builderDeck} onSave={handleSaveBuiltDeck} onBack={() => { setActiveMenu('decks'); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('[aria-label="主导航"] button')?.focus()); }} /></div>}
+            {!cardDatabaseLoading && !cardDatabaseError && builderDeck && <div className={`h-full w-full max-w-[1800px] shrink-0 ${activeMenu === 'builder' ? '' : 'hidden'}`}><DeckBuilder active={activeMenu === 'builder'} key={builderRevision} cards={cardDatabase} initialDeck={builderDeck} exitRequestRef={builderExitRequest} onSave={handleSaveBuiltDeck} onBack={() => { setBuilderDeck(null); setActiveMenu('decks'); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('[aria-label="主导航"] button')?.focus()); }} /></div>}
             {activeMenu === 'settings' && settingsPage}
             {activeMenu === 'about' && <AboutPage onBack={() => setActiveMenu(aboutReturnMenu)} />}
             {activeMenu === 'decks' && <div className="mb-6 flex w-full max-w-7xl flex-wrap items-center justify-between gap-3">
@@ -1398,9 +1436,9 @@ export default function App() {
                   className="deck-name-input mb-4"
                 />
                 
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-kards-text-muted">
-                  <span>{selectedDeck.totalCards + 1} 张（含总部）</span>
-                  <div className="flex min-w-0 items-center gap-2">
+                <div className="mb-3 flex flex-col items-center gap-3 text-xs text-kards-text-muted">
+                  <DeckCountIndicator mainNation={selectedDeck.mainNation} allyNation={selectedDeck.allyNation} mainCount={previewMainCount} allyCount={previewAllyCount} total={previewTotalCards} limit={previewDeckLimit} />
+                  <div className="flex min-w-0 items-center justify-end gap-2 self-end">
                     <button onClick={() => { selectDeck(selectedDeck.id); setShowHeadquartersModal(selectedDeck.id); }} className="shrink-0 rounded border border-kards-border px-2 py-1">更换总部</button>
                     <button onClick={() => { selectDeck(selectedDeck.id); setShowCardBackModal(selectedDeck.id); }} className="shrink-0 rounded border border-kards-border px-2 py-1">更换卡背</button>
                   </div>
@@ -1658,16 +1696,16 @@ export default function App() {
       {/* --- Tablecloth Modal --- */}
       <AnimatePresence>
         {showTableclothModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className={`fixed inset-0 flex items-center justify-center p-4 ${tableclothPickerForImage ? 'z-[100]' : 'z-50'}`}>
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              data-dialog-cancel onClick={() => setShowTableclothModal(false)}
+              data-dialog-cancel onClick={closeTableclothPicker}
               className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm"
             />
             <motion.div 
-              role="dialog" aria-modal="true" tabIndex={-1} onKeyDown={handleDialogKeys}
+              role="dialog" aria-modal={cropQueue.length === 0} tabIndex={-1} onKeyDown={handleDialogKeys}
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -1677,7 +1715,7 @@ export default function App() {
               }}
             >
               <button 
-                data-dialog-cancel onClick={() => setShowTableclothModal(false)}
+                data-dialog-cancel onClick={closeTableclothPicker}
                 className="absolute top-4 right-4 text-kards-text-muted hover:text-kards-text"
               >
                 <X className="w-6 h-6" />
@@ -1711,11 +1749,12 @@ export default function App() {
                   {customTablecloths.map((url, idx) => (
                     <div 
                       key={`custom-${idx}`}
-                      onClick={() => setSelectedTablecloth(url)}
-                      className={`aspect-video military-border overflow-hidden cursor-pointer group relative ${selectedTablecloth === url ? 'ring-2 ring-kards-gold' : 'hover:brightness-110 opacity-80 hover:opacity-100'}`}
+                      onClick={() => chooseTablecloth(url)}
+                      role="button" tabIndex={0} aria-label={`选择自定义桌布 ${idx + 1}`} onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); event.stopPropagation(); chooseTablecloth(url); } }}
+                      className={`aspect-video military-border overflow-hidden cursor-pointer group relative ${activeTableclothChoice === url ? 'ring-2 ring-kards-gold' : 'hover:brightness-110 opacity-80 hover:opacity-100'}`}
                     >
                       <img src={url} className="w-full h-full object-cover" alt={`Custom ${idx}`} />
-                      <div className="absolute top-1 right-1 opacity-80 group-hover:opacity-100 transition-opacity z-20">
+                      {!tableclothPickerForImage && <div className="absolute top-1 right-1 opacity-80 group-hover:opacity-100 transition-opacity z-20">
                         {deleteConfirm?.id === `tc-${idx}` ? (
                           <div className="flex gap-1" onClick={e => e.stopPropagation()}>
                             <button 
@@ -1747,21 +1786,22 @@ export default function App() {
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         )}
-                      </div>
+                      </div>}
                       <div className="absolute inset-0 pointer-events-none bg-kards-gold/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <Check className={`w-6 h-6 text-kards-text ${selectedTablecloth === url ? 'opacity-100' : 'opacity-0'}`} />
+                        <Check className={`w-6 h-6 text-kards-text ${activeTableclothChoice === url ? 'opacity-100' : 'opacity-0'}`} />
                       </div>
                     </div>
                   ))}
 
-                  {(['default', 'wallpaper'] as const).map(type => <React.Fragment key={type}>
-                    <h4 className="col-span-full pt-3 text-xs font-bold text-kards-text-muted">{type === 'default' ? '默认桌布' : '壁纸'}</h4>
-                    {USER_TABLECLOTHS.filter(item => item.type === type).map(item => (
-                      <div key={item.id} onClick={() => setSelectedTablecloth(item.file)} title={item.name} className={`aspect-video military-border overflow-hidden cursor-pointer group relative ${selectedTablecloth === item.file ? 'ring-2 ring-kards-gold' : 'hover:brightness-110 opacity-80 hover:opacity-100'}`}>
+                  {(tableclothPickerForImage ? ['default', 'wallpaper', 'headquarters'] as const : ['default', 'wallpaper'] as const).map(type => <React.Fragment key={type}>
+                    <h4 className="col-span-full pt-3 text-xs font-bold text-kards-text-muted">{type === 'default' ? '默认桌布' : type === 'headquarters' ? '总部专属桌布' : '壁纸'}</h4>
+                    {(tableclothPickerForImage ? TABLECLOTHS : USER_TABLECLOTHS).filter(item => item.type === type).map(item => (
+                      <div key={item.id} onClick={() => chooseTablecloth(item.file)} title={item.name} role="button" tabIndex={0} aria-label={'选择桌布 ' + item.name}
+                        onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); chooseTablecloth(item.file); } }} className={`aspect-video military-border overflow-hidden cursor-pointer group relative ${activeTableclothChoice === item.file ? 'ring-2 ring-kards-gold' : 'hover:brightness-110 opacity-80 hover:opacity-100'}`}>
                         <img src={item.file} className="w-full h-full object-cover" alt={item.name} />
                         <span className="absolute bottom-0 left-0 right-0 truncate bg-black/65 px-2 py-1 text-[10px] text-white">{item.name}</span>
                         <div className="absolute inset-0 bg-kards-gold/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <Check className={`w-6 h-6 text-kards-text ${selectedTablecloth === item.file ? 'opacity-100' : 'opacity-0'}`} />
+                          <Check className={`w-6 h-6 text-kards-text ${activeTableclothChoice === item.file ? 'opacity-100' : 'opacity-0'}`} />
                         </div>
                       </div>
                     ))}
@@ -2139,7 +2179,7 @@ export default function App() {
       {/* --- Crop Modal --- */}
       <AnimatePresence>
         {cropQueue.length > 0 && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <div className={`fixed inset-0 flex items-center justify-center p-4 ${tableclothPickerForImage ? 'z-[110]' : 'z-[70]'}`}>
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -2470,7 +2510,7 @@ export default function App() {
               className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-md"
             />
             <motion.div 
-              role="dialog" aria-modal="true" tabIndex={-1} onKeyDown={handleDialogKeys}
+              role="dialog" aria-modal={!tableclothPickerForImage} tabIndex={-1} onKeyDown={handleDialogKeys}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
@@ -2485,7 +2525,10 @@ export default function App() {
                   <X className="w-6 h-6" />
                 </button>
               </div>
-              {deckImageModal.imageUrl && <button data-dialog-confirm onClick={() => downloadDeckImage(deckImageModal.imageUrl!, deckImageModal.deck?.name || 'kards-deck')} className="m-3 self-end rounded bg-kards-accent px-4 py-2 text-sm font-bold text-white">下载 PNG 图片</button>}
+              <div className="m-3 flex items-center justify-end gap-2">
+                <button disabled={deckImageModal.loading || !deckImageModal.deck} onClick={() => openTableclothPicker(true)} className="flex items-center gap-2 rounded border border-kards-border px-4 py-2 text-sm font-bold disabled:opacity-40"><Palette className="h-4 w-4" />更换桌布</button>
+                {deckImageModal.imageUrl && <button data-dialog-confirm onClick={() => downloadDeckImage(deckImageModal.imageUrl!, deckImageModal.deck?.name || 'kards-deck')} className="rounded bg-kards-accent px-4 py-2 text-sm font-bold text-white">下载 PNG 图片</button>}
+              </div>
               <div className="flex-1 overflow-auto p-6 flex flex-col items-center justify-center bg-kards-bg">
                 {deckImageModal.loading ? (
                   <div className="flex flex-col items-center justify-center py-12 text-kards-text-muted">

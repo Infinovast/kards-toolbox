@@ -37,6 +37,23 @@ export function expansionOptions(available: string[], language: CardLanguage): S
   }))];
 }
 
+export function CostFilterButtons({ value, onChange, label = '费用筛选' }: {
+  value: string[];
+  onChange: (value: string[]) => void;
+  label?: string;
+}) {
+  return <div role="group" aria-label={label} className="builder-costs">
+    {Array.from({ length: 8 }, (_, index) => {
+      const cost = String(index);
+      const selected = value.includes(cost);
+      return <button key={cost} type="button" aria-label={`费用 ${index}K${index === 7 ? '+' : ''}`} aria-pressed={selected}
+        className="builder-cost-button" onClick={() => onChange(selected ? value.filter(item => item !== cost) : [...value, cost])}>
+        {index}<small>K{index === 7 ? '+' : ''}</small>
+      </button>;
+    })}
+  </div>;
+}
+
 export default function CardFilterSelects({ filters, onChange, expansions, language = 'zh-Hans', builder = false }: {
   filters: CardFilters;
   onChange: (filters: CardFilters) => void;
@@ -49,7 +66,6 @@ export default function CardFilterSelects({ filters, onChange, expansions, langu
   return <>
     {!builder && <CustomSelect label="阵营筛选" placeholder="阵营" multiple value={filters.factions} onChange={factions => onChange({ ...filters, factions })} options={nationOptions(language)} layout="grid" />}
     <CustomSelect label={`${prefix}类型筛选`} placeholder="类型" multiple value={filters.cardType} onChange={cardType => onChange({ ...filters, cardType })} layout="grid" options={CARD_TYPES.map(item => ({ value: item.id, label: zh ? item.label : englishTypes[item.id], icon: <FilterIcon name={`${item.id}.svg`} /> }))} />
-    {!builder && <CustomSelect label={`${prefix}费用筛选`} placeholder="费用" multiple value={filters.cost} onChange={cost => onChange({ ...filters, cost })} layout="grid" options={Array.from({ length: 8 }, (_, index) => ({ value: String(index), label: index === 7 ? '7K+' : `${index}K`, iconOnly: true, icon: <span className="filter-cost">{index}K{index === 7 ? '+' : ''}</span> }))} />}
     <CustomSelect label={`${prefix}稀有度筛选`} placeholder="稀有度" multiple value={filters.rarity} onChange={rarity => onChange({ ...filters, rarity })} layout="grid" options={CARD_RARITIES.map(value => ({ value, label: zh ? rarityLabels[value] : value, iconOnly: true, icon: <FilterIcon name={`${value.toLowerCase()}.svg`} /> }))} />
     <CustomSelect label={`${prefix}扩展包筛选`} value={filters.expansion} onChange={expansion => onChange({ ...filters, expansion })} options={expansionOptions(expansions, language)} />
     {!builder && <CustomSelect label="卡牌状态筛选" value={filters.status} onChange={status => onChange({ ...filters, status })} options={[{ value: 'All', label: '全部状态' }, { value: 'active', label: '现役可构筑' }, { value: 'reserved', label: '预备卡' }, { value: 'generated', label: '衍生/特殊形态' }]} />}

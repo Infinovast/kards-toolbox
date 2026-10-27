@@ -1,15 +1,15 @@
 import { useSyncExternalStore } from 'react';
 import { cacheCardImage, getCachedCardImage, getCardImageFailureAttempts, recordImageCacheBatch } from './cardImages';
-import { cardDisplayTitle, type CardImageKind, type CardLanguage, type KardsCardRecord } from '../types/card';
+import { cardDisplayTitle, type CardImageKind, type KardsCardRecord } from '../types/card';
 
 interface CurrentDownload { importId: string; title: string; kinds: CardImageKind[] }
 export interface ImageDownload {
   status: 'idle' | 'running' | 'paused' | 'done' | 'canceled'; total: number; completed: number;
   cached: number; downloaded: number; failed: number; bytes: number; startedAt: number; endedAt: number;
   pausedAt: number; pausedMs: number; intervalMs: number; threads: number;
-  language: CardLanguage; failedCards: KardsCardRecord[]; current: CurrentDownload[];
+  failedCards: KardsCardRecord[]; current: CurrentDownload[];
 }
-let state: ImageDownload = { status: 'idle', total: 0, completed: 0, cached: 0, downloaded: 0, failed: 0, bytes: 0, startedAt: 0, endedAt: 0, pausedAt: 0, pausedMs: 0, intervalMs: 500, threads: 1, language: 'zh-Hans', failedCards: [], current: [] };
+let state: ImageDownload = { status: 'idle', total: 0, completed: 0, cached: 0, downloaded: 0, failed: 0, bytes: 0, startedAt: 0, endedAt: 0, pausedAt: 0, pausedMs: 0, intervalMs: 500, threads: 1, failedCards: [], current: [] };
 const listeners = new Set<() => void>();
 const publish = (patch: Partial<ImageDownload>) => { state = { ...state, ...patch }; listeners.forEach(fn => fn()); };
 export const useImageDownload = () => useSyncExternalStore(fn => { listeners.add(fn); return () => { listeners.delete(fn); }; }, () => state);
@@ -38,12 +38,12 @@ const activeTime = () => Date.now() - state.pausedMs - (paused ? Date.now() - st
 
 // One dispatcher controls live concurrency and the shared interval/backoff.
 // Already-started requests finish when paused or when the thread limit is reduced.
-export async function startImageDownload(cards: KardsCardRecord[], language: CardLanguage, retry = false) {
+export async function startImageDownload(cards: KardsCardRecord[], retry = false) {
   if (state.status === 'running' || state.status === 'paused' || !cards.length) return;
   canceled = false; paused = false;
   const queue = [...new Map(cards.map(card => [card.importId, card])).values()];
-  publish({ status: 'running', total: queue.length, completed: 0, cached: 0, downloaded: 0, failed: 0, bytes: 0, startedAt: Date.now(), endedAt: 0, pausedAt: 0, pausedMs: 0, language, failedCards: [], current: [] });
-  if (!retry) await recordImageCacheBatch(queue, language);
+  publish({ status: 'running', total: queue.length, completed: 0, cached: 0, downloaded: 0, failed: 0, bytes: 0, startedAt: Date.now(), endedAt: 0, pausedAt: 0, pausedMs: 0, failedCards: [], current: [] });
+  if (!retry) await recordImageCacheBatch(queue);
   const jobs = new Set<Promise<void>>();
   const kinds = ['full', 'thumbnail'] as const;
   let cursor = 0;
@@ -58,10 +58,10 @@ export async function startImageDownload(cards: KardsCardRecord[], language: Car
   };
   const download = async (card: KardsCardRecord, cached: (string | null)[]) => {
     const missing = kinds.filter((_, index) => !cached[index]);
-    publish({ current: [...state.current, { importId: card.importId, title: cardDisplayTitle(card, language), kinds: missing }] });
+    publish({ current: [...state.current, { importId: card.importId, title: cardDisplayTitle(card, 'zh-Hans'), kinds: missing }] });
     try {
       const results = await Promise.allSettled(missing.map(async kind => {
-        try { return await cacheCardImage(card, language, kind, false); }
+        try { return await cacheCardImage(card, kind, false); }
         finally { publish({ current: state.current.flatMap(item => {
           if (item.importId !== card.importId) return [item];
           const remaining = item.kinds.filter(value => value !== kind);
@@ -72,7 +72,7 @@ export async function startImageDownload(cards: KardsCardRecord[], language: Car
       publish({ bytes: state.bytes + bytes });
       if (results.some(result => result.status === 'rejected')) {
         failed(card);
-        failureStreak = Math.max(failureStreak, await getCardImageFailureAttempts(card, language).catch(() => failureStreak));
+        failureStreak = Math.max(failureStreak, await getCardImageFailureAttempts(card).catch(() => failureStreak));
       } else { failureStreak = 0; publish({ downloaded: state.downloaded + 1 }); }
     } finally {
       publish({ completed: state.completed + 1, current: state.current.filter(item => item.importId !== card.importId) });
@@ -84,7 +84,7 @@ export async function startImageDownload(cards: KardsCardRecord[], language: Car
     if (!prepared) {
       const card = queue[cursor];
       try {
-        const [cached, failures] = await Promise.all([Promise.all(kinds.map(kind => getCachedCardImage(card, language, kind))), getCardImageFailureAttempts(card, language)]);
+        const [cached, failures] = await Promise.all([Promise.all(kinds.map(kind => getCachedCardImage(card, kind))), getCardImageFailureAttempts(card)]);
         prepared = { card, cached, failures, at: activeTime() };
       } catch { failed(card); publish({ completed: state.completed + 1 }); cursor++; continue; }
       continue;

@@ -70,10 +70,9 @@ with sync_playwright() as p:
         expect(page.locator('aside img[alt="105 毫米轻型榴弹炮"]')).to_be_visible()
     settle(page)
     page.screenshot(path=str(SHOTS / "library-desktop.png"), full_page=True)
-    select_value(page, "卡牌语言", "en-EN")
+    select_value(page, "卡牌文字语言", "en-EN")
     english_title = next(c for c in cards if c["importId"] == "3L")["json"]["title"]["en-EN"]
     expect(page.get_by_role("heading", name=english_title, exact=True)).to_be_visible()
-    select_value(page, "卡图版本", "40")
     expect(page.get_by_role("heading", name=english_title, exact=True)).to_be_visible()
     page.get_by_label("关闭卡牌详情").click()
     page.get_by_label("搜索卡牌", exact=True).fill("__no_such_card__")
@@ -189,7 +188,7 @@ with sync_playwright() as p:
     expect(page.get_by_test_id("builder-grid")).to_have_count(0)
     assert not errors, errors
     (OUT / "result.json").write_text(json.dumps({"status": "passed", "records": len(cards), "pageErrors": errors,
-        "checks": ["offline snapshot", "cost 7+", "details", "language/history", "empty state", "code import",
+        "checks": ["offline snapshot", "cost 7+", "details", "text language independent of Chinese images", "empty state", "code import",
         "custom rule warnings", "save/edit", "notes/tags/favorite", "draft reload/unknown cards",
         "offline PNG", "backup boundary/restore", "980x640 and 1280x820"]}, ensure_ascii=False, indent=2), encoding="utf-8")
     context.close()

@@ -1,8 +1,9 @@
-import { cardTitle, factionLabel, type KardsCardRecord } from '../types/card';
+import { cardTitle, type KardsCardRecord } from '../types/card';
 import { decodeDeckCode, findCardsByImportId } from './deckCode';
 import { getCachedCardImage } from './cardImages';
 import type { DeckRenderRequest } from './deckRenderTypes';
-import { BUNKER_HEADQUARTERS, headquartersForDeck } from './cardAssets';
+import { BUNKER_HEADQUARTERS, DEFAULT_TABLECLOTH, headquartersForDeck } from './cardAssets';
+import { deckCounterNationIcon, deckRenderCounterSvg } from './deckRenderCounter';
 
 async function imageDataUrl(url: string): Promise<string> {
   if (url.startsWith('data:')) return url;
@@ -17,15 +18,15 @@ async function imageDataUrl(url: string): Promise<string> {
   });
 }
 
-export async function renderDeckImage(code: string, cards: KardsCardRecord[], title = 'KARDS 卡组', background?: string | null, headquartersId?: string): Promise<string> {
+export async function renderDeckImage(code: string, cards: KardsCardRecord[], title = 'KARDS 卡组', background?: string | null, headquartersId?: string, limit = 40): Promise<string> {
   const deck = decodeDeckCode(code), index = findCardsByImportId(cards);
   const entries = [...deck.counts].sort(([a], [b]) => (index.get(a)?.json.kredits ?? 99) - (index.get(b)?.json.kredits ?? 99));
   if (background) background = await imageDataUrl(background);
   const headquarters = headquartersForDeck(headquartersId, deck.mainNation) || BUNKER_HEADQUARTERS;
   const headquartersImage = headquarters ? await imageDataUrl(headquarters.image).catch(() => null) : null;
-  const request: DeckRenderRequest = { title, mainNation: factionLabel(deck.mainNation), allyNation: factionLabel(deck.allyNation), background: background?.startsWith('data:') ? background : null,
+  const request: DeckRenderRequest = { title, mainNation: deck.mainNation, allyNation: deck.allyNation, limit, background: background?.startsWith('data:') ? background : null,
     headquartersImage,
-    cards: await Promise.all(entries.map(async ([id, count]) => ({ id, count, name: index.has(id) ? cardTitle(index.get(id)!, 'zh-Hans') : `未知卡牌 ${id}`, rarity: index.get(id)?.json.rarity || '', image: index.has(id) ? await getCachedCardImage(index.get(id)!) : null }))) };
+    cards: await Promise.all(entries.map(async ([id, count]) => ({ id, count, name: index.has(id) ? cardTitle(index.get(id)!, 'zh-Hans') : `未知卡牌 ${id}`, rarity: index.get(id)?.json.rarity || '', faction: index.get(id)?.json.faction, image: index.has(id) ? await getCachedCardImage(index.get(id)!) : null }))) };
   if (window.kardsDesktop?.renderDeckImage) return window.kardsDesktop.renderDeckImage(request);
   return renderBrowserPreview(request, background);
 }
@@ -36,25 +37,33 @@ async function renderBrowserPreview(request: DeckRenderRequest, background?: str
   const load = (src: string) => new Promise<HTMLImageElement>((resolve, reject) => { const img = new Image(); img.onload = () => resolve(img); img.onerror = reject; img.src = src; });
   const total = request.cards.reduce((sum, card) => sum + card.count, 0);
   if (!total || total > 999) throw new Error('生图支持 1—999 张可用牌');
-  const bg = await load(background || '/assets/deck-render/bg.png');
+  const bg = await load(background || DEFAULT_TABLECLOTH);
   const width = 2304, cols = 10, gap = 6, thumbW = Math.floor((width - 120) / cols - 6), thumbH = Math.floor(thumbW * 1.42), top = 195;
   const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = Math.max(1440, top + Math.ceil((total + 1) / cols) * (thumbH + gap) + 20);
   const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('无法创建画布');
   ctx.drawImage(bg, 0, 0, width, canvas.height);
   const logo = await load('/assets/kards_logos/Common/KardsLogoWhite.png'); ctx.drawImage(logo, 40, -25, 240, 240);
   ctx.fillStyle = '#f2ead6'; ctx.font = 'bold 48px Microsoft YaHei,sans-serif'; ctx.fillText(request.title, 350, 87, 1000);
-  ctx.font = '30px Microsoft YaHei,sans-serif'; ctx.fillText(`${request.mainNation} / ${request.allyNation} · ${total + 1} 张（含总部）`, 350, 140);
+  const [mainIcon, allyIcon, totalIcon] = await Promise.all([
+    imageDataUrl(`./assets/filters/${deckCounterNationIcon(request.mainNation)}.svg`),
+    imageDataUrl(`./assets/filters/${deckCounterNationIcon(request.allyNation)}.svg`),
+    imageDataUrl('./assets/kards_logos/Common/KardsLogoWhite_cards.png'),
+  ]);
+  const counter = await load(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(deckRenderCounterSvg(request, { main: mainIcon, ally: allyIcon, total: totalIcon }))}`);
+  ctx.drawImage(counter, 350, 110);
   const rarities = ['Elite', 'Special', 'Limited', 'Standard'];
   for (let i = 0; i < 4; i++) {
     const rarity = rarities[i], x = width - 420 + i % 2 * 180, y = 15 + Math.floor(i / 2) * 72;
-    ctx.drawImage(await load(`/assets/deck-render/RarityIcons_${rarity}.webp`), x, y + 4, 64, 64);
+    const icon = await load(`./assets/filters/${rarity.toLowerCase()}.svg`);
+    const scale = Math.min(64 / icon.width, 64 / icon.height), iconW = icon.width * scale, iconH = icon.height * scale;
+    ctx.drawImage(icon, x + (64 - iconW) / 2, y + 4 + (64 - iconH) / 2, iconW, iconH);
     ctx.font = 'bold 44px Microsoft YaHei,sans-serif'; ctx.fillText(String(request.cards.filter(c => c.rarity === rarity).reduce((sum, c) => sum + c.count, 0)), x + 72, y + 54);
   }
   let position = 0;
-  const bunkerImage = BUNKER_HEADQUARTERS?.image || '/assets/deck-render/bunker.png';
+  const bunkerImage = BUNKER_HEADQUARTERS?.image;
   for (const card of [...request.cards, { id: 'HQ', name: '地堡', rarity: '', count: 1, image: request.headquartersImage || bunkerImage }]) {
     let image = card.image ? await load(card.image).catch(() => null) : null;
-    if (card.id === 'HQ' && !image) image = await load(bunkerImage).catch(() => null);
+    if (card.id === 'HQ' && !image && bunkerImage) image = await load(bunkerImage).catch(() => null);
     for (let n = 0; n < card.count; n++, position++) {
       const x = 60 + position % cols * (thumbW + gap), y = top + Math.floor(position / cols) * (thumbH + gap);
       if (image) { const scale = Math.max(thumbW / image.width, thumbH / image.height), sw = thumbW / scale, sh = thumbH / scale; ctx.drawImage(image, (image.width - sw) / 2, (image.height - sh) / 2, sw, sh, x, y, thumbW, thumbH); }

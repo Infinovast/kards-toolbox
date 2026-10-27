@@ -106,7 +106,7 @@ with sync_playwright() as playwright:
       const decks = await store.getItem('kards_decks');
       decks.push({id:'strips',name:'国家卡牌条验证',code,mainNation:'Germany',allyNation:'Soviet',isFavorite:false,isArena:false,totalCards:chosen.length+2,warnings:[],notes:'旧版备注'});
       await store.setItem('kards_decks',decks);
-      for(const c of chosen) for (const kind of ['full', 'thumbnail']) await store.setItem(`kards_card_image_v2_${c.importId}_${encodeURIComponent(cardImageUrl(c,'zh-Hans','current',kind))}`, 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l1sAAAAASUVORK5CYII=');
+      for(const c of chosen) for (const kind of ['full', 'thumbnail']) await store.setItem(`kards_card_image_v2_${c.importId}_${encodeURIComponent(cardImageUrl(c,kind))}`, 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l1sAAAAASUVORK5CYII=');
       return {code, count:chosen.length+1};
     }''')
     page.reload()

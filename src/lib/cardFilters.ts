@@ -18,7 +18,7 @@ export function isGeneratedCard(card: KardsCardRecord) {
 
 export function matchesCardFilters(card: KardsCardRecord, filters: CardFilters) {
   const term = filters.query.trim().toLocaleLowerCase();
-  return (!term || [card.cardId, card.importId, ...Object.values(card.json.title || {}), ...Object.values(card.json.text || card.json.description || {})]
+  return (!term || [card.cardId, card.importId, ...Object.values(card.json.title || {}), ...Object.values(card.json.text || {}), ...Object.values(card.json.description || {})]
     .some(value => value.toLocaleLowerCase().includes(term)))
     && (!filters.factions.length || filters.factions.some(faction => faction.toLowerCase() === card.json.faction?.toLowerCase()))
     && (!filters.cardType.length || filters.cardType.includes(card.json.type || ''))

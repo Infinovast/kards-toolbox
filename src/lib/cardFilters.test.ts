@@ -12,6 +12,10 @@ for (const query of ['测试', 'INFANTRY', 'fallback', 'card-a', 'aa', '  步兵
   assert.ok(matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, query }), query);
 }
 assert.ok(!matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, query: 'not found' }));
+const translated = changed({ title: { ...base.json.title, 'ja-JP': '歩兵部隊', 'de-DE': 'Testeinheit' }, text: { 'zh-Hans': '部署：抽取一张牌' } });
+for (const query of ['歩兵', 'testeinheit', '部署', 'fallback']) {
+  assert.ok(matchesCardFilters(translated, { ...EMPTY_CARD_FILTERS, query }), `all retained title/text/description languages remain searchable: ${query}`);
+}
 for (const [key, value] of Object.entries({ cardType: ['infantry'], rarity: ['Standard'], cost: ['7'], expansion: 'Base', status: 'active' })) {
   assert.ok(matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, [key]: value }), key);
 }

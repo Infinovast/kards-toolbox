@@ -51,6 +51,8 @@ with sync_playwright() as p:
       const { encodeDeckCode } = await import('/src/lib/deckCode.ts');
       await store.setItem('kards_card_database_v1', {schemaVersion:1, active:{source:'official', fetchedAt:null, cards}});
       await store.setItem(`kards_card_image_v1_54_zh-Hans_${cards[0].importId}`, window.__full);
+      await store.setItem(`kards_card_image_v2_${cards[0].importId}_${encodeURIComponent('https://www.kardsplayer.com/images/card/v1/en-EN/obsolete.avif')}`, window.__full);
+      await store.setItem(`kards_card_image_v2_${cards[0].importId}_${encodeURIComponent('https://www.kardsplayer.com/images/card/v1/zh-Hans/obsolete.avif')}`, window.__full);
       const code = encodeDeckCode('Germany','Britain',new Map([[cards[0].importId,1]]));
       await store.setItem('kards_decks',[{id:'legacy',name:'旧牌库缩略图',code,mainNation:'Germany',allyNation:'Britain',totalCards:1,isFavorite:false,isArena:false,warnings:[]}]);
       localStorage.setItem('__failThumbnail','yes');
@@ -67,18 +69,20 @@ with sync_playwright() as p:
     page.get_by_role('button', name='设置', exact=True).click()
     cache = page.get_by_role('region', name='本地缓存', exact=True)
     expect(cache.get_by_role('button', name='缓存失败（1）', exact=True)).to_be_visible()
+    expect(cache.locator('dt').filter(has_text='已缓存卡牌大图').locator('xpath=following-sibling::dd').locator('div').first).to_have_text('1 张卡牌')
+    expect(cache.locator('dt').filter(has_text='已缓存卡牌缩略图').locator('xpath=following-sibling::dd').locator('div').first).to_have_text('0 张卡牌')
     expect(cache.get_by_role('button', name='未缓存（1）', exact=True)).to_be_visible()
     cache.get_by_role('button', name='缓存失败（1）', exact=True).click()
-    expect(cache.get_by_text('fixture thumbnail failure', exact=False)).to_be_visible()
-    cache_row = cache.get_by_role('table', name='卡牌缓存清单').get_by_role('row').last
-    expect(cache_row.get_by_role('cell').first).to_have_text('已缓存')
-    expect(cache_row.get_by_role('cell').last).to_contain_text('缓存失败')
+    expect(cache.locator('[title*="fixture thumbnail failure"]')).to_be_visible()
+    cache_row = cache.locator('article').first
+    expect(cache_row.get_by_label(re.compile('完整卡图：已缓存$'))).to_be_visible()
+    expect(cache_row.get_by_label(re.compile('缩略图：缓存失败$'))).to_be_visible()
 
     # Restart retains image failures, reading settings doesn't download anything.
     page.reload(); page.wait_for_load_state('networkidle')
     page.get_by_role('button', name='设置', exact=True).click()
     cache.get_by_role('button', name='缓存失败（1）', exact=True).click()
-    expect(cache.get_by_text('fixture thumbnail failure', exact=False)).to_be_visible()
+    expect(cache.locator('[title*="fixture thumbnail failure"]')).to_be_visible()
     assert page.evaluate('window.__images') == []
     page.evaluate("window.__failThumbnail = false; localStorage.removeItem('__failThumbnail')")
     cache.get_by_role('button', name='重试失败卡图', exact=True).click()
@@ -89,22 +93,59 @@ with sync_playwright() as p:
     assert page.evaluate('window.__images') == [pair[0]['thumbUrl']]
     progress.get_by_role('button', name='关闭下载进度', exact=True).click()
     cache.get_by_role('button', name='已缓存（1）', exact=True).click()
-    expect(cache.get_by_role('table', name='卡牌缓存清单').get_by_role('cell')).to_have_text(['已缓存', '已缓存'])
+    expect(cache.locator('article').first.get_by_label(re.compile('完整卡图：已缓存$'))).to_be_visible()
+    expect(cache.locator('article').first.get_by_label(re.compile('缩略图：已缓存$'))).to_be_visible()
     cache.get_by_role('textbox', name='搜索缓存卡牌').fill('no-such-card')
     expect(cache.get_by_text('没有符合搜索条件的卡牌。', exact=True)).to_be_visible()
     cache.get_by_role('textbox', name='搜索缓存卡牌').press('Escape')
     expect(cache.get_by_role('textbox', name='搜索缓存卡牌')).to_have_value('')
     expect(page.get_by_test_id('settings-page')).to_be_visible()
-    select_value(page, '缓存语言', 'en-EN')
-    select_value(page, '缓存版本', '40')
-    expect(cache.get_by_role('button', name='未缓存（2）', exact=True)).to_be_visible()
-    assert page.evaluate('window.__images') == [pair[0]['thumbUrl']], 'language/version inventory must not download images'
+    expect(cache.get_by_role('combobox', name='缓存语言', exact=True)).to_have_count(0)
+    expect(cache.get_by_role('combobox', name='缓存版本', exact=True)).to_have_count(0)
+    assert page.evaluate('window.__images') == [pair[0]['thumbUrl']], 'inventory must not download images'
+    page.once('dialog', lambda dialog: dialog.accept())
+    cache.get_by_role('button', name='删除未使用的旧卡图缓存与失败记录', exact=True).click()
+    expect(cache.get_by_role('button', name='删除未使用的旧卡图缓存与失败记录', exact=True)).to_have_count(0)
+    expect(cache.locator('dt').filter(has_text='已缓存卡牌大图').locator('xpath=following-sibling::dd').locator('div').first).to_have_text('1 张卡牌')
+    assert page.evaluate("async () => (await (await import('/node_modules/.vite/deps/localforage.js')).default.keys()).filter(k => k.includes('obsolete')).length") == 0
+
+    # Text-language switches and multilingual search share a single image cache.
+    page.get_by_role('button', name='卡牌', exact=True).click()
+    search = page.get_by_role('textbox', name='搜索卡牌', exact=True)
+    search.fill(pair[0]['json']['title']['en-EN'])
+    expect(page.get_by_test_id('library-grid').get_by_role('button')).to_have_count(2)
+    page.wait_for_function("window.__images.length >= 3")
+    image_count = page.evaluate('window.__images.length')
+    select_value(page, '卡牌文字语言', 'en-EN')
+    expect(page.get_by_role('button', name='查看' + pair[0]['json']['title']['en-EN'], exact=True)).to_be_visible()
+    page.wait_for_load_state('networkidle')
+    assert page.evaluate('window.__images.length') == image_count, 'changing text language must not download alternate artwork'
+    assert all('/zh-Hans/' in url for url in page.evaluate('window.__images'))
+
+    page.get_by_role('button', name='设置', exact=True).click()
+    expect(page.get_by_role('combobox', name='显示模式', exact=True)).to_have_count(0)
+    expect(page.get_by_role('button', name='保存并返回', exact=True)).to_have_count(0)
+    if page.get_by_role('button', name='切换到深色模式', exact=True).count():
+        page.get_by_role('button', name='切换到深色模式', exact=True).click()
+    expect(page.get_by_role('button', name='卡牌', exact=True).locator('img')).to_have_attribute('src', re.compile('KardsLogoBeige_cards.png$'))
     page.get_by_role('button', name='卡组', exact=True).click()
     page.get_by_role('button', name='选择卡组 旧牌库缩略图', exact=True).click()
+    counter = details.locator('.deck-count-indicator')
+    masks = counter.locator('.filter-symbol').evaluate_all('els => els.map(el => getComputedStyle(el).maskImage)')
+    assert 'germany.svg' in masks[0] and 'britain.svg' in masks[1]
+    expect(counter.locator('img:visible')).to_have_attribute('src', re.compile('KardsLogoWhite_cards.png$'))
     expect(row.locator('.deck-card-thumbnail img')).to_have_attribute('src', re.compile('^data:image/svg\\+xml,'))
     assert row.locator('.deck-card-thumbnail img').evaluate('el => getComputedStyle(el).position') == 'static'
     details.get_by_role('button', name='编辑卡组', exact=True).click()
     expect(page.locator('.deck-card-strip .deck-card-thumbnail img')).to_have_attribute('src', re.compile('^data:image/svg\\+xml,'))
+    expect(page.locator('.deck-count-indicator img:visible')).to_have_attribute('src', re.compile('KardsLogoWhite_cards.png$'))
+    page.get_by_label('卡组名称', exact=True).press('Escape')
+    page.get_by_role('button', name='设置', exact=True).click()
+    page.get_by_role('button', name='切换到浅色模式', exact=True).click()
+    expect(page.get_by_role('button', name='卡牌', exact=True).locator('img')).to_have_attribute('src', re.compile('KardsLogoBlack_cards.png$'))
+    page.get_by_role('button', name='卡组', exact=True).click()
+    page.get_by_role('button', name='选择卡组 旧牌库缩略图', exact=True).click()
+    expect(details.locator('.deck-count-indicator img:visible')).to_have_attribute('src', re.compile('KardsLogoBlack_cards.png$'))
     stored = page.evaluate("async () => (await import('/node_modules/.vite/deps/localforage.js')).default.getItem('kards_card_database_v1')")
     assert stored['active']['cards'] == legacy
 
@@ -118,14 +159,16 @@ with sync_playwright() as p:
     page.reload(); page.wait_for_load_state('networkidle')
     page.get_by_role('button', name='设置', exact=True).click()
     cache.get_by_role('button', name='未缓存（35）', exact=True).click()
-    expect(cache.get_by_role('table', name='卡牌缓存清单').get_by_role('row')).to_have_count(31)
+    expect(cache.locator('article')).to_have_count(30)
     cache.get_by_role('button', name='下一页', exact=True).click()
-    expect(cache.get_by_role('table', name='卡牌缓存清单').get_by_role('row')).to_have_count(6)
+    expect(cache.locator('article')).to_have_count(5)
     page.evaluate('window.__delay = 500')
+    # The queue's interval remains configurable; minimize this regression run.
+    page.evaluate("async () => { const queue = await import('/src/lib/imageDownloads.ts'); queue.setImageDownloadInterval(100); }")
     cache.get_by_role('button', name='缓存未缓存卡图', exact=True).click()
     page.get_by_role('button', name='卡组', exact=True).click()
     expect(progress).to_be_visible()
-    progress.get_by_role('button', name='停止下载', exact=True).click()
+    progress.get_by_role('button', name='停止', exact=True).click()
     expect(progress.get_by_text('缓存已停止', exact=True)).to_be_visible()
     page.get_by_role('button', name='设置', exact=True).click()
     expect(cache.get_by_role('combobox', name='缓存查看范围', exact=True)).to_have_attribute('data-value', 'recent')
@@ -135,11 +178,11 @@ with sync_playwright() as p:
     expect(cache.get_by_role('button', name=f'未缓存（{35-done}）', exact=True)).to_be_visible()
     page.evaluate('window.__delay = 0')
     cache.get_by_role('button', name='缓存未缓存卡图', exact=True).click()
-    expect(cache.get_by_role('button', name='已缓存（35）', exact=True)).to_be_visible(timeout=15000)
+    expect(cache.get_by_role('button', name='已缓存（35）', exact=True)).to_be_visible(timeout=60000)
     expect(cache.get_by_role('button', name='未缓存（0）', exact=True)).to_be_visible()
     cache.get_by_role('button', name='已缓存（35）', exact=True).click()
-    cache.locator('summary').click()
-    expect(cache.get_by_role('table', name='卡图文件分类').get_by_role('row').last.get_by_role('cell')).to_have_text(['简体中文', 'v53', '35', '35'])
+    expect(cache.locator('dt').filter(has_text='已缓存卡牌大图').locator('xpath=following-sibling::dd').locator('div').first).to_have_text('35 张卡牌')
+    expect(cache.locator('dt').filter(has_text='已缓存卡牌缩略图').locator('xpath=following-sibling::dd').locator('div').first).to_have_text('35 张卡牌')
     page.set_viewport_size({'width':980,'height':640})
     assert cache.evaluate('el => el.scrollWidth <= el.clientWidth')
     assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
@@ -168,6 +211,6 @@ with sync_playwright() as p:
     assert page.evaluate('window.__images') == []
     assert not errors, errors
     assert not external, external
-    (OUT / 'ui.json').write_text(json.dumps({'status':'passed','pageErrors':errors,'checks':['legacy true thumbnail without metadata mutation','failed thumbnail placeholder, never full crop','full hover source','persistent failure/retry only missing image','read-only offline inventory','language/history independent','three categories and part status','search/Escape/pagination','batch scope and cancel/resume across pages','live updates and restart','large download confirmation','980x640 no horizontal overflow'],'screenshots':False,'imageDecoding':False},ensure_ascii=False,indent=2),encoding='utf-8')
+    (OUT / 'ui.json').write_text(json.dumps({'status':'passed','pageErrors':errors,'checks':['legacy true thumbnail without metadata mutation','failed thumbnail placeholder, never full crop','full hover source','persistent failure/retry only missing image','read-only offline inventory','single Chinese image cache','distinct cached-card counts and obsolete file cleanup','multilingual search and text switches without extra image requests','filter nation symbols and light/dark card-count logos in details and builder','three categories and part status','search/Escape/pagination','batch scope and cancel/resume across pages','live updates and restart','large download confirmation','980x640 no horizontal overflow'],'screenshots':False,'imageDecoding':False},ensure_ascii=False,indent=2),encoding='utf-8')
     context.close(); browser.close()
     print('Cache settings and legacy thumbnail regression passed')

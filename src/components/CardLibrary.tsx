@@ -4,22 +4,21 @@ import { CardFace } from './CardFace';
 import { startImageDownload, useImageDownload } from '../lib/imageDownloads';
 import { useDismissiblePanel } from '../lib/dialogKeyboard';
 import { EMPTY_CARD_FILTERS, isGeneratedCard, matchesCardFilters, type CardFilters } from '../lib/cardFilters';
-import CustomSelect from './CustomSelect';
 import PageIndicator from './PageIndicator';
 import { CardText } from './CardText';
-import CardFilterSelects, { expansionOptions } from './CardFilterSelects';
+import CardFilterSelects, { CostFilterButtons, expansionOptions } from './CardFilterSelects';
 import { cardKeywords, cardRelations } from '../lib/cardDetails';
 import { HEADQUARTERS_STACKS, type HeadquartersAsset } from '../lib/cardAssets';
 import ReservedBadge from './ReservedBadge';
+import CustomSelect from './CustomSelect';
+import { CARD_LANGUAGES, type CardLanguage } from '../types/card';
 import {
-  CARD_LANGUAGES,
   cardText,
   cardTitle,
   cardDisplayTitle,
   isVeteranCard,
   factionLabel,
   typeLabel,
-  type CardLanguage,
   type KardsCardRecord,
 } from '../types/card';
 
@@ -88,32 +87,36 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
       else if ((event.target as HTMLElement).tagName !== 'SELECT') { event.preventDefault(); resetFilters(); }
     }} className="relative flex h-full min-h-0 gap-4 p-5">
       <section className="flex min-w-0 flex-1 flex-col gap-4 overflow-hidden">
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-kards-border glass-panel p-3">
-          <div className="relative min-w-[220px] flex-1">
+        <div className="builder-filter-bar library-filter-bar glass-panel custom-scrollbar">
+          <div className="builder-filter-leading">
+          <div className="builder-search relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kards-text-muted" />
             <input aria-label="搜索卡牌" value={filters.query} onChange={(event) => selectFilter({ ...filters, query: event.target.value })} onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.closest('section')?.querySelector<HTMLButtonElement>('[data-testid="library-grid"] button')?.focus(); } }} placeholder="搜索卡名、卡牌文本或 ID" className="w-full rounded border border-kards-border bg-kards-input-bg py-2 pl-9 pr-3 text-sm text-kards-text outline-none focus:border-kards-gold" />
           </div>
+          </div>
+          <CostFilterButtons value={filters.cost} onChange={cost => selectFilter({ ...filters, cost })} />
+          <div className="builder-filter-trailing">
           <CardFilterSelects filters={filters} onChange={selectFilter} expansions={expansions} language={language} />
-          <CustomSelect label="卡牌语言" value={language} onChange={value => setLanguage(value as CardLanguage)} options={CARD_LANGUAGES.map(item => ({ value: item.id, label: item.label }))} />
+          <CustomSelect label="卡牌文字语言" value={language} onChange={value => setLanguage(value as CardLanguage)} options={CARD_LANGUAGES.map(item => ({ value: item.id, label: item.label }))} />
           <button onClick={resetFilters} className="px-2 py-2 text-sm text-kards-text-muted hover:text-kards-text">重置筛选</button>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-1 text-xs text-kards-text-muted">
           <span>本地目录 {cards.length.toLocaleString()} 张 · 当前结果 {filteredCards.length.toLocaleString()} 张</span>
           <button disabled={!filteredCards.length || download.status === 'running' || download.status === 'paused'} onClick={() => {
-            if (filteredCards.length > 100 && !window.confirm(`下载当前筛选的全部 ${filteredCards.length.toLocaleString()} 张卡图及缩略图（${language}）？已有缓存会跳过；切换页面后仍会继续下载。`)) return;
-            startImageDownload(filteredCards, language);
+            if (filteredCards.length > 100 && !window.confirm(`缓存当前筛选的 ${filteredCards.length.toLocaleString()} 张卡牌大图和缩略图？`)) return;
+            startImageDownload(filteredCards);
           }} className="flex items-center gap-1 rounded border border-kards-border glass-panel px-3 py-2 text-kards-text disabled:opacity-40"><Download className="h-3.5 w-3.5" />缓存筛选结果（{filteredCards.length.toLocaleString()} 张）</button>
         </div>
 
-        <div data-testid="library-grid" className="card-gallery custom-scrollbar min-h-0 flex-1 overflow-y-auto pb-2">
+        <div data-testid="library-grid" className="card-gallery card-gallery-library custom-scrollbar min-h-0 flex-1 overflow-y-auto pb-2">
           {page === 1 && visibleHeadquartersStacks.map(stack => <button key={stack.id} type="button" aria-haspopup="dialog" aria-expanded={expandedHeadquarters === stack.id} aria-label={`展开${stack.label}总部`} onClick={() => setExpandedHeadquarters(stack.id)} className="card-tile hq-stack-tile card-action group">
             <span className="hq-stack-art" aria-hidden="true">{stack.cards.map((headquarters, index) => <img key={headquarters.id} src={headquarters.image} alt="" style={{ transform: `translate(${index * 3}px, ${index * 2}px) rotate(${(index - (stack.cards.length - 1) / 2) * 1.4}deg)`, zIndex: index + 1 }} />)}</span>
           </button>)}
           {pageCards.map((card) => (
-            <button key={card.importId} onClick={() => setSelectedCard(card)} className="card-tile card-action group text-left" aria-label={`查看${cardDisplayTitle(card, language)}`}>
-              <span className="library-card-art"><CardFace card={card} language={language} />{card.reserved && <ReservedBadge className="library-reserved-badge" />}</span>
-              <div className="card-caption" title={cardDisplayTitle(card, language)}>{cardDisplayTitle(card, language)}</div>
+            <button key={card.importId} onClick={() => setSelectedCard(card)} className="card-tile card-action group text-left" title={cardDisplayTitle(card, language)} aria-label={`查看${cardDisplayTitle(card, language)}`}>
+              <span className="library-card-art"><CardFace card={card} />{card.reserved && <ReservedBadge className="library-reserved-badge" />}</span>
             </button>
           ))}
           {pageCards.length === 0 && !visibleHeadquartersStacks.length && <div className="col-span-full py-16 text-center text-kards-text-muted">没有找到匹配的卡牌</div>}
@@ -147,7 +150,7 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
       {selectedCard && (
         <aside ref={detailRef} role="dialog" aria-modal="false" aria-label="卡牌详情" tabIndex={-1} className="glass-panel custom-scrollbar absolute bottom-5 right-5 top-5 z-30 flex w-[300px] max-w-[calc(100%-40px)] flex-col overflow-y-auto rounded-lg border border-kards-border p-4 shadow-xl">
           <button onClick={closeDetails} aria-label="关闭卡牌详情" className="absolute right-3 top-3 z-10 rounded-full bg-black/60 p-1 text-white"><X className="h-4 w-4" /></button>
-          <CardFace card={selectedCard} language={language} className="mx-auto mb-4 max-h-[55vh] w-full object-contain" />
+          <CardFace card={selectedCard} className="mx-auto mb-4 max-h-[55vh] w-full object-contain" />
           <h2 className="text-lg font-bold text-kards-text">{cardDisplayTitle(selectedCard, language)}</h2>
           {keywords.length > 0 && <p aria-label="卡牌关键词" className="mt-2 text-sm text-kards-status">{keywords.join(' · ')}</p>}
           {cardText(selectedCard, language) && <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-kards-text-muted"><CardText text={cardText(selectedCard, language)} /></p>}
@@ -163,7 +166,7 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
           </dl>
           {relations.length > 0 && <section aria-label="关联卡牌" className="mt-4 border-t border-kards-border pt-4"><h3 className="text-sm font-bold text-kards-text">关联卡牌</h3><div className="mt-2 flex flex-wrap gap-2">
             {relations.map(({ cardId, label }) => { const related = cardsByCardId.get(cardId); return related
-              ? <button key={`${label}:${cardId}`} title={`${label}：${cardDisplayTitle(related, language)}`} aria-label={`${label}：${cardDisplayTitle(related, language)}`} onClick={() => setSelectedCard(related)} className="w-[84px] rounded border border-kards-border bg-kards-input-bg p-1 hover:border-kards-gold"><CardFace card={related} language={language} className="w-full" /></button>
+              ? <button key={`${label}:${cardId}`} title={`${label}：${cardDisplayTitle(related, language)}`} aria-label={`${label}：${cardDisplayTitle(related, language)}`} onClick={() => setSelectedCard(related)} className="w-[84px] rounded border border-kards-border bg-kards-input-bg p-1 hover:border-kards-gold"><CardFace card={related} className="w-full" /></button>
               : <p key={`${label}:${cardId}`} className="break-all text-xs text-kards-text-muted">{label}：{cardId}（本地缺少资料，请在设置中更新）</p>; })}
           </div></section>}
         </aside>

@@ -104,12 +104,12 @@ export function typeLabel(type?: string): string {
   return CARD_TYPES.find((item) => item.id === (type || '').toLowerCase())?.label || type || '未知';
 }
 
-export function cardImageUrl(card: KardsCardRecord, language: CardLanguage, kind: CardImageKind = 'full'): string {
+export function cardImageUrl(card: KardsCardRecord, kind: CardImageKind = 'full'): string {
   const source = kind === 'thumbnail' ? card.thumbUrl || card.imageUrl : card.imageUrl;
   if (source) {
     const url = new URL(source, 'https://www.kardsplayer.com');
-    // Keep the image address supplied by the catalogue; only change its language.
-    url.pathname = url.pathname.replace(/(\/card\/v\d+\/)[^/]+\//, `$1${language}/`);
+    // Card art has a single Chinese cache; translated data remains searchable.
+    url.pathname = url.pathname.replace(/(\/card\/v\d+\/)[^/]+\//, '$1zh-Hans/');
     if (kind === 'thumbnail' && !card.thumbUrl) url.pathname = url.pathname.replace(/(\/card\/v\d+\/[^/]+\/)(?!thumb\/)/, '$1thumb/');
     return url.href;
   }
@@ -118,7 +118,7 @@ export function cardImageUrl(card: KardsCardRecord, language: CardLanguage, kind
   if (kind === 'thumbnail') return '';
   const image = card.json.image;
   if (!image) return '';
-  const imagePath = `/images/card/v54/${language}/${image}`
+  const imagePath = `/images/card/v54/zh-Hans/${image}`
     .split('/')
     .map((part, index) => index < 4 ? part : encodeURIComponent(part))
     .join('/');

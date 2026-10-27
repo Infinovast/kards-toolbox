@@ -80,14 +80,14 @@ export default function CardDataUpdater({ cards, onApplied }: { cards: KardsCard
       })}</div>
     </details>
     {sync.status === 'fetching' && <div className="mt-4" role="status">
-      <div className="flex items-center justify-between gap-3 text-sm text-kards-text"><span>已获取 {sync.completed.toLocaleString()} / {sync.total ? sync.total.toLocaleString() : '待确认'} 张 · 切换页面后继续获取</span><button onClick={cancelCardDataCheck} className="flex items-center gap-1 rounded border border-kards-border px-3 py-1"><X className="h-4 w-4" />取消获取</button></div>
+      <div className="flex items-center justify-between gap-3 text-sm text-kards-text"><span>已获取 {sync.completed.toLocaleString()} / {sync.total ? sync.total.toLocaleString() : '待确认'} 张</span><button onClick={cancelCardDataCheck} className="flex items-center gap-1 rounded border border-kards-border px-3 py-1"><X className="h-4 w-4" />取消获取</button></div>
       <progress aria-label="获取卡牌数据进度" value={sync.completed} max={sync.total || 1} className="mt-3 h-2 w-full accent-kards-accent" />
     </div>}
-    {sync.error && <p role="alert" className="mt-4 rounded border border-red-500/40 bg-red-500/10 p-3 text-sm text-kards-text">{sync.error}。当前已应用数据保持不变，可重新操作。</p>}
+    {sync.error && <p role="alert" className="mt-4 rounded border border-red-500/40 bg-red-500/10 p-3 text-sm text-kards-text">{sync.error}</p>}
     {sync.message && <p role="status" className="mt-4 text-sm text-kards-text">{sync.message}</p>}
     {pending && <div className="mt-6 border-t border-kards-border pt-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><h4 className="font-bold text-kards-text">新旧数据对比</h4><p className="mt-2 text-sm text-kards-text-muted">当前 {cards.length.toLocaleString()} 张 → 待更新 {pending.cards.length.toLocaleString()} 张 · 新增 {counts.added} / 修改 {counts.changed} / 移除 {counts.removed}</p><p className="mt-1 text-xs text-kards-text-muted">候选数据获取于 {timeText(pending.fetchedAt)}</p></div>
+        <div><h4 className="font-bold text-kards-text">新旧数据对比</h4><div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-kards-text-muted"><span>{cards.length.toLocaleString()} → {pending.cards.length.toLocaleString()} 张</span>{Object.entries(kindLabels).map(([value, label]) => <span key={value} className="rounded border border-kards-border px-2 py-1">{label} {counts[value]}</span>)}</div><time dateTime={pending.fetchedAt} className="mt-2 block text-xs text-kards-text-muted">{timeText(pending.fetchedAt)}</time></div>
         <button onClick={apply} disabled={busy || !changes.length || sync.status !== 'ready'} className="rounded bg-kards-accent px-5 py-2 text-sm font-bold text-white disabled:opacity-40">{sync.status === 'applying' ? '正在应用…' : '应用更新'}</button>
       </div>
       {!changes.length ? <p className="mt-4 text-sm text-kards-text">两份数据一致，无需更新。</p> : <>

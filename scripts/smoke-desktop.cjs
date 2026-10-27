@@ -69,12 +69,12 @@ async function main() {
         const name = card.json.title['zh-Hans'];
         const file = files.find(f => f === `${name}_${id}.png`) || files.find(f => f === `${name}.png`);
         assert.ok(file, `local reference artwork ${name}`);
-        renderCards.push({ id, count: group + 1, name, rarity: card.json.rarity,
+        renderCards.push({ id, count: group + 1, name, rarity: card.json.rarity, faction: card.json.faction,
           image: `data:image/png;base64,${(await fs.readFile(path.join(imageDir, file))).toString('base64')}` });
       }
     }
     assert.equal(renderCards.reduce((n, card) => n + card.count, 0), 39);
-    const request = { title: '真实卡图生图验证', mainNation: '日本', allyNation: '德国', cards: renderCards };
+    const request = { title: '真实卡图生图验证', mainNation: 'Japan', allyNation: 'Germany', cards: renderCards };
     const rendered = await page.evaluate(request => window.kardsDesktop.renderDeckImage(request), request);
     const renderedBytes = Buffer.from(rendered.split(',')[1], 'base64');
     const meta = await sharp(renderedBytes).metadata();

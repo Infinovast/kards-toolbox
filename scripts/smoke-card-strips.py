@@ -45,7 +45,7 @@ with sync_playwright() as playwright:
         {id:'strip-test',name:'卡牌条交互',code,mainNation:'Germany',allyNation:'Anzac',totalCards:39,isFavorite:false,isArena:false,warnings:[]},
         {id:'empty-test',name:'空白预览',code:'%%21|;;;',mainNation:'Britain',allyNation:'Germany',totalCards:0,isFavorite:false,isArena:false,warnings:[]}
       ]);
-      for(const c of cards) for (const kind of ['full', 'thumbnail']) await store.setItem(`kards_card_image_v2_${c.importId}_${encodeURIComponent(cardImageUrl(c,'zh-Hans','current',kind))}`, 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l1sAAAAASUVORK5CYII=');
+      for(const c of cards) for (const kind of ['full', 'thumbnail']) await store.setItem(`kards_card_image_v2_${c.importId}_${encodeURIComponent(cardImageUrl(c,kind))}`, 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l1sAAAAASUVORK5CYII=');
       return code;
     }''',cards)
     page.reload(); page.wait_for_load_state('networkidle')

@@ -18,7 +18,7 @@ export const CARD_STRIP_NATIONS: Record<string, { color: string; icon: string; d
   France: { color: '#515a78', icon: './assets/icons/France/France.png' },
   Italy: { color: '#6a6969', icon: './assets/icons/Italy/Italy.png' },
   Poland: { color: '#676452', icon: './assets/icons/Poland/Poland.jpg' },
-  Finland: { color: '#bbbaaa', icon: './assets/icons/Finland/Finland.png', darkText: true },
+  Finland: { color: '#bbbaaa', icon: './assets/filters/finland.svg', darkText: true },
   Neutral: { color: '#3c3d41', icon: './assets/filters/neutral.svg' },
   Anzac: { color: '#9e6f34', icon: './assets/filters/anzac.svg', darkText: true },
 };
@@ -109,8 +109,8 @@ export default function DeckCardStrip({ card, importId, count, enabled = true, c
     setSource(''); setThumbnail('');
     if (!enabled || !card) return;
     let active = true;
-    cacheCardImage(card, 'zh-Hans').then(url => { if (active) setSource(url); }).catch(() => {});
-    cacheCardImage(card, 'zh-Hans', 'thumbnail').then(url => { if (active) setThumbnail(url); }).catch(() => {});
+    cacheCardImage(card).then(url => { if (active) setSource(url); }).catch(() => {});
+    cacheCardImage(card, 'thumbnail').then(url => { if (active) setThumbnail(url); }).catch(() => {});
     return () => { active = false; };
   }, [card, enabled]);
   return <div ref={root} tabIndex={card ? 0 : undefined} role={onClick ? 'button' : undefined} aria-label={`${title}，${count} 张`} className="deck-card-strip" data-nation={nation || 'Unknown'} data-preview={!!preview && enabled} style={{ '--strip-color': appearance.color, '--strip-text': appearance.darkText ? '#12130e' : '#fff9e8', '--rarity-color': (RARITY_SLOTS[card?.json.rarity || 'Standard'] || RARITY_SLOTS.Standard).color } as CSSProperties}

@@ -72,7 +72,7 @@ export default function CardDetailModal({ card: initialCard, headquarters, cards
             <p>{card.json.permanent_pool ? '常备卡池' : '轮换卡池'}</p>
           </section> : <section className="card-detail-section text-sm"><p>{rarity}</p></section>}
         </aside>
-        <div className="card-detail-art">{card ? <CardFace card={card} language={language} /> : <img src={headquarters!.image} alt={title} className="card-face" />}</div>
+        <div className="card-detail-art">{card ? <CardFace card={card} /> : <img src={headquarters!.image} alt={title} className="card-face" />}</div>
         <div className="card-detail-panel custom-scrollbar">
           <h1 className="text-2xl font-bold">{title}</h1>
           {card && cardText(card, language) && <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-kards-text"><CardText text={cardText(card, language)} /></p>}
@@ -90,7 +90,7 @@ export default function CardDetailModal({ card: initialCard, headquarters, cards
             <h3 className="mb-3 font-bold">关联卡牌</h3>
             <div className="flex flex-wrap gap-3">{relatedCards.map(related => <button key={related.label + related.cardId} type="button"
               title={related.label + '：' + cardDisplayTitle(related.card, language)} aria-label={related.label + '：' + cardDisplayTitle(related.card, language)}
-              onClick={() => setCard(related.card)} className="card-action w-[86px]"><CardFace card={related.card} language={language} /></button>)}</div>
+              onClick={() => setCard(related.card)} className="card-action w-[86px]"><CardFace card={related.card} /></button>)}</div>
           </section>}
         </div>
       </div>

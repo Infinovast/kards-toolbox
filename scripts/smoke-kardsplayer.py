@@ -99,10 +99,9 @@ with sync_playwright() as p:
     expect(detail.get_by_role('heading', name='第 50 步兵团', exact=True)).to_be_visible()
     detail.press('Escape')
     expect(detail).to_have_count(0)
-    select_value(page, '卡牌语言', 'en-EN')
+    select_value(page, '卡牌文字语言', 'en-EN')
     expect(page.get_by_role('button', name='查看50. INFANTRY REGIMENT (Veteran)', exact=True)).to_be_visible()
-    select_value(page, '卡图版本', '40')
-    page.wait_for_function("window.__images.some(u => u.includes('/v40/en-EN/50_infantry_regiment_vet.avif'))")
+    page.wait_for_function("window.__images.some(u => u.includes('/v53/zh-Hans/50_infantry_regiment_vet.avif'))")
     urls = page.evaluate('window.__images')
     assert pair[0]['imageUrl'] in urls and pair[1]['imageUrl'] in urls
     assert pair[0]['thumbUrl'] in urls and pair[1]['thumbUrl'] in urls
@@ -164,6 +163,6 @@ with sync_playwright() as p:
     details.get_by_role('button', name='编辑卡组', exact=True).click()
     expect(page.locator('.deck-card-strip .deck-card-thumbnail img')).to_have_attribute('src', re.compile('^data:image/svg\\+xml,'))
     assert not errors, errors
-    (OUT / 'ui.json').write_text(json.dumps({'status': 'passed', 'pageErrors': errors, 'checks': ['legacy manual migration', 'URL-only preview/apply/rollback', 'base/veteran distinct titles', '3/2 vs 4/3 and 2/1 costs', 'ambush keyword', 'related card navigation', 'OnlySpawnable base remains constructible', 'language/history URLs', 'cache retained for rollback', 'paired full/thumbnail cache', 'partial thumbnail retry without full redownload', 'bulk skip requires both images', 'details/builder strips use thumbnails and hover uses full images']}, ensure_ascii=False, indent=2), encoding='utf-8')
+    (OUT / 'ui.json').write_text(json.dumps({'status': 'passed', 'pageErrors': errors, 'checks': ['legacy manual migration', 'URL-only preview/apply/rollback', 'base/veteran distinct titles', '3/2 vs 4/3 and 2/1 costs', 'ambush keyword', 'related card navigation', 'OnlySpawnable base remains constructible', 'text language independent of Chinese image URLs', 'cache retained for rollback', 'paired full/thumbnail cache', 'partial thumbnail retry without full redownload', 'bulk skip requires both images', 'details/builder strips use thumbnails and hover uses full images']}, ensure_ascii=False, indent=2), encoding='utf-8')
     context.close(); browser.close()
     print('Kardsplayer UI smoke passed')

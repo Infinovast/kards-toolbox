@@ -1,13 +1,13 @@
 import localforage from 'localforage';
 import { useSyncExternalStore } from 'react';
-import { cardImageUrl, type CardImageKind, type CardLanguage, type KardsCardRecord } from '../types/card';
+import { cardImageUrl, type CardImageKind, type KardsCardRecord } from '../types/card';
 import { downloadCardImage } from './cardImageDownload';
 
 const inflight = new Map<string, Promise<string>>();
 const FAILURE_KEY = 'kards_card_image_failures_v1';
 const BATCH_KEY = 'kards_card_image_batch_v1';
 interface ImageFailure { message: string; at: string; attempts?: number }
-export interface ImageCacheBatch { importIds: string[]; language: CardLanguage; startedAt: string }
+export interface ImageCacheBatch { importIds: string[]; startedAt: string }
 let failures: Record<string, ImageFailure> = {};
 let failuresLoaded: Promise<void> | undefined;
 let recordWrite: Promise<unknown> = Promise.resolve();
@@ -45,7 +45,7 @@ function loadBundledImages() {
   }).catch(error => { bundledImages = undefined; throw error; });
 }
 
-async function imageReference(card: KardsCardRecord, language: CardLanguage, kind: CardImageKind) {
+async function imageReference(card: KardsCardRecord, kind: CardImageKind) {
   let imageCard = card;
   let resolutionError: unknown;
   if (kind === 'thumbnail' && !card.thumbUrl && !card.imageUrl) {
@@ -54,25 +54,25 @@ async function imageReference(card: KardsCardRecord, language: CardLanguage, kin
       if (bundled?.importId === card.importId) imageCard = bundled;
     } catch (error) { resolutionError = error; }
   }
-  const url = cardImageUrl(imageCard, language, kind);
+  const url = cardImageUrl(imageCard, kind);
   const key = imageCard.imageUrl || imageCard.thumbUrl || kind === 'thumbnail'
-    ? `kards_card_image_v2_${card.importId}_${encodeURIComponent(url || `missing-thumbnail:${card.cardId}:${language}:current`)}`
-    : `kards_card_image_v1_54_${language}_${card.importId}`;
+    ? `kards_card_image_v2_${card.importId}_${encodeURIComponent(url || `missing-thumbnail:${card.cardId}:zh-Hans:current`)}`
+    : `kards_card_image_v1_54_zh-Hans_${card.importId}`;
   return { key, url, resolutionError };
 }
 
-export async function getCachedCardImage(card: KardsCardRecord, language: CardLanguage = 'zh-Hans', kind: CardImageKind = 'full'): Promise<string | null> {
-  return localforage.getItem<string>((await imageReference(card, language, kind)).key);
+export async function getCachedCardImage(card: KardsCardRecord, kind: CardImageKind = 'full'): Promise<string | null> {
+  return localforage.getItem<string>((await imageReference(card, kind)).key);
 }
 
-export async function getCardImageFailureAttempts(card: KardsCardRecord, language: CardLanguage) {
+export async function getCardImageFailureAttempts(card: KardsCardRecord) {
   await loadFailures();
-  const references = await Promise.all((['full', 'thumbnail'] as const).map(kind => imageReference(card, language, kind)));
+  const references = await Promise.all((['full', 'thumbnail'] as const).map(kind => imageReference(card, kind)));
   return Math.max(0, ...references.map(({ key }) => failures[key] ? failures[key].attempts || 1 : 0));
 }
 
-async function cacheImageSource(card: KardsCardRecord, language: CardLanguage, kind: CardImageKind): Promise<string> {
-  const { key, url, resolutionError } = await imageReference(card, language, kind);
+async function cacheImageSource(card: KardsCardRecord, kind: CardImageKind): Promise<string> {
+  const { key, url, resolutionError } = await imageReference(card, kind);
   if (deleting) throw new Error('正在删除缓存，请稍后重试');
   const running = inflight.get(key);
   if (running) return running;
@@ -98,15 +98,15 @@ async function cacheImageSource(card: KardsCardRecord, language: CardLanguage, k
 
 // Viewing either image also fills its companion cache. A failed thumbnail must
 // not hide a usable full card (and vice versa); the bulk queue awaits both.
-export function cacheCardImage(card: KardsCardRecord, language: CardLanguage, kind: CardImageKind = 'full', cacheCompanion = true): Promise<string> {
-  const requested = cacheImageSource(card, language, kind);
-  if (cacheCompanion) void cacheImageSource(card, language, kind === 'full' ? 'thumbnail' : 'full').catch(() => {});
+export function cacheCardImage(card: KardsCardRecord, kind: CardImageKind = 'full', cacheCompanion = true): Promise<string> {
+  const requested = cacheImageSource(card, kind);
+  if (cacheCompanion) void cacheImageSource(card, kind === 'full' ? 'thumbnail' : 'full').catch(() => {});
   return requested;
 }
 
-export async function recordImageCacheBatch(cards: KardsCardRecord[], language: CardLanguage) {
+export async function recordImageCacheBatch(cards: KardsCardRecord[]) {
   try {
-    await localforage.setItem<ImageCacheBatch>(BATCH_KEY, { importIds: cards.map(card => card.importId), language, startedAt: new Date().toISOString() });
+    await localforage.setItem<ImageCacheBatch>(BATCH_KEY, { importIds: cards.map(card => card.importId), startedAt: new Date().toISOString() });
   } catch { recordError = '最近一次批量缓存范围未能保存，重启后请在全部牌库中查看缓存结果。'; }
   changed();
 }
@@ -118,20 +118,11 @@ export interface CardCacheEntry {
   thumbnail: CardCacheEntry['full'];
 }
 
-function imageCacheGroup(key: string) {
+function imageCacheKind(key: string): CardImageKind | null {
   if (key.startsWith('kards_card_image_v2_')) {
-    const separator = key.indexOf('_', 'kards_card_image_v2_'.length);
-    try {
-      const source = decodeURIComponent(key.slice(separator + 1));
-      if (source.startsWith('missing-thumbnail:')) return { kind: 'thumbnail' as const, language: source.split(':')[2] || '未知语言' };
-      const match = new URL(source).pathname.match(/\/card\/(v\d+)\/([^/]+)\/(thumb\/)?/);
-      if (match) return { language: match[2], kind: match[3] ? 'thumbnail' as const : 'full' as const };
-      return { language: '未知语言', kind: source.includes('/thumb/') ? 'thumbnail' as const : 'full' as const };
-    } catch { /* Ignore keys that do not describe a card image. */ }
-    return { language: '未知语言', kind: 'full' as const };
+    return key.includes('%2Fthumb%2F') || key.includes('missing-thumbnail') ? 'thumbnail' : 'full';
   }
-  const legacy = key.match(/^kards_card_image_v1_(\d+)_([^_]+)_/);
-  return legacy ? { language: legacy[2], kind: 'full' as const } : null;
+  return /^kards_card_image_v1_\d+_[^_]+_/.test(key) ? 'full' : null;
 }
 
 export async function deleteCachedImages(keys: string[]) {
@@ -151,11 +142,11 @@ export async function deleteCachedImages(keys: string[]) {
   } finally { deleting = false; changed(); }
 }
 
-export async function readCardImageCache(cards: KardsCardRecord[], language: CardLanguage) {
+export async function readCardImageCache(cards: KardsCardRecord[]) {
   await loadFailures();
   const [storedKeys, batch, refs, decks] = await Promise.all([
     localforage.keys(), localforage.getItem<ImageCacheBatch>(BATCH_KEY),
-    Promise.all(cards.map(async card => ({ card, full: await imageReference(card, language, 'full'), thumbnail: await imageReference(card, language, 'thumbnail') }))),
+    Promise.all(cards.map(async card => ({ card, full: await imageReference(card, 'full'), thumbnail: await imageReference(card, 'thumbnail') }))),
     localforage.getItem<{ name: string; code: string }[]>('kards_decks'),
   ]);
   const keys = new Set(storedKeys);
@@ -165,17 +156,14 @@ export async function readCardImageCache(cards: KardsCardRecord[], language: Car
     return { card, ...parts, status: parts.full.status === 'cached' && parts.thumbnail.status === 'cached' ? 'cached' : parts.full.status === 'failed' || parts.thumbnail.status === 'failed' ? 'failed' : 'missing' };
   });
   const imageKeys: Record<CardImageKind, string[]> = { full: [], thumbnail: [] };
-  const groups = new Map<string, { language: string; full: number; thumbnail: number; fullKeys: string[]; thumbnailKeys: string[] }>();
   for (const key of new Set([...storedKeys, ...Object.keys(failures)])) {
-    const info = imageCacheGroup(key);
-    if (!info) continue;
-    const { language, kind } = info;
+    const kind = imageCacheKind(key);
+    if (!kind) continue;
     imageKeys[kind].push(key);
-    const group = groups.get(language) || { language, full: 0, thumbnail: 0, fullKeys: [], thumbnailKeys: [] };
-    if (kind === 'thumbnail') { group.thumbnailKeys.push(key); if (keys.has(key)) group.thumbnail++; }
-    else { group.fullKeys.push(key); if (keys.has(key)) group.full++; }
-    groups.set(language, group);
   }
+  const currentKeys = new Set(refs.flatMap(ref => [ref.full.key, ref.thumbnail.key]));
+  const unusedImageKeys = [...imageKeys.full, ...imageKeys.thumbnail].filter(key => !currentKeys.has(key));
+  const cachedCards = (kind: CardImageKind) => new Set(entries.filter(entry => entry[kind].status === 'cached').map(entry => entry.card.importId)).size;
   const deckImageEntries = storedKeys.filter(key => key.startsWith('deck_img_')).map(key => ({ key, name: decks?.find(deck => key === `deck_img_local_v1_${deck.code}` || key === `deck_img_${deck.code}`)?.name || key.replace(/^deck_img_(local_v1_)?/, '') }));
-  return { entries, batch, imageKeys, groups: [...groups.values()].sort((a, b) => a.language.localeCompare(b.language)), deckImages: deckImageEntries.length, deckImageEntries, downloading: inflight.size > 0, recordError };
+  return { entries, batch, imageKeys, unusedImageKeys, cachedFull: cachedCards('full'), cachedThumbnail: cachedCards('thumbnail'), deckImages: deckImageEntries.length, deckImageEntries, downloading: inflight.size > 0, recordError };
 }

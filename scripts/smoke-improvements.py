@@ -69,12 +69,11 @@ with sync_playwright() as p:
     # Language/version snapshot, failures, retry, and all-cache skip.
     page.get_by_role("button", name="卡牌", exact=True).click()
     select_value(page, "阵营筛选", "France")
-    select_value(page, "卡牌语言", "en-EN")
-    select_value(page, "卡图版本", "40")
+    select_value(page, "卡牌文字语言", "en-EN")
     failed_card = next(c for c in cards if c["json"]["faction"] == "France")
     failing.add(failed_card["json"]["image"])
     page.wait_for_load_state("networkidle")
-    store(page, "await store.removeItem(arg);", 'kards_card_image_v1_40_en-EN_' + failed_card["importId"])
+    store(page, "await store.removeItem(arg);", 'kards_card_image_v1_54_zh-Hans_' + failed_card["importId"])
     page.get_by_role("button", name="缓存筛选结果（64 张）", exact=True).click()
     expect(panel.get_by_text("缓存完成", exact=True)).to_be_visible(timeout=30000)
     expect(panel.get_by_role("button", name="重试失败卡图")).to_be_visible()
@@ -98,8 +97,7 @@ with sync_playwright() as p:
         if image: seed['kards_card_image_v1_54_zh-Hans_' + c["importId"]] = "data:image/png;base64," + base64.b64encode(image.read_bytes()).decode()
     store(page, "await Promise.all(Object.entries(arg).map(([k,v]) => store.setItem(k,v)));", seed)
     page.get_by_role("button", name="重置筛选", exact=True).click()
-    select_value(page, "卡牌语言", "zh-Hans")
-    select_value(page, "卡图版本", "54")
+    select_value(page, "卡牌文字语言", "zh-Hans")
     page.wait_for_load_state("networkidle")
     page.screenshot(path=str(OUT / "library-full.png"))
     page.get_by_role("button", name="卡组", exact=True).click()
@@ -152,6 +150,6 @@ with sync_playwright() as p:
     assert work.locator(":scope > aside").first.evaluate("el => getComputedStyle(el).backdropFilter") != "none"
     page.screenshot(path=str(OUT / "wallpaper-sidebar.png"))
     assert not errors, errors
-    (OUT / "result.json").write_text(json.dumps({"status":"passed", "checks":["full filtered download", "large confirmation", "cross-page completion", "cache skip", "language/version", "failure retry", "full artwork", "overlay no reflow", "rarity slots", "single/double click", "Enter/Escape", "focus restoration", "wallpaper and glass"], "pageErrors":errors}, ensure_ascii=False, indent=2), encoding="utf-8")
+    (OUT / "result.json").write_text(json.dumps({"status":"passed", "checks":["full filtered download", "large confirmation", "cross-page completion", "cache skip", "single Chinese image cache", "failure retry", "full artwork", "overlay no reflow", "rarity slots", "single/double click", "Enter/Escape", "focus restoration", "wallpaper and glass"], "pageErrors":errors}, ensure_ascii=False, indent=2), encoding="utf-8")
     context.close(); browser.close()
     print("0.2.0 improvement smoke passed")
