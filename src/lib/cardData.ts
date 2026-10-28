@@ -102,7 +102,9 @@ const weatherSupplement = validateCardRecords(bundledWeatherCards as unknown);
 
 export function mergeWeatherCardRecords(values: unknown, source: CardDataSource = 'kardsplayer'): KardsCardRecord[] {
   const weatherIds = new Set(weatherSupplement.map(card => card.cardId));
-  const records = validateCardRecords(values, source).filter(card => !weatherIds.has(card.cardId));
+  const originalRecords = validateCardRecords(values, source);
+  const originalWeather = new Map(originalRecords.filter(card => weatherIds.has(card.cardId)).map(card => [card.cardId, card]));
+  const records = originalRecords.filter(card => !weatherIds.has(card.cardId));
   const merged = new Map(records.map(card => [card.cardId, card]));
   const usedImportIds = new Set(records.map(card => card.importId));
   const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -111,10 +113,23 @@ export function mergeWeatherCardRecords(values: unknown, source: CardDataSource 
       const candidate = first + second;
       if (!usedImportIds.has(candidate)) return candidate;
     }
-    throw new Error('没有可分配给本地天气卡的卡组码编号');
+    throw new Error('没有可分配给本地天气卡的卡组码 ID');
   };
 
-  for (const card of weatherSupplement) {
+  for (const supplement of weatherSupplement) {
+    const original = originalWeather.get(supplement.cardId);
+    // Supplement variants and relations without replacing the official base
+    // cards. Repair URLs written by the earlier supplement when loading an
+    // existing snapshot, but keep newer URLs supplied by either data source.
+    const restoredUrl = (value: string | undefined, fallback: string | undefined) =>
+      !value || value === fallback?.replace('www.kardsplayer.com', 'www.kards.com') ? fallback : value;
+    const card = original && !supplement.cardId.startsWith('temp_') ? {
+      ...supplement,
+      ...original,
+      imageUrl: restoredUrl(original.imageUrl, supplement.imageUrl),
+      thumbUrl: restoredUrl(original.thumbUrl, supplement.thumbUrl),
+      json: { ...supplement.json, ...original.json, can_create: [...new Set([...(original.json.can_create || []), ...(supplement.json.can_create || [])])] },
+    } : supplement;
     const importId = usedImportIds.has(card.importId) ? allocateImportId() : card.importId;
     usedImportIds.add(importId);
     merged.set(card.cardId, importId === card.importId ? card : {

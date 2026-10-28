@@ -23,6 +23,7 @@ export interface HeadquartersAsset {
   id: string;
   groupId: string;
   name: string;
+  englishName: string;
   nation: string;
   scope: 'main' | 'common';
   sourceFaction: string;

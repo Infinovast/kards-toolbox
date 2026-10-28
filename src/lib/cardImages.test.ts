@@ -23,7 +23,7 @@ assert.equal(cardDisplayTitle(veteran, 'zh-Hans'), '第 50 步兵团（老兵）
 assert.deepEqual(cardRelations(base), [{ cardId: veteran.cardId, label: '老兵形态' }]);
 assert.deepEqual(cardRelations(veteran), [{ cardId: base.cardId, label: '原卡' }]);
 assert.deepEqual(cardKeywords(veteran, 'zh-Hans'), ['老兵', '伏击']);
-assert.deepEqual(cardKeywords(base, 'zh-Hans'), ['老兵']);
+assert.deepEqual(cardKeywords(base, 'zh-Hans'), []);
 assert.ok(base.json.attributes!.includes('OnlySpawnable'));
 assert.ok(!isGeneratedCard(base) && isInBuilderPool(base, 'Germany', 'Britain'), 'base veteran-capable unit remains constructible');
 assert.ok(isGeneratedCard(veteran) && !isInBuilderPool(veteran, 'Germany', 'Britain'));

@@ -32,6 +32,7 @@ Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴
 | `src/lib/deckCode.ts`、`deckImport.ts`、`deckRules.ts` | 卡组码、导入和构筑规则 |
 | `src/lib/cardFilters.ts`、`cardPoolLayout.ts` | 共享筛选语义与自适应分页布局 |
 | `src/lib/cardKeywords.ts`、`cardSort.ts` | 统一词条翻译、属性识别与文字强调；牌库主排序及费用、类型次级排序 |
+| `src/components/PageIndicator.tsx`、`src/lib/pagination.ts` | 共用首尾页、邻近页及省略号导航，支持点击、键盘与滚轮翻页 |
 | `src/data/cardSubtypes.json`、`src/lib/cardSubtypes.ts` | 本地子类定义、卡牌映射及详情展示 |
 | `src/lib/deckRenderer.ts`、`deckRenderCounter.ts` | Canvas 生图及共享计数器绘制 |
 | `src/lib/cardAssets.ts`、`src/data/` | 卡背、总部、桌布和战备卡组清单 |
@@ -56,6 +57,8 @@ Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴
 完整获取后按 `importId` 比较新增、修改和移除，多语言文本逐字段比较。获取、应用和回退先完成持久化，再切换内存数据；取消、网络错误或写入失败不会覆盖当前牌库。任务位于模块级状态中，切换页面不终止获取。
 
 图片地址属于卡牌数据；获取牌库不下载图片，应用数据也不清理现有图片缓存。卡名相同的原卡、老兵卡等记录按各自标识独立保存。
+
+本地天气清单补齐变体和生成关系，基础天气卡保留来源数据及图片地址；加载旧快照时修复曾被补充数据覆盖的基础天气图片地址。
 
 ## 图片缓存与后台下载
 
@@ -91,5 +94,7 @@ Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴
 资料库详情模式保存在 `kards_settings.cardDetailMode`，支持共享 modal 与原有侧栏。构筑单击立即打开详情，弹窗捕获原点击位置的第二次点击以完成双击加牌，不再为区分单击与双击延迟开窗。卡组详情对卡组按钮的点击单独处理，重复选择当前卡组不触发关闭重开。
 
 卡背、总部及桌布由 JSON 清单管理适用国家、名称、图片及关联关系。选中卡组可临时切换总部桌布，退出后恢复用户设置；生图中的桌布选择仅影响本次导出。生图读取本地缓存，缺图显示占位，不依赖在线出图服务。
+
+总部名称、英文名、简介与历史集中维护在 `src/data/headquarters.json`，图片扁平存放于 `public/assets/headquarters/`，使用“阵营_总部英文名.png”命名。清单的 `id` 和 `groupId` 保持稳定，以兼容已保存卡组及专属桌布关联。
 
 界面颜色、间距、浮层与动画约定见 [界面规范](../DESIGN.md)。包依赖仍由 npm 管理，依赖自带许可证与 Electron 运行时许可证随各自组件保留；游戏素材的权属说明位于关于页。

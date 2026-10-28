@@ -91,8 +91,9 @@ assert.ok(matchesCardFilters(withKeywords, { ...EMPTY_CARD_FILTERS, keywords: ['
 assert.ok(!matchesCardFilters(withKeywords, { ...EMPTY_CARD_FILTERS, keywords: ['none'] }));
 for (const attribute of ['VeteranOf:base', 'BecomesVeteran:vet']) {
   assert.ok(cardHasKeyword(changed({ attributes: [attribute] }), 'veteran'));
-  assert.deepEqual(cardKeywords(changed({ attributes: [attribute] }), 'zh-Hans'), ['老兵']);
+  assert.deepEqual(cardKeywords(changed({ attributes: [attribute] }), 'zh-Hans'), attribute.startsWith('VeteranOf:') ? ['老兵'] : []);
 }
+assert.deepEqual(cardKeywords(changed({ attributes: ['guard', 'BecomesVeteran:vet', 'shock'] }), 'zh-Hans'), ['守护', '冲击'], 'veteran potential stays filterable but is not a displayed keyword');
 assert.deepEqual(cardKeywords(changed({ attributes: ['blitz', 'BecomesVeteran:vet', 'VeteranOf:base', 'guard'] }), 'zh-Hans'), ['闪击', '老兵', '守护'], 'preserve attribute order and deduplicate semantic keywords');
 assert.ok(cardHasKeyword(changed({ exile: 'Britain' }), 'exile'), 'official exile metadata participates in keyword filtering');
 assert.ok(!cardHasKeyword(changed({ exile: 'Britain' }), 'none'));

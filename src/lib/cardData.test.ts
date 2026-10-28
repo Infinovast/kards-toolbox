@@ -10,6 +10,23 @@ const temporaryDeluge = mergedWeather.find(card => card.cardId === 'temp_deluge_
 assert.equal(temporaryDeluge.json.text?.['zh-Hans'], '抑制 1 个单位，抽 1 张牌。');
 assert.equal(temporaryDeluge.json.title?.['ja-JP'], mergedWeather.find(card => card.cardId === 'deluge')?.json.title?.['ja-JP'], 'variants inherit translated base-card names');
 assert.ok(temporaryDeluge.imageUrl?.includes('kards-assets.kardsdecker.com/CardImgs/temporary_weathers/'));
+const baseWeather = mergedWeather.filter(card => ['blue_sky', 'gale', 'mist', 'cyclone', 'deluge', 'heatwave', 'jungle_fever', 'monsoon_rain', 'scorching_sun', 'thunderstorm', 'torrential_rain', 'tropical_storm'].includes(card.cardId));
+assert.equal(baseWeather.length, 12);
+for (const card of baseWeather) {
+  const original = records.find(record => record.cardId === card.cardId)!;
+  assert.equal(card.imageUrl, original.imageUrl, `${card.cardId} retains its original full art`);
+  assert.equal(card.thumbUrl, original.thumbUrl, `${card.cardId} retains its original thumbnail`);
+}
+assert.deepEqual(mergeWeatherCardRecords(mergedWeather), mergedWeather, 'supplement merging is idempotent');
+const legacyWeather = mergedWeather.map(card => baseWeather.some(base => base.cardId === card.cardId) ? {
+  ...card, imageUrl: card.imageUrl!.replace('www.kardsplayer.com', 'www.kards.com'), thumbUrl: card.thumbUrl!.replace('www.kardsplayer.com', 'www.kards.com'),
+} : card);
+assert.deepEqual(mergeWeatherCardRecords(legacyWeather), mergedWeather, 'existing snapshots with broken base-weather URLs repair on load');
+const updatedWeather = { ...baseWeather[0], imageUrl: baseWeather[0].imageUrl!.replace('/v53/', '/v55/'), thumbUrl: baseWeather[0].thumbUrl!.replace('/v53/', '/v55/'), json: { ...baseWeather[0].json, kredits: 4 } };
+const futureWeather = mergeWeatherCardRecords(mergedWeather.map(card => card.cardId === updatedWeather.cardId ? updatedWeather : card)).find(card => card.cardId === updatedWeather.cardId)!;
+assert.equal(futureWeather.imageUrl, updatedWeather.imageUrl);
+assert.equal(futureWeather.thumbUrl, updatedWeather.thumbUrl);
+assert.equal(futureWeather.json.kredits, 4, 'future source updates remain authoritative for base weather');
 const local = records.slice(0, 3);
 const remote = structuredClone(local);
 remote[0].json.kredits++;

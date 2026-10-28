@@ -7,7 +7,7 @@ import { compareCardData, type CardFieldChange } from '../lib/cardData';
 import type { CardDataSource } from '../lib/cardData';
 import { applyCardData, cancelCardDataCheck, checkCardData, deleteDownloadedCardData, initializeCardDataSync, rollbackCardData, useCardDataSync } from '../lib/cardDataSync';
 
-const labels: Record<string, string> = { cardId: '卡牌标识', imageUrl: '当前卡图地址', thumbUrl: '缩略图地址', reserved: '预备状态', title: '卡名', text: '卡牌文本', description: '描述', kredits: '费用', attack: '攻击力', defense: '防御力', rarity: '稀有度', faction: '阵营', type: '类型', set: '扩展包', image: '卡图路径', attributes: '词条与衍生关系', operationCost: '行动费用', can_create: '衍生卡', exile: '流亡', permanent_pool: '常驻卡池', id: '卡牌标识', import_id: '卡组码编号' };
+const labels: Record<string, string> = { cardId: '卡牌标识', imageUrl: '当前卡图地址', thumbUrl: '缩略图地址', reserved: '预备状态', title: '卡名', text: '卡牌文本', description: '描述', kredits: '费用', attack: '攻击力', defense: '防御力', rarity: '稀有度', faction: '阵营', type: '类型', set: '扩展包', image: '卡图路径', attributes: '词条与衍生关系', operationCost: '行动费用', can_create: '衍生卡', exile: '流亡', permanent_pool: '常驻卡池', id: '卡牌标识', import_id: '卡组码 ID' };
 const kindLabels = { added: '新增', changed: '修改', removed: '移除' };
 function fieldName(path: string) { const [field, ...rest] = path.split('.'); return `${labels[field] || field}${rest.length ? `（${rest.join('.')}）` : ''}`; }
 function valueText(value: unknown) {
@@ -102,7 +102,7 @@ export default function CardDataUpdater({ cards, onApplied }: { cards: KardsCard
           </details>)}
           {!filtered.length && <p className="py-6 text-sm text-kards-text-muted">没有符合条件的差异</p>}
         </div>
-        <div className="mt-4 flex items-center justify-center gap-4 text-xs text-kards-text"><button disabled={page <= 1} onClick={() => setPage(page - 1)} className="rounded border border-kards-border px-3 py-1 disabled:opacity-40">上一页差异</button><PageIndicator page={page} pageCount={Math.max(1, Math.ceil(filtered.length / 30))} onChange={setPage} /><button disabled={page * 30 >= filtered.length} onClick={() => setPage(page + 1)} className="rounded border border-kards-border px-3 py-1 disabled:opacity-40">下一页差异</button></div>
+        <div className="mt-4"><PageIndicator page={page} pageCount={Math.max(1, Math.ceil(filtered.length / 30))} onChange={setPage} /></div>
       </>}
     </div>}
   </section>;

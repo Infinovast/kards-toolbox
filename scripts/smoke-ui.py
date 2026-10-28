@@ -49,7 +49,7 @@ with sync_playwright() as p:
     expect(page.get_by_text("请选择一个卡组", exact=True)).to_be_visible()
 
     # Bundled fixture artwork stays in the isolated browser cache.
-    fixture_art = ROOT / "public/assets/headquarters/Britain/alam_el_halfa/headquarter.png"
+    fixture_art = ROOT / "public/assets/headquarters/Britain_Alam_el_Halfa.png"
     if fixture_art.exists():
         data = "data:image/png;base64," + base64.b64encode(fixture_art.read_bytes()).decode()
         page.evaluate("""async data => {

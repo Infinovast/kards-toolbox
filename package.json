@@ -1,7 +1,7 @@
 {
   "name": "kards-toolbox",
   "private": true,
-  "version": "1.1.3",
+  "version": "1.1.4",
   "description": "KARDS Toolbox — local-first card library and deck manager for Windows.",
   "type": "module",
   "main": "dist-electron/main.cjs",
@@ -28,7 +28,7 @@
     "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true});fs.rmSync('dist-electron',{recursive:true,force:true});fs.rmSync('release',{recursive:true,force:true})\"",
     "lint": "tsc --noEmit",
     "test:deck-import": "tsx src/lib/deckImport.test.ts",
-    "test": "npm run test:deck-import && tsx src/lib/deckCode.test.ts && tsx src/lib/backup.test.ts && tsx electron/userDataPath.test.ts && tsx src/lib/cardData.test.ts && tsx src/lib/cardAssets.test.ts && tsx src/lib/cardFilters.test.ts && tsx src/lib/cardImages.test.ts",
+    "test": "npm run test:deck-import && tsx src/lib/deckCode.test.ts && tsx src/lib/backup.test.ts && tsx electron/userDataPath.test.ts && tsx src/lib/cardData.test.ts && tsx src/lib/cardAssets.test.ts && tsx src/lib/cardFilters.test.ts && tsx src/lib/pagination.test.ts && tsx src/lib/cardImages.test.ts",
     "test:desktop": "node scripts/smoke-desktop.cjs",
     "app": "start \"\" \"release/win-unpacked/kards_toolbox.exe\""
   },

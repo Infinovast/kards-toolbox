@@ -123,6 +123,7 @@ export default function CardDetailModal({ card: initialCard, headquarters, origi
   });
   if (!card && !headquarters) return null;
   const title = card ? cardDisplayTitle(card, language) : headquarters!.name;
+  const englishName = card ? language.startsWith('zh') ? card.json.title?.['en-EN'] : undefined : headquarters!.englishName;
   const type = (card?.json.type || '').toLowerCase();
   const isUnit = !['order', 'countermeasure'].includes(type);
   const rarity = ({ Standard: '普通', Limited: '稀有', Special: '罕见', Elite: '精英' })[card?.json.rarity || ''] || card?.json.rarity || headquarters?.rarity || '—';
@@ -160,14 +161,14 @@ export default function CardDetailModal({ card: initialCard, headquarters, origi
         <div ref={art} className="card-detail-art">{card ? <CardFace card={card} initialSource={card === initialCard ? origin?.image : undefined} /> : <img src={headquarters!.image} alt={title} className="card-face" />}</div>
         <div inert={!arrived || isClosing} className="card-detail-panel custom-scrollbar">
           <h1 className="text-2xl font-bold">{title}</h1>
-          {card && language.startsWith('zh') && card.json.title?.['en-EN'] && <p className="mt-1 text-xs text-kards-text-muted" lang="en">{card.json.title['en-EN']}</p>}
+          {englishName && <p className="mt-1 text-xs text-kards-text-muted" lang="en">{englishName}</p>}
           {card && cardText(card, language) && <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-kards-text"><CardText text={cardText(card, language)} /></p>}
           {card && <dl className="card-detail-section grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-3 text-sm">
             <dt>部署费用</dt><dd>{card.json.kredits ?? '—'} K</dd>
             {isUnit && <><dt>行动费用</dt><dd>{card.json.operationCost ?? '—'} K</dd><dt>攻击 / 生命</dt><dd>{card.json.attack ?? '—'} / {card.json.defense ?? '—'}</dd></>}
             <dt>稀有度</dt><dd>{rarity}</dd>
             <dt>扩展包</dt><dd>{setName}</dd>
-            <dt>卡组码编号</dt><dd>{card.importId}</dd>
+            <dt>卡组码 ID</dt><dd>{card.importId}</dd>
             <dt>卡牌 ID</dt><dd className="break-all">{card.cardId}</dd>
           </dl>}
           {!card && headquarters?.brief && <p className="mt-4 text-sm leading-7">{headquarters.brief}</p>}

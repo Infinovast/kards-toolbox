@@ -49,7 +49,8 @@ export function cardHasKeyword(card: KardsCardRecord, keyword: string) {
 
 export function cardKeywords(card: KardsCardRecord, language: CardLanguage): string[] {
   const zh = language.startsWith('zh');
-  return [...new Set(cardKeywordEntries(card).map(({ id, amount }) => {
+  const displayCard = { ...card, json: { ...card.json, attributes: card.json.attributes?.filter(attribute => !/^BecomesVeteran(?::|$)/i.test(attribute)) } };
+  return [...new Set(cardKeywordEntries(displayCard).map(({ id, amount }) => {
     const definition = definitions.get(id.toLowerCase());
     const label = definition ? zh ? definition.label : definition.english : id;
     return amount ? `${label} ${amount}` : label;

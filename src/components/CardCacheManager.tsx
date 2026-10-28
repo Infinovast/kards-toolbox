@@ -137,6 +137,6 @@ export default function CardCacheManager({ cards }: { cards: KardsCardRecord[] }
         </article>;
       })}
     </div>}
-    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-kards-text-muted"><div className="flex items-center gap-1" aria-live="polite"><span>共 {filtered.length} 张 ·</span><PageIndicator page={currentPage} pageCount={pages} onChange={setPage} /></div><div className="flex gap-2"><button onClick={() => setPage(currentPage - 1)} disabled={currentPage <= 1} className="rounded border border-kards-border px-3 py-1.5 disabled:opacity-40">上一页</button><button onClick={() => setPage(currentPage + 1)} disabled={currentPage >= pages} className="rounded border border-kards-border px-3 py-1.5 disabled:opacity-40">下一页</button></div></div>
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-kards-text-muted"><span>共 {filtered.length} 张</span><PageIndicator page={currentPage} pageCount={pages} onChange={setPage} /></div>
   </section>;
 }

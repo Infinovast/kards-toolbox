@@ -58,7 +58,7 @@ async function main() {
     // Bundled artwork, repeated copies and the final HQ slot use the production Sharp IPC.
     const records = JSON.parse(await fs.readFile(path.join(root, 'public/data/cards.json'), 'utf8')).cards;
     if (!skipVisual) {
-    const artwork = await fs.readFile(path.join(root, 'public/assets/headquarters/Britain/alam_el_halfa/headquarter.png'));
+    const artwork = await fs.readFile(path.join(root, 'public/assets/headquarters/Britain_Alam_el_Halfa.png'));
     const code = '%%31|3X5C6BhHm6qCqDrktFvhwJx5;66nwx0x3;3f4p6x7e7l;5Z';
     const renderCards = [];
     for (const [group, ids] of code.split('|')[1].split(';').entries()) {

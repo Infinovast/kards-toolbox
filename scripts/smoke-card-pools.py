@@ -72,18 +72,18 @@ with sync_playwright() as p:
         return result['capacity']
 
     def wheel_check(grid):
-        indicator = page.get_by_role('spinbutton', name='页码', exact=True)
+        indicator = page.get_by_role('navigation', name='分页', exact=True)
         indicator.press('Home')
-        expect(indicator).to_have_attribute('aria-valuenow', '1')
+        expect(indicator).to_have_attribute('data-page', '1')
         prevented = grid.evaluate("""el => Array.from({length:12}, () => {
           const event = new WheelEvent('wheel', {deltaY:100, bubbles:true, cancelable:true});
           el.dispatchEvent(event); return event.defaultPrevented;
         })""")
         assert all(prevented)
-        expect(indicator).to_have_attribute('aria-valuenow', '2')
+        expect(indicator).to_have_attribute('data-page', '2')
         page.wait_for_timeout(240)
         grid.dispatch_event('wheel', {'deltaY': -100, 'bubbles': True, 'cancelable': True})
-        expect(indicator).to_have_attribute('aria-valuenow', '1')
+        expect(indicator).to_have_attribute('data-page', '1')
         assert grid.evaluate('el => el.scrollTop') == 0
 
     page.get_by_role('button', name='卡牌', exact=True).click()
@@ -105,11 +105,11 @@ with sync_playwright() as p:
     wheel_check(library)
     page.get_by_label('搜索卡牌', exact=True).fill('排版卡牌')
     capacity = check_pool(library, 137)
-    indicator = page.get_by_role('spinbutton', name='页码', exact=True)
-    page_count = int(indicator.get_attribute('aria-valuemax'))
+    indicator = page.get_by_role('navigation', name='分页', exact=True)
+    page_count = int(indicator.get_attribute('data-page-count'))
     seen = set()
     for number in range(1, page_count + 1):
-        expect(indicator).to_have_attribute('aria-valuenow', str(number))
+        expect(indicator).to_have_attribute('data-page', str(number))
         check_pool(library, 137)
         seen.update(library.locator('.card-tile').evaluate_all('els => els.map(el => el.title)'))
         if number < page_count:
@@ -118,8 +118,8 @@ with sync_playwright() as p:
     expect(library.get_by_role('button', name='查看排版卡牌137', exact=True)).to_be_visible()
     page.get_by_label('搜索卡牌', exact=True).fill('排版卡牌001')
     check_pool(library, 1)
-    expect(indicator).to_have_attribute('aria-valuenow', '1')
-    expect(indicator).to_have_attribute('aria-valuemax', '1')
+    expect(indicator).to_have_attribute('data-page', '1')
+    expect(indicator).to_have_attribute('data-page-count', '1')
     page.get_by_label('搜索卡牌', exact=True).fill('没有此卡')
     expect(library.locator('.card-tile')).to_have_count(0)
     expect(library.get_by_text('没有找到匹配的卡牌')).to_be_visible()
@@ -183,7 +183,7 @@ with sync_playwright() as p:
     page.set_viewport_size({'width': 1280, 'height': 820})
     capacity = check_pool(builder, 137)
     wheel_check(builder)
-    indicator = page.get_by_role('spinbutton', name='页码', exact=True)
+    indicator = page.get_by_role('navigation', name='分页', exact=True)
     indicator.press('End')
     check_pool(builder, 137)
     assert builder.locator('.card-tile').count() == capacity

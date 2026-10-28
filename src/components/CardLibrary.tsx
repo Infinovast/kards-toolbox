@@ -148,11 +148,7 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
           {!poolItems.length && <div className="col-span-full self-center text-center text-kards-text-muted">没有找到匹配的卡牌</div>}
         </div>
 
-        <div className="flex items-center justify-center gap-4 text-sm text-kards-text">
-          <button onClick={() => setPage(pool.page - 1)} disabled={pool.page <= 1} className="rounded border border-kards-border px-3 py-1 disabled:opacity-40">上一页</button>
-          <PageIndicator page={pool.page} pageCount={pool.pageCount} onChange={setPage} />
-          <button onClick={() => setPage(pool.page + 1)} disabled={pool.page >= pool.pageCount} className="rounded border border-kards-border px-3 py-1 disabled:opacity-40">下一页</button>
-        </div>
+        <PageIndicator page={pool.page} pageCount={pool.pageCount} onChange={setPage} />
       </section>
 
       {expandedStack && <div className="absolute inset-0 z-20 flex items-center justify-center p-5">
@@ -189,7 +185,7 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
             <dt>稀有度</dt><dd>{({ Standard: '普通', Limited: '稀有', Special: '罕见', Elite: '精英' })[selectedCard.json.rarity || ''] || selectedCard.json.rarity || '—'}</dd>
             <dt>扩展包</dt><dd>{expansionOptions(expansions, language).find(option => option.value === selectedCard.json.set)?.label || selectedCard.json.set || '—'}</dd>
             <dt>状态</dt><dd>{[selectedCard.reserved ? '预备卡' : '现役', isVeteranCard(selectedCard) ? '老兵形态' : isGeneratedCard(selectedCard) ? '衍生卡' : '可构筑'].join(' · ')}</dd>
-            <dt>永久卡池</dt><dd>{selectedCard.json.permanent_pool ? '是' : '否'}</dd><dt>卡组码编号</dt><dd>{selectedCard.importId}</dd>
+            <dt>永久卡池</dt><dd>{selectedCard.json.permanent_pool ? '是' : '否'}</dd><dt>卡组码 ID</dt><dd>{selectedCard.importId}</dd>
             <dt>卡牌 ID</dt><dd className="break-all">{selectedCard.cardId}</dd>
           </dl>
           {relations.length > 0 && <section aria-label="关联卡牌" className="mt-4 border-t border-kards-border pt-4"><h3 className="text-sm font-bold text-kards-text">关联卡牌</h3><div className="mt-2 flex flex-wrap gap-2">
@@ -203,6 +199,7 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
         <button onClick={closeDetails} aria-label="关闭总部详情" className="absolute right-3 top-3 z-10 rounded-full bg-black/60 p-1 text-white"><X className="h-4 w-4" /></button>
         <img src={selectedHeadquarters.image} alt={selectedHeadquarters.name} className="mx-auto mb-4 max-h-[55vh] w-full object-contain" />
         <h2 className="text-lg font-bold text-kards-text">{selectedHeadquarters.name}</h2>
+        <p className="mt-1 text-xs text-kards-text-muted" lang="en">{selectedHeadquarters.englishName}</p>
         <dl className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-kards-border pt-3 text-sm text-kards-text"><dt>阵营</dt><dd>{factionLabel(selectedHeadquarters.sourceFaction)}</dd><dt>总部图</dt><dd>{factionLabel(selectedHeadquarters.nation)}</dd><dt>稀有度</dt><dd>{selectedHeadquarters.rarity || '—'}</dd></dl>
         {selectedHeadquarters.brief && <p className="mt-3 text-sm leading-relaxed text-kards-text">{selectedHeadquarters.brief}</p>}
         {selectedHeadquarters.history && <section className="mt-4 border-t border-kards-border pt-3"><h3 className="text-sm font-bold text-kards-text">历史背景</h3><p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-kards-text-muted">{selectedHeadquarters.history}</p></section>}

@@ -286,7 +286,7 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
         </div>)}
         {!matchingCards.length && <p className="col-span-full self-center text-center text-sm text-kards-text-muted">没有匹配的卡牌，请调整筛选条件或右侧主盟国</p>}
       </div>
-      <div className="flex shrink-0 items-center justify-center gap-3 text-xs text-kards-text"><button disabled={pool.page <= 1} onClick={() => setPage(pool.page - 1)} className="rounded border border-kards-border px-3 py-1 disabled:opacity-40">上一页</button><PageIndicator page={pool.page} pageCount={pool.pageCount} onChange={setPage} /><button disabled={pool.page >= pool.pageCount} onClick={() => setPage(pool.page + 1)} className="rounded border border-kards-border px-3 py-1 disabled:opacity-40">下一页</button></div>
+      <PageIndicator page={pool.page} pageCount={pool.pageCount} onChange={setPage} />
     </section>
     <aside onDragOver={event => { if (hasDragType(event, POOL_CARD_DRAG_TYPE)) { event.preventDefault(); setDragOverZone('deck'); } }} onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragOverZone(null); }} onDrop={handleDropToDeck} className={`flex w-[300px] shrink-0 flex-col gap-3 overflow-hidden rounded-lg border border-kards-border glass-panel p-4 xl:w-[340px] ${dragOverZone === 'deck' ? 'ring-2 ring-kards-gold/70' : ''}`}>
       <div className="flex items-center justify-between gap-2"><h2 className="font-bold text-kards-text">{deckId ? '编辑卡组' : '当前卡组'}</h2><DeckCountIndicator compact mainNation={mainNation} allyNation={allyNation} mainCount={mainCount} allyCount={allyCount} total={totalWithHeadquarters} limit={deckLimit} /></div>

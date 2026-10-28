@@ -93,7 +93,7 @@ with sync_playwright() as p:
     stat('状态', '现役 · 可构筑'); stat('永久卡池', '是')
     detail.get_by_role('button', name='老兵形态第 50 步兵团（老兵）', exact=True).click()
     expect(detail.get_by_role('heading', name='第 50 步兵团（老兵）', exact=True)).to_be_visible()
-    stat('攻击 / 生命', '4 / 3'); stat('卡组码编号', 'Cr')
+    stat('攻击 / 生命', '4 / 3'); stat('卡组码 ID', 'Cr')
     expect(detail.get_by_label('卡牌词条', exact=True)).to_have_text('伏击')
     detail.get_by_role('button', name='原卡第 50 步兵团', exact=True).click()
     expect(detail.get_by_role('heading', name='第 50 步兵团', exact=True)).to_be_visible()

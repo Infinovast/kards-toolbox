@@ -11,6 +11,10 @@ assert.equal(new Set(HEADQUARTERS_STACKS.find(stack => stack.id === 'Common')!.c
 assert.equal(HEADQUARTERS.length, 50);
 assert.equal(new Set(HEADQUARTERS.map(item => item.groupId)).size, 25);
 assert.ok(HEADQUARTERS.every(item => item.brief || item.history));
+assert.ok(HEADQUARTERS.every(item => item.englishName));
+assert.ok(HEADQUARTERS.every(item => /^\/assets\/headquarters\/[A-Za-z]+_[A-Za-z_]+\.png$/.test(item.image)), 'headquarters art uses flat, English filenames');
+assert.equal(HEADQUARTERS.find(item => item.groupId === 'Germany/danzig')?.englishName, 'Danzig');
+assert.equal(HEADQUARTERS.find(item => item.groupId === 'Britain/alam_el_halfa')?.englishName, 'Alam el Halfa');
 assert.ok(CARD_BACK_CATEGORIES.every(category => category.backs.length > 0));
 assert.equal(CARD_BACKS.length, 69);
 assert.ok(CARD_BACKS.every(back => /^[\w/-]+\.png$/i.test(back.file.replace(/^\/assets\//, ''))));
