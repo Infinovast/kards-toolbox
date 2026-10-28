@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp, Download, Search, X } from 'lucide-react';
 import { CardFace } from './CardFace';
 import { startImageDownload, useImageDownload } from '../lib/imageDownloads';
 import { useDismissiblePanel } from '../lib/dialogKeyboard';
-import { EMPTY_CARD_FILTERS, isGeneratedCard, matchesCardFilters, type CardFilters } from '../lib/cardFilters';
+import { EMPTY_CARD_FILTERS, matchesCardFilters, type CardFilters } from '../lib/cardFilters';
 import { cardSubtypeLabels } from '../lib/cardSubtypes';
 import { CARD_SORT_OPTIONS, sortCards, type CardSortDirection, type CardSortKey } from '../lib/cardSort';
 import PageIndicator from './PageIndicator';
@@ -11,8 +11,8 @@ import CardDetailModal from './CardDetailModal';
 import { captureCardDetailOrigin, type CardDetailOrigin } from '../lib/cardDetailOrigin';
 import useCardPoolLayout from '../lib/useCardPoolLayout';
 import { CardText } from './CardText';
-import CardFilterSelects, { CardStatusSelect, CostFilterButtons, expansionOptions } from './CardFilterSelects';
-import { cardKeywords, cardRelations } from '../lib/cardDetails';
+import CardFilterSelects, { CardStatusSelect, CostFilterButtons, expansionLabel } from './CardFilterSelects';
+import { cardKeywords, cardRelations, cardStatusLabel } from '../lib/cardDetails';
 import { HEADQUARTERS_STACKS, type HeadquartersAsset } from '../lib/cardAssets';
 import ReservedBadge from './ReservedBadge';
 import CustomSelect from './CustomSelect';
@@ -21,7 +21,6 @@ import {
   cardText,
   cardTitle,
   cardDisplayTitle,
-  isVeteranCard,
   factionLabel,
   typeLabel,
   type KardsCardRecord,
@@ -183,9 +182,9 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
             <dt>部署费用</dt><dd>{selectedCard.json.kredits ?? '—'} K</dd>
             {!['order', 'countermeasure'].includes(selectedCard.json.type || '') && <><dt>行动费用</dt><dd>{selectedCard.json.operationCost ?? '—'} K</dd><dt>攻击 / 生命</dt><dd>{selectedCard.json.attack ?? '—'} / {selectedCard.json.defense ?? '—'}</dd></>}
             <dt>稀有度</dt><dd>{({ Standard: '普通', Limited: '稀有', Special: '罕见', Elite: '精英' })[selectedCard.json.rarity || ''] || selectedCard.json.rarity || '—'}</dd>
-            <dt>扩展包</dt><dd>{expansionOptions(expansions, language).find(option => option.value === selectedCard.json.set)?.label || selectedCard.json.set || '—'}</dd>
-            <dt>状态</dt><dd>{[selectedCard.reserved ? '预备卡' : '现役', isVeteranCard(selectedCard) ? '老兵形态' : isGeneratedCard(selectedCard) ? '衍生卡' : '可构筑'].join(' · ')}</dd>
-            <dt>永久卡池</dt><dd>{selectedCard.json.permanent_pool ? '是' : '否'}</dd><dt>卡组码 ID</dt><dd>{selectedCard.importId}</dd>
+            <dt>扩展包</dt><dd>{expansionLabel(selectedCard.json.set, language)}</dd>
+            <dt>状态</dt><dd>{cardStatusLabel(selectedCard)}</dd>
+            <dt>常备卡池</dt><dd>{selectedCard.json.permanent_pool ? '是' : '否'}</dd><dt>卡组码 ID</dt><dd>{selectedCard.importId}</dd>
             <dt>卡牌 ID</dt><dd className="break-all">{selectedCard.cardId}</dd>
           </dl>
           {relations.length > 0 && <section aria-label="关联卡牌" className="mt-4 border-t border-kards-border pt-4"><h3 className="text-sm font-bold text-kards-text">关联卡牌</h3><div className="mt-2 flex flex-wrap gap-2">

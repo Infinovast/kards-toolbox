@@ -115,7 +115,7 @@ with sync_playwright() as p:
     expect(overlay).to_be_visible()
     overlay.locator('.card-detail-art').evaluate('el=>el.getAnimations()[0]?.finish()')
     expect(overlay).to_have_attribute('data-phase', 'ready')
-    expect(overlay.locator('aside dt')).to_have_text(['状态', '形态', '卡池'])
+    expect(overlay.locator('aside dt')).to_have_text(['状态', '卡池'])
     assert overlay.locator('aside > div').evaluate("""el=>{
       const type=el.querySelector('h2').getBoundingClientRect(),nation=el.lastElementChild.getBoundingClientRect();
       return Math.abs(type.y+type.height/2-nation.y-nation.height/2)<1 && nation.x>type.right;

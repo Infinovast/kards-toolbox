@@ -37,6 +37,7 @@ function matchesStatus(card: KardsCardRecord, status: string) {
   if (status === 'All') return true;
   if (status === 'active') return !card.reserved && !isGeneratedCard(card);
   if (status === 'reserved') return !!card.reserved;
+  if (status === 'permanent') return !!card.json.permanent_pool && !isGeneratedCard(card);
   if (status === 'generated') return isGeneratedCard(card);
   return isGeneratedCard(card) && generatedCategory(card) === status;
 }

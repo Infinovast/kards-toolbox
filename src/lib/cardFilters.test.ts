@@ -5,6 +5,7 @@ import { mergeWeatherCardRecords } from './cardData';
 import { CARD_SUBTYPES, cardSubtypeLabels } from './cardSubtypes';
 import { CARD_KEYWORDS, CARD_TEXT_KEYWORDS, cardHasKeyword, cardKeywords } from './cardKeywords';
 import { CARD_SORT_OPTIONS, sortCards } from './cardSort';
+import { cardStatusLabel } from './cardDetails';
 import type { KardsCardRecord } from '../types/card';
 
 const base: KardsCardRecord = { id: 1, cardId: 'card-a', importId: 'aa', reserved: false, json: {
@@ -36,6 +37,15 @@ assert.ok(!matchesCardFilters(changed({ kredits: 6 }), { ...EMPTY_CARD_FILTERS, 
 assert.ok(matchesCardFilters(changed({}, true), { ...EMPTY_CARD_FILTERS, status: ['reserved'] }));
 assert.ok(!matchesCardFilters(changed({}, true), { ...EMPTY_CARD_FILTERS, status: ['active'] }));
 assert.ok(matchesCardFilters(changed({ set: 'OnlySpawnable' }), { ...EMPTY_CARD_FILTERS, status: ['generated'] }));
+assert.ok(matchesCardFilters(changed({ permanent_pool: true }), { ...EMPTY_CARD_FILTERS, status: ['permanent'] }));
+assert.ok(!matchesCardFilters(changed({ permanent_pool: false }), { ...EMPTY_CARD_FILTERS, status: ['permanent'] }));
+assert.ok(!matchesCardFilters(changed({ permanent_pool: true, set: 'OnlySpawnable' }), { ...EMPTY_CARD_FILTERS, status: ['permanent'] }));
+assert.equal(cardStatusLabel(base), '现役');
+assert.equal(cardStatusLabel(changed({}, true)), '预备卡');
+assert.equal(cardStatusLabel(changed({ attributes: ['BecomesVeteran:vet'] })), '现役');
+assert.equal(cardStatusLabel(changed({ attributes: ['VeteranOf:base'], set: 'Special' })), '现役，老兵形态');
+assert.equal(cardStatusLabel(changed({ set: 'OnlySpawnable' })), '现役，衍生卡');
+assert.equal(cardStatusLabel(changed({ set: 'OnlySpawnable' }, true)), '预备卡，衍生卡');
 assert.ok(matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, status: ['active', 'reserved'] }), 'status selections combine with OR');
 assert.ok(isInBuilderPool(changed({ rarity: 'Elite' }), 'Germany', 'Soviet'), 'main-country elites remain visible');
 assert.ok(isInBuilderPool(changed({ faction: 'Soviet' }), 'Germany', 'Soviet'));
@@ -52,6 +62,7 @@ const weatherCards: KardsCardRecord[] = JSON.parse(readFileSync('src/data/weathe
 assert.equal(weatherCards.length, 30);
 assert.ok(weatherCards.every(card => matchesCardFilters(card, { ...EMPTY_CARD_FILTERS, status: ['weather'] })));
 const mergedCatalog = mergeWeatherCardRecords(cards);
+assert.equal(mergedCatalog.filter(card => matchesCardFilters(card, { ...EMPTY_CARD_FILTERS, status: ['permanent'] })).length, 410);
 const generatedCatalog = mergedCatalog.filter(card => ['OnlySpawnable', 'Special'].includes(card.json.set || ''));
 assert.equal(generatedCatalog.length, 147);
 for (const [status, expected] of [['veteran', 44], ['weather', 30], ['research', 30], ['punishment', 12], ['other', 31]] as const) {

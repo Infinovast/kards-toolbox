@@ -75,6 +75,16 @@ with sync_playwright() as p:
         indicator = page.get_by_role('navigation', name='分页', exact=True)
         indicator.press('Home')
         expect(indicator).to_have_attribute('data-page', '1')
+        background = indicator.evaluate('el => getComputedStyle(el).backgroundColor')
+        indicator.hover()
+        assert indicator.evaluate('el => getComputedStyle(el).backgroundColor') == background
+        assert indicator.evaluate('el => getComputedStyle(el).cursor') != 'ns-resize'
+        prevented = indicator.evaluate("""el => {
+          const event = new WheelEvent('wheel', {deltaY:100, bubbles:true, cancelable:true});
+          el.dispatchEvent(event); return event.defaultPrevented;
+        }""")
+        assert not prevented
+        expect(indicator).to_have_attribute('data-page', '1')
         prevented = grid.evaluate("""el => Array.from({length:12}, () => {
           const event = new WheelEvent('wheel', {deltaY:100, bubbles:true, cancelable:true});
           el.dispatchEvent(event); return event.defaultPrevented;

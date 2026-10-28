@@ -1,5 +1,4 @@
 import { useRef } from 'react';
-import { useWheelPagination } from '../lib/useWheelPagination';
 import { paginationItems } from '../lib/pagination';
 
 export default function PageIndicator({ page, pageCount, onChange }: {
@@ -10,10 +9,9 @@ export default function PageIndicator({ page, pageCount, onChange }: {
   const ref = useRef<HTMLElement>(null);
   const total = Math.max(1, Math.floor(pageCount));
   const current = Math.min(total, Math.max(1, Math.floor(page)));
-  useWheelPagination(ref, current, total, onChange);
 
   return <nav ref={ref} tabIndex={0} aria-label="分页" data-page={current} data-page-count={total}
-    title="滚轮翻页" className="page-indicator"
+    className="page-indicator"
     onKeyDown={event => {
       if (event.nativeEvent.isComposing) return;
       const next = event.key === 'ArrowUp' || event.key === 'ArrowLeft' ? current - 1

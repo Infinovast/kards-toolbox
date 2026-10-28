@@ -31,27 +31,44 @@ export function nationOptions(language: CardLanguage = 'zh-Hans'): SelectOption[
 }
 
 export function expansionOptions(available: string[], language: CardLanguage): SelectOption[] {
-  const known = setDefinitions.filter(([id]) => available.includes(id));
-  const extra = available.filter(id => !setDefinitions.some(([key]) => key === id)).map(id => [id, id, id]);
+  const sets = available.filter(id => !['OnlySpawnable', 'Special'].includes(id));
+  const known = setDefinitions.filter(([id]) => sets.includes(id));
+  const extra = sets.filter(id => !setDefinitions.some(([key]) => key === id)).map(id => [id, id, id]);
   return [{ value: 'All', label: chinese(language) ? '全部扩展包' : 'All sets', icon: <FilterIcon name="set-all.svg" /> }, ...[...known, ...extra].map(([id, zh, en]) => ({
     value: id, label: chinese(language) ? zh : en,
     icon: <FilterIcon name={setDefinitions.slice(0, 13).some(([key]) => key === id) ? `set-${id}.${['BrothersInArms', 'WorldAtWar'].includes(id) ? 'png' : 'svg'}` : 'set-all.svg'} />,
   }))];
 }
 
+export function expansionLabel(set: string | undefined, language: CardLanguage): string {
+  const definition = setDefinitions.find(([id]) => id === set);
+  return definition?.[chinese(language) ? 1 : 2] || set || '—';
+}
+
 export function CardStatusSelect({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {
-  return <CustomSelect label="卡牌状态筛选" placeholder="状态" multiple value={value} onChange={onChange} className="filter-status-select" options={[
-    { value: 'All', label: '全部状态', resetSelection: true, selectedWhenEmpty: true },
-    { value: 'active', label: '现役' },
-    { value: 'reserved', label: '预备' },
-    { value: 'generated', label: '衍生', children: [
-      { value: 'veteran', label: '老兵' },
-      { value: 'weather', label: '天气' },
-      { value: 'research', label: '研发' },
-      { value: 'punishment', label: '惩戒' },
-      { value: 'other', label: '其他' },
-    ] },
-  ]} />;
+  const categories = [
+    { value: 'veteran', label: '老兵' },
+    { value: 'weather', label: '天气' },
+    { value: 'research', label: '研发' },
+    { value: 'punishment', label: '惩戒' },
+    { value: 'other', label: '其他' },
+  ];
+  const current = value[0] || 'All';
+  const generated = current === 'generated' || categories.some(item => item.value === current);
+  return <div role="group" aria-label="卡牌状态筛选" className="card-status-buttons">
+    {[
+      { value: 'All', label: '全部' },
+      { value: 'active', label: '现役' },
+      { value: 'reserved', label: '预备' },
+      { value: 'permanent', label: '常备' },
+    ].map(item => <button key={item.value} type="button" aria-pressed={current === item.value}
+      onClick={() => onChange(item.value === 'All' ? [] : [item.value])}>{item.label}</button>)}
+    <div className="card-status-generated" data-selected={generated}>
+      <button type="button" aria-pressed={generated} onClick={() => onChange(['generated'])}>衍生</button>
+      <CustomSelect label="衍生分类筛选" className="card-status-expand" value={generated ? current : ''}
+        onChange={category => onChange([category])} options={categories} />
+    </div>
+  </div>;
 }
 
 export function CostFilterButtons({ value, onChange, label = '费用筛选' }: {

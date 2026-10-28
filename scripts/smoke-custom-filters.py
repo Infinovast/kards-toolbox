@@ -33,6 +33,7 @@ for card, (name, faction, kind, cost, rarity, expansion) in zip(cards, specs):
     card['json'] = {'title': {'zh-Hans': name, 'en-EN': 'English ' + name}, 'description': {'en-EN': 'custom filter fixture'}, 'faction': faction, 'type': kind, 'kredits': cost, 'rarity': rarity, 'set': expansion}
     card['reserved'] = False
 cards[0]['json']['attributes'] = ['blitz', 'guard']
+cards[0]['json']['permanent_pool'] = True
 cards[1]['json']['attributes'] = ['heavyArmor2', 'bond']
 cards[2]['json']['attributes'] = ['BecomesVeteran:fixture_vet', 'OnlySpawnable']
 cards[3]['json']['attributes'] = ['OnlySpawnable']
@@ -158,23 +159,33 @@ with sync_playwright() as playwright:
     overlay.locator('.card-detail-art').evaluate('el=>el.getAnimations()[0].finish()')
     expect(overlay).to_have_count(0)
 
-    statuses = open_select('卡牌状态筛选')
-    expect(statuses).to_have_attribute('aria-multiselectable', 'true')
-    expect(option('All')).to_have_attribute('aria-selected', 'true')
-    page.get_by_role('button', name='展开衍生', exact=True).click()
-    expect(statuses.get_by_role('option')).to_have_count(9)
-    option('generated').click()
-    expect(option('generated')).to_have_attribute('aria-selected', 'true')
-    expect(option('generated').locator('xpath=../..')).to_have_class(__import__('re').compile('is-group-selected'))
-    option('weather').click()
-    expect(page.get_by_role('combobox', name='卡牌状态筛选', exact=True)).to_have_attribute('data-value', 'weather')
-    expect(option('generated')).to_have_attribute('aria-selected', 'false')
-    expect(option('weather')).to_have_attribute('aria-selected', 'true')
-    option('generated').click()
-    expect(page.get_by_role('combobox', name='卡牌状态筛选', exact=True)).to_have_attribute('data-value', 'generated')
-    option('All').click()
-    expect(page.get_by_role('combobox', name='卡牌状态筛选', exact=True)).to_have_attribute('data-value', '')
-    close_select()
+    statuses = page.get_by_role('group', name='卡牌状态筛选', exact=True)
+    expect(statuses.get_by_role('button')).to_have_text(['全部', '现役', '预备', '常备', '衍生'])
+    for label, count in [('现役', 9), ('预备', 0), ('常备', 1), ('衍生', 2), ('全部', 11)]:
+        statuses.get_by_role('button', name=label, exact=True).click()
+        expect(statuses.locator('button[aria-pressed="true"]')).to_have_count(1)
+        expect(statuses.get_by_role('button', name=label, exact=True)).to_have_attribute('aria-pressed', 'true')
+        result_count(count)
+    for category, count in [('veteran', 0), ('weather', 0), ('research', 0), ('punishment', 0), ('other', 2)]:
+        options = open_select('衍生分类筛选')
+        expect(options.get_by_role('option')).to_have_text(['老兵', '天气', '研发', '惩戒', '其他'])
+        option(category).click()
+        expect(options).to_have_count(0)
+        expect(statuses.get_by_role('button', name='衍生', exact=True)).to_have_attribute('aria-pressed', 'true')
+        expect(statuses.locator('button[aria-pressed="true"]')).to_have_count(1)
+        expect(statuses.locator('.card-status-generated')).to_have_attribute('data-selected', 'true')
+        expect(page.get_by_role('combobox', name='衍生分类筛选', exact=True)).to_have_attribute('data-value', category)
+        result_count(count)
+    statuses.get_by_role('button', name='衍生', exact=True).click()
+    result_count(2)
+    page.get_by_role('button', name='查看主国衍生', exact=True).click()
+    overlay.locator('.card-detail-art').evaluate('el=>el.getAnimations()[0]?.finish()')
+    expect(overlay.locator('aside dt')).to_have_text(['状态', '卡池'])
+    expect(overlay.locator('aside dd').first).to_have_text('现役，衍生卡')
+    overlay.press('Escape')
+    expect(overlay).to_have_count(0)
+    statuses.get_by_role('button', name='全部', exact=True).click()
+    result_count(11)
 
     countries = open_select('阵营筛选')
     expect(countries).to_have_attribute('aria-multiselectable', 'true')
@@ -250,7 +261,7 @@ with sync_playwright() as playwright:
 
     # Set labels and symbols, supplied order, unknown set fallback, language switching.
     open_select('扩展包筛选')
-    assert page.get_by_role('listbox').get_by_role('option').evaluate_all('els => els.map(el => el.dataset.value)') == ['All', 'Base', 'OceaniaStorm', 'Homefront', 'NavalWarfare', 'OnlySpawnable', 'Special']
+    assert page.get_by_role('listbox').get_by_role('option').evaluate_all('els => els.map(el => el.dataset.value)') == ['All', 'Base', 'OceaniaStorm', 'Homefront', 'NavalWarfare']
     expect(option('OceaniaStorm')).to_contain_text('澳新风暴')
     assert option('OceaniaStorm').locator('.filter-symbol').evaluate('el => getComputedStyle(el).maskImage').endswith('set-OceaniaStorm.svg")')
     close_select()
@@ -348,7 +359,7 @@ with sync_playwright() as playwright:
         assert bounds['x'] >= 0 and bounds['x'] + bounds['width'] <= 981, (label, bounds)
         close_select()
     page.get_by_role('button', name='卡牌', exact=True).click()
-    for label in ['阵营筛选', '类型筛选', '子类筛选', '词条筛选', '稀有度筛选', '扩展包筛选', '卡牌状态筛选', '卡牌文字语言', '卡牌排序依据']:
+    for label in ['阵营筛选', '类型筛选', '子类筛选', '词条筛选', '稀有度筛选', '扩展包筛选', '衍生分类筛选', '卡牌文字语言', '卡牌排序依据']:
         open_select(label)
         bounds = page.locator('.custom-select-popover').bounding_box()
         assert bounds['x'] >= 0 and bounds['y'] >= 0 and bounds['x'] + bounds['width'] <= 981 and bounds['y'] + bounds['height'] <= 641, (label, bounds)

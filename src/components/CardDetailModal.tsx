@@ -2,12 +2,11 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Shield, X } from 'lucide-react';
 import { CardFace } from './CardFace';
-import { expansionOptions, FilterIcon } from './CardFilterSelects';
-import { cardKeywords, cardRelations } from '../lib/cardDetails';
+import { expansionLabel, FilterIcon } from './CardFilterSelects';
+import { cardKeywords, cardRelations, cardStatusLabel } from '../lib/cardDetails';
 import { handleDialogKeys } from '../lib/dialogKeyboard';
-import { isGeneratedCard } from '../lib/cardFilters';
 import { cardSubtypeLabels } from '../lib/cardSubtypes';
-import { cardDisplayTitle, cardText, factionLabel, isVeteranCard, typeLabel, type CardLanguage, type KardsCardRecord } from '../types/card';
+import { cardDisplayTitle, cardText, factionLabel, typeLabel, type CardLanguage, type KardsCardRecord } from '../types/card';
 import ReservedBadge from './ReservedBadge';
 import { CardText } from './CardText';
 import type { HeadquartersAsset } from '../lib/cardAssets';
@@ -127,7 +126,7 @@ export default function CardDetailModal({ card: initialCard, headquarters, origi
   const type = (card?.json.type || '').toLowerCase();
   const isUnit = !['order', 'countermeasure'].includes(type);
   const rarity = ({ Standard: '普通', Limited: '稀有', Special: '罕见', Elite: '精英' })[card?.json.rarity || ''] || card?.json.rarity || headquarters?.rarity || '—';
-  const setName = card ? expansionOptions([card.json.set || ''], language).find(option => option.value === card.json.set)?.label || card.json.set || '—' : '';
+  const setName = card ? expansionLabel(card.json.set, language) : '';
   const faction = card?.json.faction || (headquarters?.nation === 'Blank' ? 'Neutral' : headquarters?.nation) || 'Neutral';
   return createPortal(<div className="card-detail-overlay" data-phase={isClosing ? 'closing' : arrived ? 'ready' : 'moving'} data-origin={origin?.kind}>
     <div ref={backdrop} className="card-detail-backdrop" onClick={requestClose} />
@@ -153,8 +152,7 @@ export default function CardDetailModal({ card: initialCard, headquarters, origi
           </section>}
           {card ? <dl className="card-detail-section grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-3 text-sm">
             {subtypes.length > 0 && <><dt>子类</dt><dd>{subtypes.join(' · ')}</dd></>}
-            <dt>状态</dt><dd className="flex items-center gap-2">{card.reserved && <ReservedBadge />}{card.reserved ? '预备卡' : '现役'}</dd>
-            <dt>形态</dt><dd>{isVeteranCard(card) ? '老兵形态' : isGeneratedCard(card) ? '衍生卡' : '可构筑'}</dd>
+            <dt>状态</dt><dd className="flex items-center gap-2">{card.reserved && <ReservedBadge />}{cardStatusLabel(card)}</dd>
             <dt>卡池</dt><dd>{card.json.permanent_pool ? '常备卡池' : '轮换卡池'}</dd>
           </dl> : <dl className="card-detail-section grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 text-sm"><dt>稀有度</dt><dd>{rarity}</dd></dl>}
         </aside>
