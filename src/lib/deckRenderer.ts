@@ -31,8 +31,7 @@ export async function renderDeckImage(code: string, cards: KardsCardRecord[], ti
   return renderBrowserPreview(request, background);
 }
 
-// Browser development preview mirrors the kardsman ten-column composition.
-// Windows uses the original Sharp pipeline through the preload bridge above.
+// Browser preview uses the same ten-column layout as the desktop Sharp renderer.
 async function renderBrowserPreview(request: DeckRenderRequest, background?: string | null) {
   const load = (src: string) => new Promise<HTMLImageElement>((resolve, reject) => { const img = new Image(); img.onload = () => resolve(img); img.onerror = reject; img.src = src; });
   const total = request.cards.reduce((sum, card) => sum + card.count, 0);

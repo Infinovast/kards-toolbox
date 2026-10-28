@@ -1,8 +1,3 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Plus, 
@@ -42,6 +37,7 @@ import { extractDeckCodeFromText, inferDeckTitleFromText } from './lib/deckImpor
 import ImageDownloadProgress from './components/ImageDownloadProgress';
 import { handleDialogKeys, useDismissiblePanel, useModalFocus } from './lib/dialogKeyboard';
 import CardLibrary from './components/CardLibrary';
+import TableclothBackground from './components/TableclothBackground';
 import CardDetailModal from './components/CardDetailModal';
 import type { CardDetailOrigin } from './lib/cardDetailOrigin';
 import DeckBuilder, { type BuilderDeck } from './components/DeckBuilder';
@@ -115,6 +111,7 @@ interface AppSettings {
   uiScale: number;
   deckGap: number;
   showDeckFolders: boolean;
+  cardDetailMode: 'modal' | 'sidebar';
 }
 
 interface ClipboardDeckCandidate {
@@ -132,7 +129,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   lightThemeColor: '#dcd7c9',
   uiScale: 1.0,
   deckGap: 0.5,
-  showDeckFolders: false
+  showDeckFolders: false,
+  cardDetailMode: 'modal'
 };
 
 // --- Icons & Labels ---
@@ -300,6 +298,7 @@ export default function App() {
   const selectDeck = (id: string) => {
     clearDeckHoverOpen();
     clearDeckHoverClose();
+    if (selectedDeckId === id) return;
     setHoveredDeckId(null);
     setSelectedDeckId(id);
   };
@@ -329,7 +328,8 @@ export default function App() {
       setHoveredDeckId(null);
     }
   }, [activeMenu, selectedDeckId]);
-  const deckDetailsRef = useDismissiblePanel(activeMenu === 'decks' && !!(selectedDeckId || hoveredDeckId), closeDeckDetails, () => {
+  const deckDetailsRef = useDismissiblePanel(activeMenu === 'decks' && !!(selectedDeckId || hoveredDeckId), closeDeckDetails, event => {
+    if (event.target instanceof Element && event.target.closest('[aria-label^="选择卡组 "]')) return;
     clearDeckHoverOpen();
     clearDeckHoverClose();
     setSelectedDeckId(null);
@@ -1244,6 +1244,7 @@ export default function App() {
                 onChange={e => setSearchQuery(e.target.value)}
                 className="bg-kards-gray-alt border border-kards-border text-kards-text text-sm px-3 py-1.5 focus:outline-none focus:border-kards-gold min-w-[200px] rounded transition-colors"
               />
+              <button type="button" aria-pressed={settings.showDeckFolders} onClick={() => setSettings(current => ({ ...current, showDeckFolders: !current.showDeckFolders }))} className="builder-reserved-toggle">显示收藏夹</button>
                 <>
                   <CustomSelect label="卡组主国筛选" value={filterMainNation || 'All'} onChange={value => setFilterMainNation(value as Nation | 'All')} options={[{ value: 'All', label: '主国：全部' }, ...nationOptions().filter(option => NATION_DATA[option.value as Nation]?.isMainAllowed)]} />
                   <CustomSelect label="卡组盟国筛选" value={filterAllyNation || 'All'} onChange={value => setFilterAllyNation(value as Nation | 'All')} options={[{ value: 'All', label: '盟国：全部' }, ...nationOptions().filter(option => option.value !== 'Neutral')]} />
@@ -1274,7 +1275,8 @@ export default function App() {
       </header>
 
       {/* --- Main Layout --- */}
-      <div data-testid="workspace" className="relative flex min-h-0 flex-1 overflow-hidden" style={{ backgroundImage: activeTablecloth ? `url("${activeTablecloth}")` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+      <div data-testid="workspace" className="relative flex min-h-0 flex-1 overflow-hidden">
+        <TableclothBackground source={activeTablecloth} />
         
         {/* Left Sidebar */}
         {activeMenu !== 'builder' && <aside aria-label="主导航" className="glass-panel w-24 shrink-0 flex flex-col gap-1 p-1 z-10 border-r border-kards-border transition-colors duration-300">
@@ -1338,7 +1340,7 @@ export default function App() {
             {activeMenu === 'cards' && (
               cardDatabaseLoading ? <div className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</div>
                 : cardDatabaseError ? <div className="max-w-xl rounded border border-red-500/40 bg-red-500/10 p-6 text-red-300">{cardDatabaseError}</div>
-                  : <div className="h-full w-full max-w-[1800px]"><CardLibrary cards={cardDatabase} /></div>
+                  : <div className="h-full w-full max-w-[1800px]"><CardLibrary cards={cardDatabase} detailMode={settings.cardDetailMode} onDetailModeChange={cardDetailMode => setSettings(current => ({ ...current, cardDetailMode }))} /></div>
             )}
             {activeMenu === 'builder' && cardDatabaseLoading && <p className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</p>}
             {activeMenu === 'builder' && cardDatabaseError && <p className="p-6 text-red-400">{cardDatabaseError}</p>}
@@ -1346,10 +1348,6 @@ export default function App() {
             {activeMenu === 'settings' && settingsPage}
             {activeMenu === 'about' && <AboutPage isDarkMode={effectiveIsDarkMode} onBack={() => setActiveMenu(aboutReturnMenu)} />}
             {activeMenu === 'decks' && <div className="mb-6 flex w-full max-w-7xl flex-wrap items-center justify-between gap-3">
-              <label className="flex cursor-pointer items-center gap-2 rounded glass-panel px-3 py-2 text-sm text-kards-text">
-                <input type="checkbox" role="switch" checked={settings.showDeckFolders} onChange={event => setSettings(current => ({ ...current, showDeckFolders: event.target.checked }))} className="h-4 w-4 accent-kards-accent" />
-                收藏夹显示
-              </label>
               {settings.showDeckFolders && <button onClick={() => setShowNewDeckModal(true)} className="flex items-center gap-2 rounded bg-kards-accent px-3 py-2 text-sm font-bold text-white"><Plus className="h-4 w-4" />新卡组</button>}
             </div>}
             {activeMenu === 'decks' && !settings.showDeckFolders && (
@@ -1440,10 +1438,6 @@ export default function App() {
                 
                 <div className="mb-3 flex flex-col items-center gap-3 text-xs text-kards-text-muted">
                   <DeckCountIndicator mainNation={selectedDeck.mainNation} allyNation={selectedDeck.allyNation} mainCount={previewMainCount} allyCount={previewAllyCount} total={previewTotalCards} limit={previewDeckLimit} />
-                  <div className="flex min-w-0 items-center justify-end gap-2 self-end">
-                    <button onClick={() => { selectDeck(selectedDeck.id); setShowHeadquartersModal(selectedDeck.id); }} className="shrink-0 rounded border border-kards-border px-2 py-1">更换总部</button>
-                    <button onClick={() => { selectDeck(selectedDeck.id); setShowCardBackModal(selectedDeck.id); }} className="shrink-0 rounded border border-kards-border px-2 py-1">更换卡背</button>
-                  </div>
                 </div>
                 <ul aria-label="卡组紧凑列表" className="space-y-0.5 text-sm">
                   <li><DeckHeadquartersStrip nation={selectedDeck.mainNation} headquartersId={selectedDeck.headquartersId} onClick={(headquarters, origin) => { selectDeck(selectedDeck.id); setDetailOrigin(origin); setDetailHeadquarters(headquarters); }} /></li>
@@ -1454,7 +1448,7 @@ export default function App() {
               </div>
 
               <div className="p-4 pt-4 border-t border-kards-border space-y-4 shrink-0 w-full min-w-0 transition-colors">
-                <div className="flex gap-2 items-center overflow-x-auto py-2 w-full max-w-[280px] custom-scrollbar">
+                <div className="flex items-center justify-center gap-2" data-testid="deck-detail-customization">
                   <div className="flex-shrink-0 flex items-center gap-2">
                     {addingTagToDeckId === selectedDeck.id ? (
                       <input 
@@ -1481,12 +1475,16 @@ export default function App() {
                     ) : (
                       <button 
                         onClick={() => setAddingTagToDeckId(selectedDeck.id)}
-                        className="flex items-center gap-1 bg-kards-panel hover:bg-kards-panel-hover border border-kards-border text-kards-text text-xs px-2 py-1 rounded text-kards-text-muted font-bold"
+                        className="deck-detail-option"
                       >
                         <Plus className="w-3 h-3" /> 添加标签
                       </button>
                     )}
                   </div>
+                  <button onClick={() => { selectDeck(selectedDeck.id); setShowHeadquartersModal(selectedDeck.id); }} className="deck-detail-option">更换总部</button>
+                  <button onClick={() => { selectDeck(selectedDeck.id); setShowCardBackModal(selectedDeck.id); }} className="deck-detail-option">更换卡背</button>
+                </div>
+                {!!selectedDeck.tags?.length && <div className="flex w-full items-center gap-2 overflow-x-auto custom-scrollbar">
                   {selectedDeck.tags?.map(tag => (
                     <div key={tag} className="flex flex-shrink-0 items-center gap-1 bg-kards-panel border border-kards-border text-xs px-2 py-1 rounded text-kards-text whitespace-nowrap">
                       <span>{tag}</span>
@@ -1500,7 +1498,7 @@ export default function App() {
                       </button>
                     </div>
                   ))}
-                </div>
+                </div>}
 
                 <div className="flex gap-2">
                   <ActionButton 

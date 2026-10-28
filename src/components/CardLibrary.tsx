@@ -5,6 +5,8 @@ import { startImageDownload, useImageDownload } from '../lib/imageDownloads';
 import { useDismissiblePanel } from '../lib/dialogKeyboard';
 import { EMPTY_CARD_FILTERS, isGeneratedCard, matchesCardFilters, type CardFilters } from '../lib/cardFilters';
 import PageIndicator from './PageIndicator';
+import CardDetailModal from './CardDetailModal';
+import { captureCardDetailOrigin, type CardDetailOrigin } from '../lib/cardDetailOrigin';
 import useCardPoolLayout from '../lib/useCardPoolLayout';
 import { CardText } from './CardText';
 import CardFilterSelects, { CostFilterButtons, expansionOptions } from './CardFilterSelects';
@@ -23,18 +25,23 @@ import {
   type KardsCardRecord,
 } from '../types/card';
 
-export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
+export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
+  cards: KardsCardRecord[];
+  detailMode: 'modal' | 'sidebar';
+  onDetailModeChange: (mode: 'modal' | 'sidebar') => void;
+}) {
   const [filters, setFilters] = useState<CardFilters>({ ...EMPTY_CARD_FILTERS });
   const expansions = useMemo(() => [...new Set(cards.map((card) => card.json.set).filter(Boolean))].sort(), [cards]);
   const [language, setLanguage] = useState<CardLanguage>('zh-Hans');
   const [page, setPage] = useState(1);
   const [selectedCard, setSelectedCard] = useState<KardsCardRecord | null>(null);
   const [selectedHeadquarters, setSelectedHeadquarters] = useState<HeadquartersAsset | null>(null);
+  const [detailOrigin, setDetailOrigin] = useState<CardDetailOrigin | undefined>();
   const [expandedHeadquarters, setExpandedHeadquarters] = useState<string | null>(null);
   const headquartersDialogRef = useRef<HTMLElement>(null);
   const download = useImageDownload();
   const closeDetails = () => { setSelectedCard(null); setSelectedHeadquarters(null); };
-  const detailRef = useDismissiblePanel(!!selectedCard || !!selectedHeadquarters, closeDetails);
+  const detailRef = useDismissiblePanel(detailMode === 'sidebar' && (!!selectedCard || !!selectedHeadquarters), closeDetails);
   const cardsByCardId = useMemo(() => new Map(cards.map(card => [card.cardId, card])), [cards]);
   const keywords = selectedCard ? cardKeywords(selectedCard, language) : [];
   const relations = selectedCard ? cardRelations(selectedCard) : [];
@@ -106,10 +113,13 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
 
         <div className="flex flex-wrap items-center justify-between gap-1 text-xs text-kards-text-muted">
           <span>本地目录 {cards.length.toLocaleString()} 张 · 当前结果 {filteredCards.length.toLocaleString()} 张</span>
+          <div className="flex items-center gap-2">
           <button disabled={!filteredCards.length || download.status === 'running' || download.status === 'paused'} onClick={() => {
             if (filteredCards.length > 100 && !window.confirm(`缓存当前筛选的 ${filteredCards.length.toLocaleString()} 张卡牌大图和缩略图？`)) return;
             startImageDownload(filteredCards);
-          }} className="flex items-center gap-1 rounded border border-kards-border glass-panel px-3 py-2 text-kards-text disabled:opacity-40"><Download className="h-3.5 w-3.5" />缓存筛选结果（{filteredCards.length.toLocaleString()} 张）</button>
+          }} className="flex h-9 items-center gap-1 rounded border border-kards-border glass-panel px-3 py-2 text-kards-text disabled:opacity-40"><Download className="h-3.5 w-3.5" />缓存筛选结果（{filteredCards.length.toLocaleString()} 张）</button>
+          <button type="button" aria-pressed={detailMode === 'modal'} onClick={() => onDetailModeChange(detailMode === 'modal' ? 'sidebar' : 'modal')} className="builder-reserved-toggle">卡牌详情：{detailMode === 'modal' ? '浮窗' : '侧栏'}</button>
+          </div>
         </div>
 
         <div ref={pool.ref} style={pool.style} data-testid="library-grid" data-capacity={pool.capacity} className="card-gallery card-gallery-library min-h-0 flex-1">
@@ -121,7 +131,7 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
             })}</span>
           </button>;
             const { card } = item;
-            return <button key={card.importId} onClick={() => setSelectedCard(card)} className="card-tile card-action group text-left" title={cardDisplayTitle(card, language)} aria-label={`查看${cardDisplayTitle(card, language)}`}>
+            return <button key={card.importId} onClick={event => { setDetailOrigin(captureCardDetailOrigin(event.currentTarget, 'pool')); setSelectedHeadquarters(null); setSelectedCard(card); }} className="card-tile card-action group text-left" title={cardDisplayTitle(card, language)} aria-label={`查看${cardDisplayTitle(card, language)}`}>
               <span className="library-card-art"><CardFace card={card} />{card.reserved && <ReservedBadge className="library-reserved-badge" />}</span>
             </button>;
           })}
@@ -145,7 +155,7 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
           </div>
           <div className="custom-scrollbar grid min-h-0 grid-cols-[repeat(auto-fill,minmax(112px,1fr))] gap-3 overflow-y-auto">
             {expandedStack.cards.map(headquarters => <button key={headquarters.id} type="button" title={headquarters.name}
-              onClick={() => { setSelectedCard(null); setSelectedHeadquarters(headquarters); }}
+              onClick={event => { setDetailOrigin(captureCardDetailOrigin(event.currentTarget, 'pool')); setSelectedCard(null); setSelectedHeadquarters(headquarters); }}
               aria-label={'查看总部卡牌：' + headquarters.name} className="hq-expanded-card card-action min-w-0">
               <img src={headquarters.image} alt="" className="card-face hq-expanded-card-art" />
             </button>)}
@@ -153,7 +163,7 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
         </section>
       </div>}
 
-      {selectedCard && (
+      {detailMode === 'sidebar' && selectedCard && (
         <aside ref={detailRef} role="dialog" aria-modal="false" aria-label="卡牌详情" tabIndex={-1} className="glass-panel custom-scrollbar absolute bottom-5 right-5 top-5 z-30 flex w-[300px] max-w-[calc(100%-40px)] flex-col overflow-y-auto rounded-lg border border-kards-border p-4 shadow-xl">
           <button onClick={closeDetails} aria-label="关闭卡牌详情" className="absolute right-3 top-3 z-10 rounded-full bg-black/60 p-1 text-white"><X className="h-4 w-4" /></button>
           <CardFace card={selectedCard} className="mx-auto mb-4 max-h-[55vh] w-full object-contain" />
@@ -177,7 +187,7 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
           </div></section>}
         </aside>
       )}
-      {selectedHeadquarters && <aside ref={detailRef} role="dialog" aria-modal="false" aria-label="总部详情" tabIndex={-1} className="glass-panel custom-scrollbar absolute bottom-5 right-5 top-5 z-30 flex w-[300px] max-w-[calc(100%-40px)] flex-col overflow-y-auto rounded-lg border border-kards-border p-4 shadow-xl">
+      {detailMode === 'sidebar' && selectedHeadquarters && <aside ref={detailRef} role="dialog" aria-modal="false" aria-label="总部详情" tabIndex={-1} className="glass-panel custom-scrollbar absolute bottom-5 right-5 top-5 z-30 flex w-[300px] max-w-[calc(100%-40px)] flex-col overflow-y-auto rounded-lg border border-kards-border p-4 shadow-xl">
         <button onClick={closeDetails} aria-label="关闭总部详情" className="absolute right-3 top-3 z-10 rounded-full bg-black/60 p-1 text-white"><X className="h-4 w-4" /></button>
         <img src={selectedHeadquarters.image} alt={selectedHeadquarters.name} className="mx-auto mb-4 max-h-[55vh] w-full object-contain" />
         <h2 className="text-lg font-bold text-kards-text">{selectedHeadquarters.name}</h2>
@@ -185,6 +195,7 @@ export default function CardLibrary({ cards }: { cards: KardsCardRecord[] }) {
         {selectedHeadquarters.brief && <p className="mt-3 text-sm leading-relaxed text-kards-text">{selectedHeadquarters.brief}</p>}
         {selectedHeadquarters.history && <section className="mt-4 border-t border-kards-border pt-3"><h3 className="text-sm font-bold text-kards-text">历史背景</h3><p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-kards-text-muted">{selectedHeadquarters.history}</p></section>}
       </aside>}
+      {detailMode === 'modal' && (selectedCard || selectedHeadquarters) && <CardDetailModal card={selectedCard || undefined} headquarters={selectedHeadquarters || undefined} origin={detailOrigin} cards={cards} language={language} onClose={closeDetails} />}
     </div>
   );
 }

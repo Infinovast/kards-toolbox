@@ -31,7 +31,6 @@
     "vite.config.ts"
   ],
   "exclude": [
-    "references",
     "node_modules",
     "dist",
     "dist-electron",

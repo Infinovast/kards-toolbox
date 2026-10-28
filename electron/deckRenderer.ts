@@ -1,8 +1,4 @@
-/** Adapted from koishi-plugin-kardsman/src/render.ts (MIT).
- * Retains Sharp thumbnail/composite pipeline, ten columns, repeated cards,
- * background, rarity icons and the final headquarters slot. Reads only bundled assets
- * and cached data URLs supplied by the isolated renderer; never fetches artwork.
- */
+// Compose deck images from bundled assets and cached artwork without network access.
 import sharp, { type OverlayOptions } from 'sharp';
 import fs from 'fs';
 import path from 'path';
@@ -17,7 +13,7 @@ function cachedBuffer(value: string | null | undefined) {
   if (!/^data:image\/(png|jpeg|webp|avif|gif);base64,[A-Za-z0-9+/=]+$/.test(value)) throw new Error('卡图缓存格式无效');
   return Buffer.from(value.slice(value.indexOf(',') + 1), 'base64');
 }
-export async function renderKardsmanDeck(request: DeckRenderRequest): Promise<string> {
+export async function renderDeckImage(request: DeckRenderRequest): Promise<string> {
   const total = request.cards.reduce((sum, c) => sum + c.count, 0);
   if (!Number.isInteger(total) || total < 1 || total > 999 || request.cards.some(c => !Number.isInteger(c.count) || c.count < 1)) throw new Error('生图支持 1—999 张可用牌');
   const packedAssets = path.join(__dirname, '..', 'dist', 'assets');

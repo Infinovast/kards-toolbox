@@ -79,9 +79,7 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
   const [selectedCard, setSelectedCard] = useState<KardsCardRecord | null>(null);
   const [selectedHeadquarters, setSelectedHeadquarters] = useState<HeadquartersAsset | null>(null);
   const [detailOrigin, setDetailOrigin] = useState<CardDetailOrigin | undefined>();
-  const cardClickTimer = useRef<number | undefined>(undefined);
-  const cancelCardClick = () => { window.clearTimeout(cardClickTimer.current); cardClickTimer.current = undefined; };
-  useEffect(() => { if (!active) { setSelectedCard(null); setSelectedHeadquarters(null); } return cancelCardClick; }, [active, filters, page]);
+  useEffect(() => { if (!active) { setSelectedCard(null); setSelectedHeadquarters(null); } }, [active]);
   const [pendingNation, setPendingNation] = useState<{ field: 'main' | 'ally'; value: string } | null>(null);
   const [dragOverZone, setDragOverZone] = useState<'pool' | 'deck' | null>(null);
   const setDeckName = (deckName: string) => dispatch({ type: 'edit', update: { deckName } });
@@ -180,7 +178,6 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
     } });
   };
   const changeHistory = (type: 'undo' | 'redo') => {
-    cancelCardClick();
     const target = type === 'undo' ? history.past.at(-1) : history.future[0];
     const changedId = target && [...new Set([...entries.keys(), ...target.entries.keys()])]
       .find(id => entries.get(id) !== target.entries.get(id));
@@ -275,16 +272,13 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
       <p className="text-xs text-kards-text-muted">找到 {matchingCards.length} 张</p>
       <div ref={pool.ref} style={pool.style} data-testid="builder-grid" data-capacity={pool.capacity} onDragOver={event => { if (hasDragType(event, DECK_CARD_DRAG_TYPE)) { event.preventDefault(); setDragOverZone('pool'); } }} onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragOverZone(null); }} onDrop={handleDropToPool} className={`card-gallery card-gallery-builder min-h-0 flex-1 rounded ${dragOverZone === 'pool' ? 'ring-2 ring-kards-gold/70' : ''}`}>
         {matchingCards.slice(pool.start, pool.end).map((card) => <div key={card.importId} data-pool-card-id={card.importId} className="card-tile">
-          <button disabled={!active || !draftLoaded} draggable={active} onDragStart={event => { cancelCardClick(); event.dataTransfer.setData(POOL_CARD_DRAG_TYPE, card.importId); event.dataTransfer.effectAllowed = 'copy'; }}
+          <button disabled={!active || !draftLoaded} draggable={active} onDragStart={event => { event.dataTransfer.setData(POOL_CARD_DRAG_TYPE, card.importId); event.dataTransfer.effectAllowed = 'copy'; }}
             onClick={event => {
-              cancelCardClick();
-              const origin = captureCardDetailOrigin(event.currentTarget, 'pool');
-              const open = () => { setDetailOrigin(origin); setSelectedCard(card); };
-              if (event.detail === 0) open();
-              else if (event.detail === 1) cardClickTimer.current = window.setTimeout(open, 500);
+              if (event.detail > 1) { adjustCard(card.importId, 1, event.currentTarget); return; }
+              setDetailOrigin(captureCardDetailOrigin(event.currentTarget, 'pool', undefined, event.nativeEvent));
+              setSelectedCard(card);
             }}
-            onDoubleClick={event => { event.preventDefault(); cancelCardClick(); adjustCard(card.importId, 1, event.currentTarget); }}
-            onContextMenu={event => { event.preventDefault(); cancelCardClick(); adjustCard(card.importId, -1, event.currentTarget); }}
+            onContextMenu={event => { event.preventDefault(); adjustCard(card.importId, -1, event.currentTarget); }}
             aria-label={'查看' + cardDisplayTitle(card, 'zh-Hans')} title={cardDisplayTitle(card, 'zh-Hans')} className="card-action group block w-full text-left">
             <span className="library-card-art"><CardFace card={card} enabled={active} />{card.reserved && <ReservedBadge className="library-reserved-badge" />}</span>
           </button>
@@ -313,7 +307,7 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
           const card = cardsById.get(id);
           return <div key={id} className="deck-builder-card-row"><DeckCardStrip card={card} importId={id} count={count} enabled={active && draftLoaded} draggable={active}
             onClick={origin => { if (card) { setDetailOrigin(origin); setSelectedCard(card); } }} onDoubleClick={() => adjustCard(id, 1)} onRemove={() => adjustCard(id, -1)}
-            onDragStart={event => { cancelCardClick(); event.dataTransfer.setData(DECK_CARD_DRAG_TYPE, id); event.dataTransfer.effectAllowed = 'move'; }} onDragEnd={() => setDragOverZone(null)} /></div>;
+            onDragStart={event => { event.dataTransfer.setData(DECK_CARD_DRAG_TYPE, id); event.dataTransfer.effectAllowed = 'move'; }} onDragEnd={() => setDragOverZone(null)} /></div>;
         })}
         {!entries.size && <p className="py-10 text-center text-sm text-kards-text-muted">从左侧选择卡牌开始构筑</p>}
       </div>
@@ -328,7 +322,9 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
     </aside>
     </div>
     {active && <DeckCardMotion flights={cardMotion.flights} onFinish={cardMotion.finish} />}
-    {active && (selectedCard || selectedHeadquarters) && <CardDetailModal card={selectedCard || undefined} headquarters={selectedHeadquarters || undefined} origin={detailOrigin} cards={cards} onClose={() => { setSelectedCard(null); setSelectedHeadquarters(null); }} />}
+    {active && (selectedCard || selectedHeadquarters) && <CardDetailModal card={selectedCard || undefined} headquarters={selectedHeadquarters || undefined} origin={detailOrigin} cards={cards}
+      onSourceDoubleClick={selectedCard ? () => adjustCard(selectedCard.importId, 1, detailOrigin?.element) : undefined}
+      onClose={() => { setSelectedCard(null); setSelectedHeadquarters(null); }} />}
     {active && pendingNation && createPortal(<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div onClick={() => setPendingNation(null)} className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm" />
       <section role="dialog" aria-modal="true" aria-label="确认更换国家" tabIndex={-1} onKeyDown={handleDialogKeys} className="builder-confirm-dialog glass-panel relative w-full max-w-md rounded-lg border border-kards-border p-6 shadow-2xl">

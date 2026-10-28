@@ -12,13 +12,14 @@ import { CardText } from './CardText';
 import type { HeadquartersAsset } from '../lib/cardAssets';
 import { captureCardDetailOrigin, type CardDetailOrigin } from '../lib/cardDetailOrigin';
 
-export default function CardDetailModal({ card: initialCard, headquarters, origin, cards, language = 'zh-Hans', onClose }: {
+export default function CardDetailModal({ card: initialCard, headquarters, origin, cards, language = 'zh-Hans', onClose, onSourceDoubleClick }: {
   card?: KardsCardRecord;
   headquarters?: HeadquartersAsset;
   origin?: CardDetailOrigin;
   cards: KardsCardRecord[];
   language?: CardLanguage;
   onClose: () => void;
+  onSourceDoubleClick?: () => void;
 }) {
   const [card, setCard] = useState<KardsCardRecord | null>(initialCard || null);
   const panel = useRef<HTMLElement>(null);
@@ -33,6 +34,24 @@ export default function CardDetailModal({ card: initialCard, headquarters, origi
   const [arrived, setArrived] = useState(!origin);
   const close = useRef(onClose);
   close.current = onClose;
+  const repeatSource = useRef(onSourceDoubleClick);
+  repeatSource.current = onSourceDoubleClick;
+  useEffect(() => {
+    const activation = origin?.activation;
+    if (!activation || !onSourceDoubleClick) return;
+    // The modal covers the source immediately. Recognize the second click at
+    // the original pointer position without delaying the first-click animation.
+    const repeat = (event: MouseEvent) => {
+      if (closing.current || event.button !== 0 || event.timeStamp - activation.time > 500
+        || Math.abs(event.clientX - activation.x) > 5 || Math.abs(event.clientY - activation.y) > 5) return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      closing.current = true;
+      repeatSource.current?.();
+      close.current();
+    };
+    document.addEventListener('click', repeat, true);
+    return () => document.removeEventListener('click', repeat, true);
+  }, [origin, !!onSourceDoubleClick]);
   useEffect(() => { setCard(initialCard || null); }, [initialCard, headquarters]);
   useLayoutEffect(() => {
     const element = art.current;
@@ -113,25 +132,27 @@ export default function CardDetailModal({ card: initialCard, headquarters, origi
       tabIndex={-1} onKeyDown={event => {
         if ((!arrived || isClosing) && event.key === 'Tab') {
           event.preventDefault();
-          panel.current?.querySelector<HTMLButtonElement>('.card-detail-close')?.focus();
+          panel.current?.focus({ preventScroll: true });
         } else handleDialogKeys(event);
       }} onClick={event => {
         if (!(event.target as HTMLElement).closest('.card-detail-panel, .card-detail-art, .card-detail-close')) requestClose();
       }} className="card-detail-dialog custom-scrollbar">
-      <button data-dialog-cancel aria-label="关闭卡牌详情" onClick={requestClose} className="card-detail-close"><X className="h-5 w-5" /></button>
+      <button data-dialog-cancel aria-label="关闭卡牌详情" disabled={!arrived || isClosing} onClick={requestClose} className="card-detail-close"><X className="h-5 w-5" /></button>
       <div className="card-detail-layout">
         <aside inert={!arrived || isClosing} className="card-detail-panel custom-scrollbar">
-          <h2 className="flex items-center gap-3 text-lg font-bold"><span className="h-7 w-7">{card ? <FilterIcon name={type + '.svg'} /> : <Shield className="h-7 w-7" />}</span>{card ? typeLabel(type) : '总部'}</h2>
-          <div className="mt-4 flex items-center gap-3 text-sm"><span className="h-6 w-6"><FilterIcon name={faction.toLowerCase() + '.svg'} fullColor={faction === 'Neutral'} /></span>{factionLabel(faction)}</div>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="flex shrink-0 items-center gap-3 text-lg font-bold"><span className="h-7 w-7">{card ? <FilterIcon name={type + '.svg'} /> : <Shield className="h-7 w-7" />}</span>{card ? typeLabel(type) : '总部'}</h2>
+            <div className="flex shrink-0 items-center gap-2 text-sm"><span className="h-6 w-6"><FilterIcon name={faction.toLowerCase() + '.svg'} fullColor={faction === 'Neutral'} /></span>{factionLabel(faction)}</div>
+          </div>
           {keywords.length > 0 && <section className="card-detail-section">
             <h3 className="mb-3 font-bold">关键词</h3>
             <ul className="space-y-3 text-sm text-kards-text">{keywords.map(keyword => <li key={keyword}>{keyword}</li>)}</ul>
           </section>}
-          {card ? <section className="card-detail-section space-y-3 text-sm">
-            <div className="flex items-center gap-2">{card.reserved && <ReservedBadge />}{card.reserved ? '预备卡' : '现役'}</div>
-            <p>{isVeteranCard(card) ? '老兵形态' : isGeneratedCard(card) ? '衍生卡' : '可构筑'}</p>
-            <p>{card.json.permanent_pool ? '常备卡池' : '轮换卡池'}</p>
-          </section> : <section className="card-detail-section text-sm"><p>{rarity}</p></section>}
+          {card ? <dl className="card-detail-section grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-3 text-sm">
+            <dt>状态</dt><dd className="flex items-center gap-2">{card.reserved && <ReservedBadge />}{card.reserved ? '预备卡' : '现役'}</dd>
+            <dt>形态</dt><dd>{isVeteranCard(card) ? '老兵形态' : isGeneratedCard(card) ? '衍生卡' : '可构筑'}</dd>
+            <dt>卡池</dt><dd>{card.json.permanent_pool ? '常备卡池' : '轮换卡池'}</dd>
+          </dl> : <dl className="card-detail-section grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 text-sm"><dt>稀有度</dt><dd>{rarity}</dd></dl>}
         </aside>
         <div ref={art} className="card-detail-art">{card ? <CardFace card={card} initialSource={card === initialCard ? origin?.image : undefined} /> : <img src={headquarters!.image} alt={title} className="card-face" />}</div>
         <div inert={!arrived || isClosing} className="card-detail-panel custom-scrollbar">

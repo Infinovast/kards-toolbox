@@ -48,10 +48,10 @@ with sync_playwright() as p:
     page.wait_for_load_state("networkidle")
     expect(page.get_by_text("请选择一个卡组", exact=True)).to_be_visible()
 
-    # Real reference artwork is optional and stays in the isolated browser cache.
-    reference_art = ROOT / "references/koishi-plugin-kardsman/data/kards/kards_cn/105 毫米轻型榴弹炮_3L.png"
-    if reference_art.exists():
-        data = "data:image/png;base64," + base64.b64encode(reference_art.read_bytes()).decode()
+    # Bundled fixture artwork stays in the isolated browser cache.
+    fixture_art = ROOT / "public/assets/headquarters/Britain/alam_el_halfa/headquarter.png"
+    if fixture_art.exists():
+        data = "data:image/png;base64," + base64.b64encode(fixture_art.read_bytes()).decode()
         page.evaluate("""async data => {
           const {default: store} = await import('/node_modules/.vite/deps/localforage.js');
           await store.setItem('kards_card_image_v1_54_zh-Hans_3L', data);
@@ -66,7 +66,7 @@ with sync_playwright() as p:
     page.get_by_label("搜索卡牌", exact=True).fill("105 毫米轻型榴弹炮")
     page.get_by_role("button", name=re.compile("105 毫米轻型榴弹炮")).first.click()
     expect(page.get_by_role("heading", name="105 毫米轻型榴弹炮", exact=True)).to_be_visible()
-    if reference_art.exists():
+    if fixture_art.exists():
         expect(page.locator('aside img[alt="105 毫米轻型榴弹炮"]')).to_be_visible()
     settle(page)
     page.screenshot(path=str(SHOTS / "library-desktop.png"), full_page=True)

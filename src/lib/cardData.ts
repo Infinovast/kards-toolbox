@@ -4,8 +4,7 @@ export const CARD_DATA_URL = 'https://api.kardsplayer.com/graphql';
 export const KARDS_COM_DATA_URL = 'https://herokuapi.kards.com/graphql';
 export const CARD_DATA_PAGE_SIZE = 100;
 export type CardDataSource = 'kardsplayer' | 'kardscom';
-// Mirrors references/kardsplayer-downloader/kardsplayer_cards.py. The API's
-// image URLs are metadata; fetching the catalogue never downloads image files.
+// Image URLs are metadata; fetching the catalogue never downloads image files.
 export const CARD_DATA_QUERY = `query getCards($language: String, $offset: Int, $first: Int, $showSpawnables: Boolean, $showExiles: Boolean, $showReserved: Boolean) {
   cards(language: $language, first: $first, offset: $offset, showSpawnables: $showSpawnables, showExiles: $showExiles, showReserved: $showReserved) {
     pageInfo { count hasNextPage }

@@ -213,7 +213,7 @@ with sync_playwright() as p:
     expect(page.locator('[role="dialog"][aria-modal="true"]')).to_have_count(0)
     page.get_by_role("button", name="卡组", exact=True).click()
     page.get_by_role("button", name="关闭卡组详情", exact=True).click()
-    page.get_by_role("switch", name="收藏夹显示").check()
+    page.get_by_role("button", name="显示收藏夹").click()
     page.get_by_role("button", name="新建收藏夹", exact=True).click()
     folder_input = page.get_by_placeholder("输入收藏夹名称...")
     folder_input.fill("键盘收藏夹"); folder_input.press("Enter")
@@ -223,7 +223,7 @@ with sync_playwright() as p:
     page.get_by_role("button", name="重命名键盘收藏夹", exact=True).click()
     page.keyboard.press("Escape")
     expect(page.locator('[role="dialog"][aria-modal="true"]')).to_have_count(0)
-    page.get_by_role("switch", name="收藏夹显示").uncheck()
+    page.get_by_role("button", name="显示收藏夹").click()
     open_builder("键盘保存")
     page.set_viewport_size({"width": 980, "height": 640})
     for name in ["保存更改", "导出卡组图片", "返回卡组"]:

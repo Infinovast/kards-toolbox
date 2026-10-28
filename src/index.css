@@ -204,6 +204,8 @@ input, textarea { caret-color: var(--color-kards-gold); }
 .builder-filter-trailing > button:not(.custom-select-trigger) { flex-shrink: 0; height: 36px; white-space: nowrap; }
 .builder-reserved-toggle { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; height: 36px; padding: 0 9px; border: 1px solid var(--color-kards-input-border); border-radius: 4px; background: var(--color-kards-input-bg); color: var(--color-kards-text-muted); white-space: nowrap; font-size: 12px; cursor: pointer; }
 .builder-reserved-toggle[aria-pressed="true"] { border-color: var(--color-kards-gold); background: var(--color-kards-panel-hover); color: var(--color-kards-status); }
+.deck-detail-option { display: inline-flex; align-items: center; justify-content: center; gap: 4px; flex-shrink: 0; min-height: 28px; padding: 4px 8px; border: 1px solid var(--color-kards-border); border-radius: 4px; background: var(--color-kards-panel); color: var(--color-kards-text-muted); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.deck-detail-option:hover { background: var(--color-kards-panel-hover); color: var(--color-kards-text); }
 .builder-costs { display: flex; flex-shrink: 0; gap: 3px; }
 .builder-cost-button { display: inline-flex; align-items: baseline; justify-content: center; gap: 1px; width: 36px; height: 36px; padding-top: 5px; flex-shrink: 0; border: 1px solid #fff; background: #151515; color: #f1ebd8; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .builder-cost-button small { font-size: 10px; }
@@ -236,11 +238,11 @@ input, textarea { caret-color: var(--color-kards-gold); }
 .card-detail-panel { max-height: calc(100dvh - 100px); overflow-y: auto; padding: 22px; border: 1px solid var(--color-kards-input-border); background-color: rgba(var(--rgb-panel-overlay), 0.94); backdrop-filter: blur(18px); box-shadow: 0 8px 28px rgba(0, 0, 0, 0.3); color: var(--color-kards-text); }
 .card-detail-art { position: relative; z-index: 1; min-width: 0; width: min(100%, 278px, calc((100dvh - 112px) * 618 / 867)); aspect-ratio: 618 / 867; justify-self: center; transform-origin: center; }
 .card-detail-art .card-face { width: 100%; height: 100%; object-fit: contain; }
-.card-detail-overlay[data-phase="moving"] .card-detail-panel { opacity: 0; visibility: hidden; pointer-events: none; }
-.card-detail-overlay[data-phase="ready"] .card-detail-panel { animation: card-detail-information 180ms ease-out both; }
-.card-detail-overlay[data-phase="closing"] .card-detail-panel { opacity: 0; pointer-events: none; transition: opacity 100ms ease-out; }
+.card-detail-overlay[data-phase="moving"] :is(.card-detail-panel, .card-detail-close),
+.card-detail-overlay[data-phase="closing"] :is(.card-detail-panel, .card-detail-close) { opacity: 0; visibility: hidden; pointer-events: none; }
+.card-detail-overlay[data-phase="ready"] :is(.card-detail-panel, .card-detail-close) { animation: card-detail-information 180ms ease-out both; }
 @keyframes card-detail-information { from { opacity: 0; } to { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .card-detail-overlay[data-phase="ready"] .card-detail-panel { animation-duration: 80ms; } }
+@media (prefers-reduced-motion: reduce) { .card-detail-overlay[data-phase="ready"] :is(.card-detail-panel, .card-detail-close) { animation-duration: 80ms; } }
 .card-detail-section { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--color-kards-border); }
 .card-detail-section dt { color: var(--color-kards-text-muted); }
 @media (max-width: 900px) {
@@ -249,7 +251,7 @@ input, textarea { caret-color: var(--color-kards-gold); }
   .card-detail-panel { padding: 16px; }
 }
 .library-card-art { position: relative; display: block; }
-.library-reserved-badge { position: absolute; right: 5px; bottom: 6px; z-index: 2; width: 22px; height: 24px; filter: drop-shadow(0 1px 3px #000); }
+.library-reserved-badge { position: absolute; left: 5px; bottom: 6px; z-index: 2; width: 22px; height: 24px; filter: drop-shadow(0 1px 3px #000); }
 .card-gallery-builder { column-gap: 12px; row-gap: 16px; }
 .rarity-slots { display: flex; justify-content: center; align-items: center; gap: 5px; height: 27px; }
 .rarity-slots > span:not(.rarity-overflow) { width: 11px; height: 11px; border-width: 1px; border-style: solid; }

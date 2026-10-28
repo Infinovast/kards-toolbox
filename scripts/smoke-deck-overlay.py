@@ -95,8 +95,8 @@ with sync_playwright() as playwright:
     details.get_by_role('button', name='关闭卡组详情', exact=True).click()
 
     # Expanded folders retain their dimensions while showing/closing details.
-    toggle = page.get_by_role('switch', name='收藏夹显示', exact=True)
-    toggle.check()
+    toggle = page.get_by_role('button', name='显示收藏夹', exact=True)
+    toggle.click()
     page.get_by_role('button', name='浮层收藏夹 2 个卡组', exact=True).click()
     group = page.get_by_role('group', name='浮层收藏夹', exact=True)
     folder_bounds = group.bounding_box()
@@ -105,7 +105,7 @@ with sync_playwright() as playwright:
     assert group.bounding_box() == folder_bounds
     details.get_by_role('button', name='关闭卡组详情', exact=True).click()
     assert group.bounding_box() == folder_bounds
-    toggle.uncheck()
+    toggle.click()
 
     # Minimum supported window: the preview overlays the grid and remains usable.
     page.set_viewport_size({'width': 980, 'height': 640})

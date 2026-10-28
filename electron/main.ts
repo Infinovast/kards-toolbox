@@ -2,7 +2,7 @@ import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, net, proto
 import fs from 'fs/promises';
 import { mkdirSync } from 'fs';
 import path from 'path';
-import { renderKardsmanDeck } from './deckRenderer';
+import { renderDeckImage } from './deckRenderer';
 import { resolveUserDataPath } from './userDataPath';
 import { fetchCardDataPage, type CardDataSource } from '../src/lib/cardData';
 import { downloadCardImage } from '../src/lib/cardImageDownload';
@@ -132,7 +132,7 @@ function registerIpcHandlers() {
     darkIcon: nativeTheme.shouldUseDarkColors,
   }));
 
-  ipcMain.handle('deck:render', (_event, request: DeckRenderRequest) => renderKardsmanDeck(request));
+  ipcMain.handle('deck:render', (_event, request: DeckRenderRequest) => renderDeckImage(request));
   ipcMain.handle('app:set-theme', (_event, mode: string) => {
     if (!['dark', 'light', 'system'].includes(mode)) throw new Error('无效主题');
     nativeTheme.themeSource = mode as 'dark' | 'light' | 'system';

@@ -68,6 +68,6 @@ export default function CardFilterSelects({ filters, onChange, expansions, langu
     <CustomSelect label={`${prefix}类型筛选`} placeholder="类型" multiple value={filters.cardType} onChange={cardType => onChange({ ...filters, cardType })} layout="grid" options={CARD_TYPES.map(item => ({ value: item.id, label: zh ? item.label : englishTypes[item.id], icon: <FilterIcon name={`${item.id}.svg`} /> }))} />
     <CustomSelect label={`${prefix}稀有度筛选`} placeholder="稀有度" multiple value={filters.rarity} onChange={rarity => onChange({ ...filters, rarity })} layout="grid" options={CARD_RARITIES.map(value => ({ value, label: zh ? rarityLabels[value] : value, iconOnly: true, icon: <FilterIcon name={`${value.toLowerCase()}.svg`} /> }))} />
     <CustomSelect label={`${prefix}扩展包筛选`} value={filters.expansion} onChange={expansion => onChange({ ...filters, expansion })} options={expansionOptions(expansions, language)} />
-    {!builder && <CustomSelect label="卡牌状态筛选" value={filters.status} onChange={status => onChange({ ...filters, status })} options={[{ value: 'All', label: '全部状态' }, { value: 'active', label: '现役可构筑' }, { value: 'reserved', label: '预备卡' }, { value: 'generated', label: '衍生/特殊形态' }]} />}
+    {!builder && <CustomSelect label="卡牌状态筛选" value={filters.status} onChange={status => onChange({ ...filters, status })} options={[{ value: 'All', label: '全部状态' }, { value: 'active', label: '现役可构筑' }, { value: 'reserved', label: '预备卡' }, { value: 'generated', label: '衍生/老兵卡' }]} />}
   </>;
 }

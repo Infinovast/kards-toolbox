@@ -135,10 +135,12 @@ with sync_playwright() as p:
           const b = art.getBoundingClientRect();
           return {rect:{x:b.x,y:b.y,width:b.width,height:b.height},
             easing:animation.effect.getTiming().easing,
-            panels:[...el.querySelectorAll('.card-detail-panel')].map(p => ({visibility:getComputedStyle(p).visibility,inert:p.inert}))};
+            panels:[...el.querySelectorAll('.card-detail-panel')].map(p => ({visibility:getComputedStyle(p).visibility,inert:p.inert})),
+            close:{visibility:getComputedStyle(el.querySelector('.card-detail-close')).visibility,disabled:el.querySelector('.card-detail-close').disabled}};
         }""")
         assert state['easing'] == 'cubic-bezier(0.65, 0, 0.35, 1)', state
         assert all(panel['visibility'] == 'hidden' and panel['inert'] for panel in state['panels'])
+        assert state['close'] == {'visibility': 'hidden', 'disabled': True}, state
         if expected_origin:
             for key in ['x', 'y', 'width', 'height']:
                 assert abs(state['rect'][key] - expected_origin[key]) < 2, (key, state, expected_origin)
@@ -194,7 +196,7 @@ with sync_playwright() as p:
     tile.click()
     overlay = inspect_motion('pool', origin)
     page.keyboard.press('Tab')
-    expect(overlay.get_by_role('button', name='关闭卡牌详情', exact=True)).to_be_focused()
+    expect(overlay.get_by_role('dialog')).to_be_focused()
     overlay.locator('.card-detail-art').evaluate('el => el.getAnimations()[0].finish()')
     expect(overlay).to_have_attribute('data-phase', 'ready')
     destination = tile.locator('.card-face').bounding_box()
@@ -295,8 +297,9 @@ with sync_playwright() as p:
     expect(page.locator('.deck-card-preview')).to_be_visible()
     row.click()
     expect(page.locator('.deck-card-preview')).to_have_count(0)
-    # A following double click cancels the pending single-click modal.
-    row.dblclick()
+    # The second source-position click adds without delaying the first modal.
+    bounds = row.bounding_box()
+    page.mouse.click(bounds['x'] + bounds['width'] / 2, bounds['y'] + bounds['height'] / 2)
     finish_flight('add')
     expect(overlay).to_have_count(0)
     for total in [3, 2, 1]:

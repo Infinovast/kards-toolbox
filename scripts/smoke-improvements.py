@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "test-results/improvements"
 OUT.mkdir(parents=True, exist_ok=True)
 cards = json.loads((ROOT / "public/data/cards.json").read_text(encoding="utf-8"))["cards"]
-art = (ROOT / "references/koishi-plugin-kardsman/data/kards/kards_cn/105 毫米轻型榴弹炮_3L.png").read_bytes()
+art = (ROOT / "public/assets/headquarters/Britain/alam_el_halfa/headquarter.png").read_bytes()
 CODE = "%%31|3X5C6BhHm6qCqDrktFvhwJx5;66nwx0x3;3f4p6x7e7l;5Z"
 
 def store(page, expression, argument=None):
@@ -86,15 +86,9 @@ with sync_playwright() as p:
     expect(panel.get_by_text("缓存完成", exact=True)).to_be_visible(timeout=30000)
     expect(panel.get_by_role("status")).to_contain_text("下载 0 · 已缓存 64 · 失败 0")
     panel.get_by_role("button", name="关闭下载进度").click()
-    # Cache enough real, correctly matched artwork to inspect both grid sizes.
-    by_id = {c["importId"]: c for c in cards}
-    local = ROOT / "references/koishi-plugin-kardsman/data/kards/kards_cn"
-    files = list(local.glob("*.png"))
-    seed = {}
-    for c in cards[:36]:
-        name = c["json"]["title"].get("zh-Hans", "")
-        image = next((f for f in files if f.stem == name + "_" + c["importId"]), None) or next((f for f in files if f.stem == name), None)
-        if image: seed['kards_card_image_v1_54_zh-Hans_' + c["importId"]] = "data:image/png;base64," + base64.b64encode(image.read_bytes()).decode()
+    # Cache bundled fixture artwork to exercise both grid sizes offline.
+    data = "data:image/png;base64," + base64.b64encode(art).decode()
+    seed = {'kards_card_image_v1_54_zh-Hans_' + c["importId"]: data for c in cards[:36]}
     store(page, "await Promise.all(Object.entries(arg).map(([k,v]) => store.setItem(k,v)));", seed)
     page.get_by_role("button", name="重置筛选", exact=True).click()
     select_value(page, "卡牌文字语言", "zh-Hans")
