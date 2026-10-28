@@ -34,7 +34,7 @@ export function validateDeck(entries: Map<string, number>, cardsById: Map<string
     if (faction !== 'neutral' && faction !== mainNation.toLowerCase() && faction !== allyNation.toLowerCase()) warnings.push(`${name} 属于未选阵营 ${card.json.faction}`);
     if (mainNation !== allyNation && faction === allyNation.toLowerCase()) allyCount += count;
     if (card.reserved && !rules.allowReserved) warnings.push(`${name} 是预备卡`);
-    if (!rules.allowGenerated && (card.json.set === 'OnlySpawnable' || card.json.set === 'Special')) warnings.push(`${name} 是衍生/老兵卡，不能直接加入标准卡组`);
+    if (!rules.allowGenerated && (card.json.set === 'OnlySpawnable' || card.json.set === 'Special')) warnings.push(`${name} 是衍生卡，不能直接加入标准卡组`);
   }
   if (allyCount > rules.maxAllyCards) warnings.push(`盟国牌共 ${allyCount} 张，超过上限 ${rules.maxAllyCards} 张`);
   return warnings;

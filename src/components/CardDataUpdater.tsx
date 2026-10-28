@@ -7,7 +7,7 @@ import { compareCardData, type CardFieldChange } from '../lib/cardData';
 import type { CardDataSource } from '../lib/cardData';
 import { applyCardData, cancelCardDataCheck, checkCardData, deleteDownloadedCardData, initializeCardDataSync, rollbackCardData, useCardDataSync } from '../lib/cardDataSync';
 
-const labels: Record<string, string> = { cardId: '卡牌标识', imageUrl: '当前卡图地址', thumbUrl: '缩略图地址', reserved: '预备状态', title: '卡名', text: '卡牌文本', description: '描述', kredits: '费用', attack: '攻击力', defense: '防御力', rarity: '稀有度', faction: '阵营', type: '类型', set: '扩展包', image: '卡图路径', attributes: '关键词与老兵关系', operationCost: '行动费用', can_create: '衍生卡', exile: '放逐', permanent_pool: '常驻卡池', id: '卡牌标识', import_id: '卡组码编号' };
+const labels: Record<string, string> = { cardId: '卡牌标识', imageUrl: '当前卡图地址', thumbUrl: '缩略图地址', reserved: '预备状态', title: '卡名', text: '卡牌文本', description: '描述', kredits: '费用', attack: '攻击力', defense: '防御力', rarity: '稀有度', faction: '阵营', type: '类型', set: '扩展包', image: '卡图路径', attributes: '词条与衍生关系', operationCost: '行动费用', can_create: '衍生卡', exile: '放逐', permanent_pool: '常驻卡池', id: '卡牌标识', import_id: '卡组码编号' };
 const kindLabels = { added: '新增', changed: '修改', removed: '移除' };
 function fieldName(path: string) { const [field, ...rest] = path.split('.'); return `${labels[field] || field}${rest.length ? `（${rest.join('.')}）` : ''}`; }
 function valueText(value: unknown) {

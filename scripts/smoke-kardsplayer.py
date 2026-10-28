@@ -94,7 +94,7 @@ with sync_playwright() as p:
     detail.get_by_role('button', name='老兵形态第 50 步兵团（老兵）', exact=True).click()
     expect(detail.get_by_role('heading', name='第 50 步兵团（老兵）', exact=True)).to_be_visible()
     stat('攻击 / 生命', '4 / 3'); stat('卡组码编号', 'Cr')
-    expect(detail.get_by_label('卡牌关键词', exact=True)).to_have_text('伏击')
+    expect(detail.get_by_label('卡牌词条', exact=True)).to_have_text('伏击')
     detail.get_by_role('button', name='原卡第 50 步兵团', exact=True).click()
     expect(detail.get_by_role('heading', name='第 50 步兵团', exact=True)).to_be_visible()
     detail.press('Escape')
@@ -131,7 +131,7 @@ with sync_playwright() as p:
       await store.removeItem(`kards_card_image_v2_${card.importId}_${encodeURIComponent(card.thumbUrl)}`);
       window.__failThumbnail = true;
     }""", pair[0])
-    page.get_by_role('button', name='缓存筛选结果（2 张）', exact=True).click()
+    page.get_by_role('button', name='缓存筛选结果（2）', exact=True).click()
     progress = page.get_by_role('region', name='卡图缓存下载进度', exact=True)
     expect(progress.get_by_text('缓存完成', exact=True)).to_be_visible()
     expect(progress.get_by_role('status')).to_have_text('下载 0 · 已缓存 1 · 失败 1')
@@ -142,7 +142,7 @@ with sync_playwright() as p:
     expect(progress.get_by_role('status')).to_have_text('下载 1 · 已缓存 0 · 失败 0')
     assert page.evaluate('window.__images.slice(' + str(downloads_before) + ')') == [pair[0]['thumbUrl']]
     progress.get_by_role('button', name='关闭下载进度', exact=True).click()
-    page.get_by_role('button', name='缓存筛选结果（2 张）', exact=True).click()
+    page.get_by_role('button', name='缓存筛选结果（2）', exact=True).click()
     expect(progress.get_by_role('status')).to_have_text('下载 0 · 已缓存 2 · 失败 0')
     progress.get_by_role('button', name='关闭下载进度', exact=True).click()
 

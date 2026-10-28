@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react';
 import { CARD_FACTIONS, CARD_RARITIES, CARD_TYPES, type CardLanguage } from '../types/card';
 import CustomSelect, { type SelectOption } from './CustomSelect';
 import type { CardFilters } from '../lib/cardFilters';
+import { CARD_SUBTYPES } from '../lib/cardSubtypes';
 
 const ASSETS = './assets/filters/';
 export function FilterIcon({ name, fullColor = false }: { name: string; fullColor?: boolean }) {
@@ -66,8 +67,9 @@ export default function CardFilterSelects({ filters, onChange, expansions, langu
   return <>
     {!builder && <CustomSelect label="阵营筛选" placeholder="阵营" multiple value={filters.factions} onChange={factions => onChange({ ...filters, factions })} options={nationOptions(language)} layout="grid" />}
     <CustomSelect label={`${prefix}类型筛选`} placeholder="类型" multiple value={filters.cardType} onChange={cardType => onChange({ ...filters, cardType })} layout="grid" options={CARD_TYPES.map(item => ({ value: item.id, label: zh ? item.label : englishTypes[item.id], icon: <FilterIcon name={`${item.id}.svg`} /> }))} />
+    <CustomSelect label={`${prefix}子类筛选`} placeholder="子类" multiple value={filters.subtypes} onChange={subtypes => onChange({ ...filters, subtypes })} layout="grid" options={CARD_SUBTYPES.map(item => ({ value: item.id, label: item.name[zh ? 'zh-Hans' : 'en-EN'] }))} />
     <CustomSelect label={`${prefix}稀有度筛选`} placeholder="稀有度" multiple value={filters.rarity} onChange={rarity => onChange({ ...filters, rarity })} layout="grid" options={CARD_RARITIES.map(value => ({ value, label: zh ? rarityLabels[value] : value, iconOnly: true, icon: <FilterIcon name={`${value.toLowerCase()}.svg`} /> }))} />
     <CustomSelect label={`${prefix}扩展包筛选`} value={filters.expansion} onChange={expansion => onChange({ ...filters, expansion })} options={expansionOptions(expansions, language)} />
-    {!builder && <CustomSelect label="卡牌状态筛选" value={filters.status} onChange={status => onChange({ ...filters, status })} options={[{ value: 'All', label: '全部状态' }, { value: 'active', label: '现役可构筑' }, { value: 'reserved', label: '预备卡' }, { value: 'generated', label: '衍生/老兵卡' }]} />}
+    {!builder && <CustomSelect label="卡牌状态筛选" value={filters.status} onChange={status => onChange({ ...filters, status })} options={[{ value: 'All', label: '全部状态' }, { value: 'active', label: '现役' }, { value: 'reserved', label: '预备' }, { value: 'generated', label: '衍生' }]} />}
   </>;
 }

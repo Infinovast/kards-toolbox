@@ -4,6 +4,7 @@ import { CardFace } from './CardFace';
 import { startImageDownload, useImageDownload } from '../lib/imageDownloads';
 import { useDismissiblePanel } from '../lib/dialogKeyboard';
 import { EMPTY_CARD_FILTERS, isGeneratedCard, matchesCardFilters, type CardFilters } from '../lib/cardFilters';
+import { cardSubtypeLabels } from '../lib/cardSubtypes';
 import PageIndicator from './PageIndicator';
 import CardDetailModal from './CardDetailModal';
 import { captureCardDetailOrigin, type CardDetailOrigin } from '../lib/cardDetailOrigin';
@@ -45,10 +46,11 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
   const cardsByCardId = useMemo(() => new Map(cards.map(card => [card.cardId, card])), [cards]);
   const keywords = selectedCard ? cardKeywords(selectedCard, language) : [];
   const relations = selectedCard ? cardRelations(selectedCard) : [];
+  const selectedSubtypes = selectedCard ? cardSubtypeLabels(selectedCard.cardId, language) : [];
 
   const filteredCards = useMemo(() => cards.filter(card => matchesCardFilters(card, filters)), [cards, filters]);
   const visibleHeadquartersStacks = useMemo(() => {
-    if (filters.query.trim() || filters.cardType.length || filters.cost.length || filters.rarity.length
+    if (filters.query.trim() || filters.cardType.length || filters.subtypes.length || filters.cost.length || filters.rarity.length
       || filters.expansion !== 'All' || filters.status !== 'All') return [];
     const factions = filters.factions.map(faction => faction.toLowerCase());
     return HEADQUARTERS_STACKS.filter(stack => !factions.length
@@ -117,7 +119,7 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
           <button disabled={!filteredCards.length || download.status === 'running' || download.status === 'paused'} onClick={() => {
             if (filteredCards.length > 100 && !window.confirm(`缓存当前筛选的 ${filteredCards.length.toLocaleString()} 张卡牌大图和缩略图？`)) return;
             startImageDownload(filteredCards);
-          }} className="flex h-9 items-center gap-1 rounded border border-kards-border glass-panel px-3 py-2 text-kards-text disabled:opacity-40"><Download className="h-3.5 w-3.5" />缓存筛选结果（{filteredCards.length.toLocaleString()} 张）</button>
+          }} className="flex h-9 items-center gap-1 rounded border border-kards-border glass-panel px-3 py-2 text-kards-text disabled:opacity-40"><Download className="h-3.5 w-3.5" />缓存筛选结果（{filteredCards.length.toLocaleString()}）</button>
           <button type="button" aria-pressed={detailMode === 'modal'} onClick={() => onDetailModeChange(detailMode === 'modal' ? 'sidebar' : 'modal')} className="builder-reserved-toggle">卡牌详情：{detailMode === 'modal' ? '浮窗' : '侧栏'}</button>
           </div>
         </div>
@@ -168,10 +170,11 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
           <button onClick={closeDetails} aria-label="关闭卡牌详情" className="absolute right-3 top-3 z-10 rounded-full bg-black/60 p-1 text-white"><X className="h-4 w-4" /></button>
           <CardFace card={selectedCard} className="mx-auto mb-4 max-h-[55vh] w-full object-contain" />
           <h2 className="text-lg font-bold text-kards-text">{cardDisplayTitle(selectedCard, language)}</h2>
-          {keywords.length > 0 && <p aria-label="卡牌关键词" className="mt-2 text-sm text-kards-status">{keywords.join(' · ')}</p>}
+          {keywords.length > 0 && <p aria-label="卡牌词条" className="mt-2 text-sm text-kards-status">{keywords.join(' · ')}</p>}
           {cardText(selectedCard, language) && <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-kards-text-muted"><CardText text={cardText(selectedCard, language)} /></p>}
           <dl className="mt-4 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-kards-border pt-4 text-sm text-kards-text">
             <dt>阵营</dt><dd>{factionLabel(selectedCard.json.faction)}</dd><dt>类型</dt><dd>{typeLabel(selectedCard.json.type)}</dd>
+            {selectedSubtypes.length > 0 && <><dt>子类</dt><dd>{selectedSubtypes.join(' · ')}</dd></>}
             <dt>部署费用</dt><dd>{selectedCard.json.kredits ?? '—'} K</dd>
             {!['order', 'countermeasure'].includes(selectedCard.json.type || '') && <><dt>行动费用</dt><dd>{selectedCard.json.operationCost ?? '—'} K</dd><dt>攻击 / 生命</dt><dd>{selectedCard.json.attack ?? '—'} / {selectedCard.json.defense ?? '—'}</dd></>}
             <dt>稀有度</dt><dd>{({ Standard: '普通', Limited: '稀有', Special: '罕见', Elite: '精英' })[selectedCard.json.rarity || ''] || selectedCard.json.rarity || '—'}</dd>

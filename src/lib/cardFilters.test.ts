@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { EMPTY_CARD_FILTERS, isInBuilderPool, matchesCardFilters } from './cardFilters';
+import { CARD_SUBTYPES, cardSubtypeLabels } from './cardSubtypes';
 import type { KardsCardRecord } from '../types/card';
 
 const base: KardsCardRecord = { id: 1, cardId: 'card-a', importId: 'aa', reserved: false, json: {
@@ -43,6 +44,19 @@ assert.ok(isInBuilderPool(changed({ rarity: 'Special', set: 'Base' }), 'Germany'
 for (const set of ['OnlySpawnable', 'Special']) assert.ok(!isInBuilderPool(changed({ set }), 'Germany', 'Soviet'));
 
 const cards: KardsCardRecord[] = JSON.parse(readFileSync('public/data/cards.json', 'utf8')).cards;
+const ot34 = cards.find(card => card.cardId === 'ot34')!;
+assert.equal(CARD_SUBTYPES.length, 5);
+const subtypeCardIds = CARD_SUBTYPES.flatMap(subtype => subtype.cardIds);
+assert.equal(subtypeCardIds.length, 59);
+assert.equal(new Set(subtypeCardIds).size, subtypeCardIds.length, 'a card belongs to at most one listed subtype');
+const knownCardIds = new Set(cards.map(card => card.cardId));
+assert.deepEqual(subtypeCardIds.filter(cardId => !knownCardIds.has(cardId)), [], 'every subtype entry maps to a catalog card');
+assert.deepEqual(cardSubtypeLabels('ot34'), ['T-34']);
+assert.deepEqual(cardSubtypeLabels('ot34', 'en-EN'), ['T-34']);
+assert.ok(matchesCardFilters(ot34, { ...EMPTY_CARD_FILTERS, subtypes: ['t-34'] }));
+assert.ok(!matchesCardFilters(ot34, { ...EMPTY_CARD_FILTERS, subtypes: ['spitfire'] }));
+assert.ok(matchesCardFilters(ot34, { ...EMPTY_CARD_FILTERS, subtypes: ['spitfire', 't-34'] }), 'subtype selections combine with OR');
+assert.ok(!matchesCardFilters(ot34, { ...EMPTY_CARD_FILTERS, subtypes: ['t-34'], cardType: ['infantry'] }), 'subtype and type filters combine with AND');
 for (const card of cards.filter(card => isInBuilderPool(card, 'Japan', 'Germany'))) {
   assert.ok(['Japan', 'Germany'].includes(card.json.faction!));
   assert.ok(card.json.faction === 'Japan' || card.json.rarity !== 'Elite');

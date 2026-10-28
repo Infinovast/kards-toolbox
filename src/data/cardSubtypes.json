@@ -1,0 +1,108 @@
+{
+  "subtypes": [
+    {
+      "id": "t-34",
+      "name": {
+        "zh-Hans": "T-34",
+        "en-EN": "T-34"
+      },
+      "cardIds": [
+        "ot34",
+        "t3476d",
+        "t3485",
+        "t3485_1944",
+        "t3485_1945",
+        "t34_1942",
+        "t34_76_pl"
+      ]
+    },
+    {
+      "id": "spitfire",
+      "name": {
+        "zh-Hans": "喷火",
+        "en-EN": "Spitfire"
+      },
+      "cardIds": [
+        "spitfire_mk_ia",
+        "spitfire_mk_ii",
+        "spitfire_mk_iia",
+        "spitfire_mk_v",
+        "spitfire_mk_v_pl",
+        "usaaf_spitfire_ix"
+      ]
+    },
+    {
+      "id": "naval",
+      "name": {
+        "zh-Hans": "海军",
+        "en-EN": "Navy"
+      },
+      "cardIds": [
+        "hmas_warramunga",
+        "hms_belfast",
+        "hms_formidable",
+        "hms_hermes",
+        "hms_illustrious",
+        "hms_sceptre",
+        "ijn_akagi",
+        "ijn_mikura",
+        "ijn_shinano",
+        "ijn_shirakumo",
+        "ijn_yamato",
+        "km_admiral_hipper",
+        "km_bismarck",
+        "km_prinz_eugen",
+        "km_tirpitz",
+        "orp_byskawica",
+        "orp_general_haller",
+        "orp_orze",
+        "rm_bersagliere",
+        "rm_roma",
+        "u16",
+        "u375",
+        "u48",
+        "uss_archerfish",
+        "uss_fitch",
+        "uss_missouri",
+        "uss_the_sullivans",
+        "uss_yorktown"
+      ]
+    },
+    {
+      "id": "commandos",
+      "name": {
+        "zh-Hans": "突击队",
+        "en-EN": "Commandos"
+      },
+      "cardIds": [
+        "40_royal_marine",
+        "commandos_kieffer",
+        "devils_brigade",
+        "layforce",
+        "no_10_commando",
+        "no_1_commando",
+        "no_3_commando",
+        "no_43_commando",
+        "no_46_commando",
+        "no_9_commando"
+      ]
+    },
+    {
+      "id": "sherman",
+      "name": {
+        "zh-Hans": "谢尔曼",
+        "en-EN": "Sherman"
+      },
+      "cardIds": [
+        "calliope",
+        "m4_firefly",
+        "m4_firefly_pl",
+        "m4_sherman",
+        "m4_sherman_pl",
+        "m4a1",
+        "m4a2",
+        "m4a3r3_zippo"
+      ]
+    }
+  ]
+}

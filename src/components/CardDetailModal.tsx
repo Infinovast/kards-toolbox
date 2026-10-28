@@ -6,6 +6,7 @@ import { expansionOptions, FilterIcon } from './CardFilterSelects';
 import { cardKeywords, cardRelations } from '../lib/cardDetails';
 import { handleDialogKeys } from '../lib/dialogKeyboard';
 import { isGeneratedCard } from '../lib/cardFilters';
+import { cardSubtypeLabels } from '../lib/cardSubtypes';
 import { cardDisplayTitle, cardText, factionLabel, isVeteranCard, typeLabel, type CardLanguage, type KardsCardRecord } from '../types/card';
 import ReservedBadge from './ReservedBadge';
 import { CardText } from './CardText';
@@ -115,6 +116,7 @@ export default function CardDetailModal({ card: initialCard, headquarters, origi
   }, []);
   const cardsById = useMemo(() => new Map(cards.map(item => [item.cardId, item])), [cards]);
   const keywords = card ? cardKeywords(card, language) : [];
+  const subtypes = card ? cardSubtypeLabels(card.cardId, language) : [];
   const relatedCards = (card ? cardRelations(card) : []).flatMap(relation => {
     const related = cardsById.get(relation.cardId);
     return related ? [{ ...relation, card: related }] : [];
@@ -145,10 +147,11 @@ export default function CardDetailModal({ card: initialCard, headquarters, origi
             <div className="flex shrink-0 items-center gap-2 text-sm"><span className="h-6 w-6"><FilterIcon name={faction.toLowerCase() + '.svg'} fullColor={faction === 'Neutral'} /></span>{factionLabel(faction)}</div>
           </div>
           {keywords.length > 0 && <section className="card-detail-section">
-            <h3 className="mb-3 font-bold">关键词</h3>
+            <h3 className="mb-3 font-bold">词条</h3>
             <ul className="space-y-3 text-sm text-kards-text">{keywords.map(keyword => <li key={keyword}>{keyword}</li>)}</ul>
           </section>}
           {card ? <dl className="card-detail-section grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-3 text-sm">
+            {subtypes.length > 0 && <><dt>子类</dt><dd>{subtypes.join(' · ')}</dd></>}
             <dt>状态</dt><dd className="flex items-center gap-2">{card.reserved && <ReservedBadge />}{card.reserved ? '预备卡' : '现役'}</dd>
             <dt>形态</dt><dd>{isVeteranCard(card) ? '老兵形态' : isGeneratedCard(card) ? '衍生卡' : '可构筑'}</dd>
             <dt>卡池</dt><dd>{card.json.permanent_pool ? '常备卡池' : '轮换卡池'}</dd>

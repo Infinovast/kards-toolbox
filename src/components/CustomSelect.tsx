@@ -144,9 +144,9 @@ export default function CustomSelect(props: Props) {
       }}>
       <span className="custom-select-value">
         {props.multiple && selected.length > 0 ? <>
-          <span className="custom-select-selection-icons" aria-hidden="true">
-            {selected.map(option => option.icon && <span key={option.value} className="custom-select-icon">{option.icon}</span>)}
-          </span>
+          {selected.every(option => option.icon) ? <span className="custom-select-selection-icons" aria-hidden="true">
+            {selected.map(option => <span key={option.value} className="custom-select-icon">{option.icon}</span>)}
+          </span> : <span className="truncate">{selected.map(option => option.label).join('、')}</span>}
           <span className="sr-only">{selected.map(option => option.label).join('、')}</span>
         </> : <>
           {selected[0]?.icon && <span className="custom-select-icon" aria-hidden="true">{selected[0].icon}</span>}
@@ -156,7 +156,7 @@ export default function CustomSelect(props: Props) {
       <ChevronDown aria-hidden="true" className={`h-3.5 w-3.5 shrink-0 ${open ? 'rotate-180' : ''}`} />
     </button>
     {open && createPortal(<div ref={popup} className={`custom-select-popover glass-panel custom-scrollbar ${props.multiple ? 'is-multiple' : ''}`} style={position} onKeyDown={handleKeys} onClick={event => event.stopPropagation()}>
-      {props.multiple && <div className="custom-select-heading"><span>{placeholder} · 可多选</span><button type="button" onClick={() => { props.onChange([]); list.current?.focus(); }}>清除选择</button></div>}
+      {props.multiple && <div className="custom-select-heading"><span>可多选</span><button type="button" onClick={() => { props.onChange([]); list.current?.focus(); }}>清除选择</button></div>}
       <div ref={list} id={id} tabIndex={0} role="listbox" aria-label={`${label}选项`} aria-multiselectable={props.multiple || undefined} aria-activedescendant={active >= 0 ? `${id}-${active}` : undefined} className={`custom-select-options custom-select-${layout}`}>
         {options.map((option, index) => <div key={option.value} className="custom-select-option-wrap">
           {option.group && options[index - 1]?.group !== option.group && <div className="custom-select-group">{option.group}</div>}

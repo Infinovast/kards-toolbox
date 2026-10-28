@@ -31,6 +31,7 @@ Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴
 | `src/lib/cardImages.ts`、`cardImageDownload.ts`、`imageDownloads.ts` | 图片缓存、下载校验及后台队列 |
 | `src/lib/deckCode.ts`、`deckImport.ts`、`deckRules.ts` | 卡组码、导入和构筑规则 |
 | `src/lib/cardFilters.ts`、`cardPoolLayout.ts` | 共享筛选语义与自适应分页布局 |
+| `src/data/cardSubtypes.json`、`src/lib/cardSubtypes.ts` | 本地子类定义、卡牌映射及详情展示 |
 | `src/lib/deckRenderer.ts`、`deckRenderCounter.ts` | Canvas 生图及共享计数器绘制 |
 | `src/lib/cardAssets.ts`、`src/data/` | 卡背、总部、桌布和战备卡组清单 |
 | `src/lib/backup.ts` | 用户备份的校验、导出和恢复 |
@@ -84,7 +85,7 @@ Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴
 
 卡组码使用共享编解码模块；总部由显示层补入总数，不占用可用牌记录。规则校验与卡池筛选分开：主国和盟国卡池限制决定候选，规则决定提示；已有或未知卡不因筛选被删除。
 
-卡池按可见宽高在预设尺寸范围内选择完整行列，不纵向滚动；容器变化时重新计算，滚轮驱动分页。资料库、构筑与计数器共用筛选、国家图标和卡牌模型。
+卡池按可见宽高在预设尺寸范围内选择完整行列，不纵向滚动；容器变化时重新计算，滚轮驱动分页。资料库与构筑共用类型、子类、费用等筛选语义；子类映射与官方卡牌数据分开维护。
 
 资料库详情模式保存在 `kards_settings.cardDetailMode`，支持共享 modal 与原有侧栏。构筑单击立即打开详情，弹窗捕获原点击位置的第二次点击以完成双击加牌，不再为区分单击与双击延迟开窗。卡组详情对卡组按钮的点击单独处理，重复选择当前卡组不触发关闭重开。
 

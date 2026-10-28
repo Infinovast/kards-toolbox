@@ -62,7 +62,7 @@ export function normalizeCardRecord(value: unknown, source: CardDataSource = 'ka
   for (const field of ['id', 'import_id', 'faction', 'type', 'rarity', 'set', 'image']) {
     if (json[field] !== undefined && typeof json[field] !== 'string') throw new Error(`卡牌 ${card.importId} 的 ${field} 字段无效`);
   }
-  if (json.attributes !== undefined && (!Array.isArray(json.attributes) || json.attributes.some(value => typeof value !== 'string'))) throw new Error(`卡牌 ${card.importId} 的关键词无效`);
+  if (json.attributes !== undefined && (!Array.isArray(json.attributes) || json.attributes.some(value => typeof value !== 'string'))) throw new Error(`卡牌 ${card.importId} 的词条无效`);
   if (json.can_create !== undefined && (!Array.isArray(json.can_create) || json.can_create.some(value => typeof value !== 'string'))) throw new Error(`卡牌 ${card.importId} 的衍生卡关联无效`);
   const reserved = card.reserved ?? json.reserved ?? false;
   if (typeof reserved !== 'boolean') throw new Error(`卡牌 ${card.importId} 的预备状态无效`);

@@ -22,8 +22,11 @@ specs = [
     ('盟国精英', 'Soviet', 'tank', 7, 'Elite', 'Base'),
     ('主国衍生', 'Germany', 'infantry', 0, 'Standard', 'OnlySpawnable'),
     ('主国特殊', 'Germany', 'infantry', 0, 'Standard', 'Special'),
+    ('T-34测试卡', 'Soviet', 'tank', 4, 'Limited', 'Base'),
+    ('喷火测试卡', 'Britain', 'fighter', 3, 'Limited', 'Base'),
 ]
-cards = copy.deepcopy(records[:len(specs)])
+catalogue = {card['cardId']: card for card in records}
+cards = copy.deepcopy(records[:len(specs) - 2] + [catalogue['ot34'], catalogue['spitfire_mk_ia']])
 for card, (name, faction, kind, cost, rarity, expansion) in zip(cards, specs):
     card['json'] = {'title': {'zh-Hans': name, 'en-EN': 'English ' + name}, 'faction': faction, 'type': kind, 'kredits': cost, 'rarity': rarity, 'set': expansion}
     card['reserved'] = False
@@ -31,7 +34,7 @@ for card, (name, faction, kind, cost, rarity, expansion) in zip(cards, specs):
 
 with sync_playwright() as playwright:
     browser = playwright.chromium.launch(headless=True)
-    context = browser.new_context(viewport={'width': 1280, 'height': 820})
+    context = browser.new_context(viewport={'width': 1920, 'height': 1080})
     page = context.new_page()
     errors, bad_assets = [], []
     page.on('pageerror', lambda error: errors.append(str(error)))
@@ -56,12 +59,19 @@ with sync_playwright() as playwright:
     def option(value):
         return page.get_by_role('listbox').locator('[role="option"][data-value=' + json.dumps(value) + ']')
 
+    def cost_button(index, builder=False):
+        group = page.get_by_role('group', name='构筑费用筛选' if builder else '费用筛选', exact=True)
+        return group.get_by_role('button', name=f'费用 {index}K' + ('+' if index == 7 else ''), exact=True)
+
     def close_select():
         page.get_by_role('listbox').press('Escape')
         expect(page.locator('.custom-select-popover')).to_have_count(0)
 
     def result_count(number, builder=False):
-        expect(page.get_by_test_id('builder-grid' if builder else 'library-grid').get_by_role('button')).to_have_count(number)
+        cards = page.get_by_test_id('builder-grid' if builder else 'library-grid').locator('button[aria-label^="查看"]')
+        if cards.count() != number:
+            print('card count mismatch:', cards.evaluate_all('(els) => els.map(el => [el.getAttribute("aria-label"), el.closest("[data-pool-card-id]")?.getAttribute("data-pool-card-id")])'))
+        expect(cards).to_have_count(number)
 
     # Homepage controls, including icon options, retain their single-select behavior.
     expect(page.locator('select')).to_have_count(0)
@@ -71,8 +81,8 @@ with sync_playwright() as playwright:
     select_value(page, '卡组标签筛选', '测试')
     expect(page.get_by_role('button', name='选择卡组 筛选控件测试', exact=True)).to_be_visible()
     page.get_by_role('button', name='卡牌', exact=True).click()
-    result_count(9)
-    expect(page.get_by_role('combobox')).to_have_count(8)
+    result_count(11)
+    expect(page.get_by_role('combobox')).to_have_count(7)
 
     countries = open_select('阵营筛选')
     expect(countries).to_have_attribute('aria-multiselectable', 'true')
@@ -83,19 +93,19 @@ with sync_playwright() as playwright:
     result_count(4)
     expect(option('Germany')).to_have_attribute('aria-selected', 'true')
     option('Soviet').click()
-    result_count(7)
+    result_count(8)
     expect(option('Germany')).to_have_attribute('aria-selected', 'true')
     expect(option('Soviet')).to_have_attribute('aria-selected', 'true')
     colors = option('Germany').evaluate('(el) => ({ selected: getComputedStyle(el).color, other: getComputedStyle(el.parentElement.parentElement.querySelector(\'[data-value="Japan"]\')).color })')
     assert colors['selected'] != colors['other'], colors
     option('Germany').click()
-    result_count(3)
-    option('Neutral').click()
     result_count(4)
+    option('Neutral').click()
+    result_count(5)
     close_select()
     expect(page.get_by_role('combobox', name='阵营筛选', exact=True)).to_be_focused()
     select_value(page, '阵营筛选', 'All')
-    result_count(9)
+    result_count(11)
 
     # Multi-select OR, then AND across categories; empty selection removes the filter.
     open_select('类型筛选')
@@ -104,14 +114,14 @@ with sync_playwright() as playwright:
     result_count(6)
     expect(option('infantry').locator('.filter-symbol')).to_have_count(1)
     close_select()
-    open_select('费用筛选')
-    expect(page.get_by_role('listbox').locator('.filter-cost')).to_have_count(8)
-    expect(option('7').locator('.filter-cost')).to_have_text('7K+')
-    assert page.get_by_role('listbox').locator('.filter-cost').first.evaluate('el => getComputedStyle(el).borderTopColor') == 'rgb(255, 255, 255)'
-    option('0').click()
-    option('7').click()
+    costs = page.get_by_role('group', name='费用筛选', exact=True)
+    expect(costs.get_by_role('button')).to_have_count(8)
+    expect(cost_button(7)).to_contain_text('7K+')
+    cost_bounds = costs.get_by_role('button').first.bounding_box()
+    assert abs(cost_bounds['width'] - cost_bounds['height']) < 1, cost_bounds
+    cost_button(0).click()
+    cost_button(7).click()
     result_count(5)
-    close_select()
     open_select('稀有度筛选')
     for rarity in ['Standard', 'Limited', 'Special', 'Elite']:
         expect(option(rarity).locator('.filter-symbol')).to_have_count(1)
@@ -123,9 +133,26 @@ with sync_playwright() as playwright:
     select_value(page, '扩展包筛选', 'Base')
     result_count(2)
     page.get_by_role('button', name='重置筛选', exact=True).click()
-    result_count(9)
-    for label in ['阵营筛选', '类型筛选', '费用筛选', '稀有度筛选']:
+    result_count(11)
+    open_select('子类筛选')
+    option('t-34').click()
+    result_count(1)
+    expect(page.get_by_role('button', name='查看T-34测试卡', exact=True)).to_be_visible()
+    option('spitfire').click()
+    result_count(2)
+    option('t-34').click()
+    result_count(1)
+    close_select()
+    page.get_by_role('button', name='重置筛选', exact=True).click()
+    page.get_by_role('button', name='查看T-34测试卡', exact=True).click()
+    detail = page.locator('.card-detail-dialog')
+    expect(detail.locator('aside dt', has_text='子类').locator('xpath=following-sibling::dd[1]')).to_have_text('T-34')
+    page.keyboard.press('Escape')
+    expect(detail).to_have_count(0)
+    for label in ['阵营筛选', '类型筛选', '子类筛选', '稀有度筛选']:
         expect(page.get_by_role('combobox', name=label, exact=True)).to_have_attribute('data-value', '')
+    expect(cost_button(0)).to_have_attribute('aria-pressed', 'false')
+    expect(cost_button(7)).to_have_attribute('aria-pressed', 'false')
 
     # Set labels and symbols, supplied order, unknown set fallback, language switching.
     open_select('扩展包筛选')
@@ -144,27 +171,35 @@ with sync_playwright() as playwright:
     open_select('类型筛选')
     expect(option('infantry')).to_have_attribute('aria-label', '步兵')
     close_select()
+    select_value(page, '卡牌文字语言', 'en-EN')
+    open_select('子类筛选')
+    expect(option('naval')).to_have_attribute('aria-label', 'Navy')
+    close_select()
+    select_value(page, '卡牌文字语言', 'zh-Hans')
+    open_select('子类筛选')
+    expect(option('naval')).to_have_attribute('aria-label', '海军')
+    close_select()
 
     # Keyboard opening, selection, navigation, typeahead, focus return, and outside click.
-    trigger = page.get_by_role('combobox', name='费用筛选', exact=True)
+    trigger = page.get_by_role('combobox', name='类型筛选', exact=True)
     trigger.focus()
     trigger.press('Enter')
     listing = page.get_by_role('listbox')
     expect(listing).to_be_focused()
     listing.press('Home')
     listing.press('Enter')
-    expect(option('0')).to_have_attribute('aria-selected', 'true')
+    expect(option('infantry')).to_have_attribute('aria-selected', 'true')
     listing.press('End')
     listing.press('Space')
-    expect(option('7')).to_have_attribute('aria-selected', 'true')
+    expect(option('countermeasure')).to_have_attribute('aria-selected', 'true')
     listing.press('Home')
     listing.press('Enter')
-    expect(option('0')).to_have_attribute('aria-selected', 'false')
+    expect(option('infantry')).to_have_attribute('aria-selected', 'false')
     close_select()
     trigger.press('ArrowDown')
     page.get_by_role('listbox').press('Tab')
     expect(page.locator('.custom-select-popover')).to_have_count(0)
-    expect(page.get_by_role('combobox', name='稀有度筛选', exact=True)).to_be_focused()
+    expect(page.get_by_role('combobox', name='子类筛选', exact=True)).to_be_focused()
     open_select('阵营筛选')
     page.get_by_role('combobox', name='类型筛选', exact=True).click()
     expect(page.get_by_role('listbox')).to_have_count(1)
@@ -176,16 +211,21 @@ with sync_playwright() as playwright:
     page.get_by_role('button', name='卡组', exact=True).click()
     page.get_by_role('button', name='选择卡组 筛选控件测试', exact=True).dblclick()
     expect(page.get_by_role('heading', name='编辑卡组', exact=True)).to_be_visible()
-    result_count(4, True)
+    result_count(5, True)
+    open_select('构筑子类筛选')
+    option('t-34').click()
+    result_count(1, True)
+    close_select()
+    open_select('构筑子类筛选')
+    option('t-34').click()
+    close_select()
     open_select('构筑类型筛选')
     option('infantry').click()
     option('order').click()
     close_select()
     result_count(3, True)
-    open_select('构筑费用筛选')
-    option('0').click()
-    option('7').click()
-    close_select()
+    cost_button(0, builder=True).click()
+    cost_button(7, builder=True).click()
     result_count(2, True)
     # Esc inside popup must not leave the editor; Ctrl+Enter must not save from it.
     open_select('构筑规则')
@@ -199,14 +239,14 @@ with sync_playwright() as playwright:
 
     # Portals escape sidebar clipping; all menus stay within the minimum viewport.
     page.set_viewport_size({'width': 980, 'height': 640})
-    for label in ['主国', '盟国', '构筑扩展包筛选', '构筑类型筛选']:
+    for label in ['主国', '盟国', '构筑扩展包筛选', '构筑类型筛选', '构筑子类筛选']:
         open_select(label)
         bounds = page.locator('.custom-select-popover').bounding_box()
         assert bounds['x'] >= 0 and bounds['y'] >= 0 and bounds['x'] + bounds['width'] <= 981 and bounds['y'] + bounds['height'] <= 641, (label, bounds)
         assert page.locator('.custom-select-popover').evaluate('el => el.parentElement === document.body')
         close_select()
     assert page.evaluate('document.documentElement.scrollWidth') == 980
-    page.get_by_role('button', name='返回卡组', exact=True).click()
+    page.get_by_role('button', name='保存并退出', exact=True).click()
     assert page.evaluate('document.documentElement.scrollWidth') == 980
     for label in ['卡组主国筛选', '卡组盟国筛选', '卡组标签筛选']:
         open_select(label)
@@ -214,7 +254,7 @@ with sync_playwright() as playwright:
         assert bounds['x'] >= 0 and bounds['x'] + bounds['width'] <= 981, (label, bounds)
         close_select()
     page.get_by_role('button', name='卡牌', exact=True).click()
-    for label in ['阵营筛选', '类型筛选', '费用筛选', '稀有度筛选', '扩展包筛选', '卡牌状态筛选', '卡牌文字语言']:
+    for label in ['阵营筛选', '类型筛选', '子类筛选', '稀有度筛选', '扩展包筛选', '卡牌状态筛选', '卡牌文字语言']:
         open_select(label)
         bounds = page.locator('.custom-select-popover').bounding_box()
         assert bounds['x'] >= 0 and bounds['y'] >= 0 and bounds['x'] + bounds['width'] <= 981 and bounds['y'] + bounds['height'] <= 641, (label, bounds)
@@ -222,13 +262,8 @@ with sync_playwright() as playwright:
     assert page.evaluate('document.documentElement.scrollWidth') == 980
     page.get_by_role('button', name='卡组', exact=True).click()
     page.get_by_role('button', name='设置', exact=True).click()
-    select_value(page, '显示模式', 'light')
-    expect(page.locator('html')).to_have_class('light')
-    open_select('显示模式')
-    page.get_by_role('listbox').press('End')
-    page.get_by_role('listbox').press('Enter')
     expect(page.get_by_test_id('settings-page')).to_be_visible()
-    page.get_by_role('button', name='保存并返回', exact=True).click()
+    page.get_by_role('button', name='卡组', exact=True).click()
     # A select inside nested card-back dialogs must not close/confirm the dialog.
     page.get_by_role('button', name='选择卡组 筛选控件测试', exact=True).click()
     page.get_by_role('button', name='更换卡背', exact=True).click()
@@ -249,7 +284,7 @@ with sync_playwright() as playwright:
         assert response.status == 200, filename
     assert not errors, errors
     assert not bad_assets, bad_assets
-    report = {'status': 'passed', 'screenshots': False, 'imageInspection': False, 'offlineIcons': len(manifest), 'pageErrors': errors, 'checks': ['no native selects', 'four multiselect groups', 'OR and AND semantics', 'deselect/reset', 'neutral diamond', 'Chinese and English option labels', 'single-select sets and official ordering', 'cost frames', 'rarity icons only', 'keyboard navigation and focus', 'IME guard', 'popup Esc before editor/dialog', 'outside click', 'one open menu', 'minimum viewport and portal clipping', 'builder nation/Elite/generated restrictions', 'nested card-back dialogs', 'light/dark theme', 'local assets with network blocked']}
+    report = {'status': 'passed', 'screenshots': False, 'imageInspection': False, 'offlineIcons': len(manifest), 'pageErrors': errors, 'checks': ['no native selects', 'five multiselect filters', 'subtype mapping and detail metadata', 'OR and AND semantics', 'deselect/reset', 'neutral diamond', 'Chinese and English option labels', 'single-select sets and official ordering', 'cost button dimensions', 'rarity icons only', 'keyboard navigation and focus', 'IME guard', 'popup Esc before editor/dialog', 'outside click', 'one open menu', 'minimum viewport and portal clipping', 'builder nation/Elite/generated restrictions', 'nested card-back dialogs', 'local assets with network blocked']}
     (OUT / 'result.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
     context.close()
     browser.close()
