@@ -52,8 +52,8 @@ async function main() {
     await expect(page.getByAltText('KARDS Logo', { exact: true })).toHaveAttribute('src', /KardsLogoWhite/);
     assert.equal(await page.evaluate(() => window.kardsDesktop.setTheme('dark')), true);
     const iconPaths = await app.evaluate(() => global.__iconPaths);
-    assert.ok(iconPaths.some(p => p.endsWith('KardsLogoBlack.png')));
-    assert.ok(iconPaths.some(p => p.endsWith('KardsLogoWhite.png')));
+    assert.ok(iconPaths.some(p => p.endsWith('KardsLogoBlack_cards_new.png')));
+    assert.ok(iconPaths.some(p => p.endsWith('KardsLogoWhite_cards_new.png')));
 
     // Real artwork, repeated copies and the final HQ slot use the production Sharp IPC.
     const records = JSON.parse(await fs.readFile(path.join(root, 'public/data/cards.json'), 'utf8')).cards;

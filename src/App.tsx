@@ -472,7 +472,7 @@ export default function App() {
 
   useEffect(() => {
     const icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
-    if (icon) icon.href = new URL('./assets/kards_logos/Common/' + (effectiveIsDarkMode ? 'KardsLogoWhite_icon.png' : 'KardsLogoBlack_icon.png'), document.baseURI).href;
+    if (icon) icon.href = new URL('./assets/kards_logos/Common/' + (effectiveIsDarkMode ? 'KardsLogoWhite_cards_new.png' : 'KardsLogoBlack_cards_new.png'), document.baseURI).href;
   }, [effectiveIsDarkMode]);
 
   useEffect(() => {
@@ -1224,7 +1224,7 @@ export default function App() {
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-3">
             <img 
-              src={effectiveIsDarkMode ? "/assets/kards_logos/Common/KardsLogoWhite_icon.png" : "/assets/kards_logos/Common/KardsLogoBlack_icon.png"}
+              src={effectiveIsDarkMode ? "/assets/kards_logos/Common/KardsLogoWhite_icon_new.png" : "/assets/kards_logos/Common/KardsLogoBlack_icon_new.png"}
               alt="KARDS Logo" 
               className="h-16 w-auto transition-opacity"
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
@@ -1344,7 +1344,7 @@ export default function App() {
             {activeMenu === 'builder' && cardDatabaseError && <p className="p-6 text-red-400">{cardDatabaseError}</p>}
             {!cardDatabaseLoading && !cardDatabaseError && builderDeck && <div className={`h-full w-full max-w-[1800px] shrink-0 ${activeMenu === 'builder' ? '' : 'hidden'}`}><DeckBuilder active={activeMenu === 'builder'} key={builderRevision} cards={cardDatabase} initialDeck={builderDeck} exitRequestRef={builderExitRequest} onSave={handleSaveBuiltDeck} onBack={() => { setBuilderDeck(null); setActiveMenu('decks'); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('[aria-label="主导航"] button')?.focus()); }} /></div>}
             {activeMenu === 'settings' && settingsPage}
-            {activeMenu === 'about' && <AboutPage onBack={() => setActiveMenu(aboutReturnMenu)} />}
+            {activeMenu === 'about' && <AboutPage isDarkMode={effectiveIsDarkMode} onBack={() => setActiveMenu(aboutReturnMenu)} />}
             {activeMenu === 'decks' && <div className="mb-6 flex w-full max-w-7xl flex-wrap items-center justify-between gap-3">
               <label className="flex cursor-pointer items-center gap-2 rounded glass-panel px-3 py-2 text-sm text-kards-text">
                 <input type="checkbox" role="switch" checked={settings.showDeckFolders} onChange={event => setSettings(current => ({ ...current, showDeckFolders: event.target.checked }))} className="h-4 w-4 accent-kards-accent" />

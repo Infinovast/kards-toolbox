@@ -35,21 +35,21 @@ npm run build:desktop
 npm run dist:win:zip
 ```
 
-当前源码和 `package.json` 版本为 1.0.7。`npm run build` 生成网页和本地服务资源；`npm run build:desktop` 额外编译 Electron 主进程。发布包需再执行对应 `dist:win:*` 命令。
+当前源码和 `package.json` 版本为 1.0.8。`npm run build` 生成网页和本地服务资源；`npm run build:desktop` 额外编译 Electron 主进程。发布包需再执行对应 `dist:win:*` 命令。
 
 后续每轮完成项目修改时，默认自动递增一次补丁版本（例如 1.0.2 → 1.0.3），同步包清单、锁文件及当前版本文档；用户指定目标版本时优先采用指定值。历史版本记录保留原版本号，构建或打包本身不重复递增。规则同时记录于根目录 `AGENTS.md`。
 
 默认打包到 `release/`。若旧版正在运行并占用该目录，可在完成桌面构建后使用独立输出目录：
 
 ```powershell
-node node_modules/electron-builder/cli.js --win zip --x64 '--config.win.signAndEditExecutable=false' '--config.compression=normal' '--config.directories.output=release/1.0.7'
+node node_modules/electron-builder/cli.js --win zip --x64 '--config.win.signAndEditExecutable=false' '--config.compression=normal' '--config.directories.output=release/1.0.8'
 ```
 
 - `dist/`：渲染端生产资源，包含卡牌目录。
 - `dist-electron/`：主进程与 preload。
 - `release/`：打包结果；`dist:win:dir` 生成解包目录，`dist:win` 生成安装包和便携包。
 - 当前主程序名为 `kards_toolbox.exe`；解包主程序为 `release/win-unpacked/kards_toolbox.exe`，单文件便携包为 `release/kards_toolbox.exe`。`npm run app` 启动解包主程序。
-- `release/0.3.7/` 中的 EXE 和 ZIP 是 0.3.7 归档开发包，不包含 1.0.7 改动。当前 1.0.7 尚未生成 Windows 发布包。
+- `release/0.3.7/` 中的 EXE 和 ZIP 是 0.3.7 归档开发包，不包含 1.0.8 改动。当前 1.0.8 尚未生成 Windows 发布包。
 - 本地检查生产资源可运行 `$env:KARDS_USE_DIST='1'; node scripts/start-electron.cjs .`。
 
 打包配置复用 `node_modules/electron/dist` 的已安装运行时，避免 electron-builder 再次从 GitHub 下载。NSIS/portable 目标仍可能首次下载额外打包工具，本轮未验收单文件便携包。
