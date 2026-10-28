@@ -1,4 +1,5 @@
 import type { KardsCardRecord } from '../types/card';
+import bundledWeatherCards from '../data/weatherCards.json';
 
 export const CARD_DATA_URL = 'https://api.kardsplayer.com/graphql';
 export const KARDS_COM_DATA_URL = 'https://herokuapi.kards.com/graphql';
@@ -73,7 +74,11 @@ export function normalizeCardRecord(value: unknown, source: CardDataSource = 'ka
     if (card[field] === undefined) continue; // Existing offline snapshots remain readable.
     if (typeof card[field] !== 'string' || !card[field]) throw new Error(`卡牌 ${card.importId} 的卡图地址无效`);
     const url = new URL(card[field], source === 'kardscom' ? 'https://www.kards.com' : 'https://www.kardsplayer.com');
-    if (!['https://www.kardsplayer.com', 'https://www.kards.com'].includes(url.origin) || !/^\/images\/card\/v\d+\/[\w-]+\/(thumb\/)?[\w.-]+\.avif$/.test(url.pathname) || url.search || url.hash) throw new Error(`卡牌 ${card.importId} 的卡图地址无效`);
+    const catalogueImage = ['https://www.kardsplayer.com', 'https://www.kards.com'].includes(url.origin)
+      && /^\/images\/card\/v\d+\/[\w-]+\/(thumb\/)?[\w.-]+\.(avif|png|webp)$/.test(url.pathname);
+    const weatherImage = url.origin === 'https://kards-assets.kardsdecker.com'
+      && /^\/CardImgs\/temporary_weathers\/(?:[\w.-]|%[\da-f]{2})+\.png$/i.test(url.pathname);
+    if ((!catalogueImage && !weatherImage) || url.search || url.hash || url.username || url.password) throw new Error(`卡牌 ${card.importId} 的卡图地址无效`);
     images[field] = url.href;
   }
   const recordId = Number(card.id);
@@ -91,6 +96,34 @@ export function validateCardRecords(values: unknown, source: CardDataSource = 'k
     seenCardIds.add(card.cardId);
     return card;
   });
+}
+
+const weatherSupplement = validateCardRecords(bundledWeatherCards as unknown);
+
+export function mergeWeatherCardRecords(values: unknown, source: CardDataSource = 'kardsplayer'): KardsCardRecord[] {
+  const weatherIds = new Set(weatherSupplement.map(card => card.cardId));
+  const records = validateCardRecords(values, source).filter(card => !weatherIds.has(card.cardId));
+  const merged = new Map(records.map(card => [card.cardId, card]));
+  const usedImportIds = new Set(records.map(card => card.importId));
+  const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const allocateImportId = () => {
+    for (const first of alphabet) for (const second of alphabet) {
+      const candidate = first + second;
+      if (!usedImportIds.has(candidate)) return candidate;
+    }
+    throw new Error('没有可分配给本地天气卡的卡组码编号');
+  };
+
+  for (const card of weatherSupplement) {
+    const importId = usedImportIds.has(card.importId) ? allocateImportId() : card.importId;
+    usedImportIds.add(importId);
+    merged.set(card.cardId, importId === card.importId ? card : {
+      ...card,
+      importId,
+      json: { ...card.json, import_id: importId },
+    });
+  }
+  return validateCardRecords([...merged.values()], source);
 }
 
 export function parseCardDataPage(payload: unknown, source: CardDataSource = 'kardsplayer'): CardDataPage {

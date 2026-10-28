@@ -1,14 +1,18 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight } from 'lucide-react';
 
 export interface SelectOption {
   value: string;
   label: string;
+  labelClassName?: string;
   icon?: ReactNode;
   iconOnly?: boolean;
   group?: string;
   disabled?: boolean;
+  children?: SelectOption[];
+  resetSelection?: boolean;
+  selectedWhenEmpty?: boolean;
 }
 
 type Props = {
@@ -21,6 +25,8 @@ type Props = {
 } & ({ multiple: true; value: string[]; onChange: (value: string[]) => void }
   | { multiple?: false; value: string; onChange: (value: string) => void });
 
+type VisibleOption = { option: SelectOption; parentValue?: string };
+
 /** A shared, portalled select: no clipping inside sidebars or modal scroll areas. */
 export default function CustomSelect(props: Props) {
   const { label, options, placeholder = label, className = '', disabled, layout = 'list' } = props;
@@ -30,10 +36,21 @@ export default function CustomSelect(props: Props) {
   const list = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
+  const [expandedOptions, setExpandedOptions] = useState<string[]>([]);
   const [position, setPosition] = useState<CSSProperties>({ visibility: 'hidden' });
   const search = useRef({ text: '', time: 0 });
-  const selected = options.filter(option => props.multiple ? props.value.includes(option.value) : props.value === option.value);
-  const isSelected = (value: string) => props.multiple ? props.value.includes(value) : props.value === value;
+  const allOptions = options.flatMap(option => [option, ...(option.children || [])]);
+  const isSelected = (value: string) => {
+    const option = allOptions.find(item => item.value === value);
+    if (props.multiple && option?.selectedWhenEmpty && props.value.length === 0) return true;
+    return props.multiple ? props.value.includes(value) : props.value === value;
+  };
+  const selected = allOptions.filter(option => isSelected(option.value));
+  const visibleOptions: VisibleOption[] = options.flatMap(option => [
+    { option },
+    ...(option.children && expandedOptions.includes(option.value)
+      ? option.children.map(child => ({ option: child, parentValue: option.value })) : []),
+  ]);
 
   const close = (restoreFocus = true) => {
     setOpen(false);
@@ -41,8 +58,17 @@ export default function CustomSelect(props: Props) {
   };
   const show = (fromEnd = false) => {
     if (disabled) return;
-    const index = options.findIndex(option => isSelected(option.value) && !option.disabled);
-    const available = options.map((option, at) => option.disabled ? -1 : at).filter(at => at >= 0);
+    const selectedGroup = options.find(option => option.children?.some(child => isSelected(child.value)));
+    const nextExpanded = selectedGroup && !expandedOptions.includes(selectedGroup.value)
+      ? [...expandedOptions, selectedGroup.value] : expandedOptions;
+    setExpandedOptions(nextExpanded);
+    const entries: VisibleOption[] = options.flatMap(option => [
+      { option },
+      ...(option.children && nextExpanded.includes(option.value)
+        ? option.children.map(child => ({ option: child, parentValue: option.value })) : []),
+    ]);
+    const index = entries.findIndex(entry => isSelected(entry.option.value) && !entry.option.disabled);
+    const available = entries.map((entry, at) => entry.option.disabled ? -1 : at).filter(at => at >= 0);
     setActive(index >= 0 ? index : (fromEnd ? available.at(-1) : available[0]) ?? -1);
     setPosition({ visibility: 'hidden' });
     setOpen(true);
@@ -50,7 +76,17 @@ export default function CustomSelect(props: Props) {
   const choose = (option: SelectOption) => {
     if (option.disabled) return;
     if (props.multiple === true) {
-      props.onChange(props.value.includes(option.value) ? props.value.filter(value => value !== option.value) : [...props.value, option.value]);
+      if (option.resetSelection) { props.onChange([]); return; }
+      if (props.value.includes(option.value)) {
+        props.onChange(props.value.filter(value => value !== option.value));
+      } else {
+        const parent = options.find(item => item.children?.some(child => child.value === option.value));
+        const nestedValues = new Set([
+          ...(option.children || []).map(child => child.value),
+          ...(parent ? [parent.value] : []),
+        ]);
+        props.onChange([...props.value.filter(value => !nestedValues.has(value)), option.value]);
+      }
     } else {
       props.onChange(option.value);
       close();
@@ -79,7 +115,7 @@ export default function CustomSelect(props: Props) {
     const observer = new ResizeObserver(place);
     if (trigger.current) observer.observe(trigger.current);
     return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', scroll, true); observer.disconnect(); };
-  }, [open, layout]);
+  }, [open, layout, expandedOptions]);
 
   useLayoutEffect(() => {
     // The initial measurement pass is hidden; focus only after it becomes visible.
@@ -117,25 +153,40 @@ export default function CustomSelect(props: Props) {
     if (event.target !== list.current) { if (event.key === 'Enter' || event.key === ' ') event.stopPropagation(); return; }
     if (['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
       event.preventDefault(); event.stopPropagation();
-      const enabled = options.map((option, index) => option.disabled ? -1 : index).filter(index => index >= 0);
+      const current = visibleOptions[active];
+      if (event.key === 'ArrowRight' && current?.option.children && !expandedOptions.includes(current.option.value)) {
+        setExpandedOptions([...expandedOptions, current.option.value]);
+        setActive(active + 1);
+        return;
+      }
+      if (event.key === 'ArrowLeft') {
+        if (current?.parentValue) {
+          setExpandedOptions(expandedOptions.filter(value => value !== current.parentValue));
+          setActive(visibleOptions.findIndex(entry => entry.option.value === current.parentValue));
+        } else if (current?.option.children && expandedOptions.includes(current.option.value)) {
+          setExpandedOptions(expandedOptions.filter(value => value !== current.option.value));
+        }
+        return;
+      }
+      const enabled = visibleOptions.map((entry, index) => entry.option.disabled ? -1 : index).filter(index => index >= 0);
       const at = enabled.indexOf(active);
       const next = event.key === 'Home' ? enabled[0] : event.key === 'End' ? enabled.at(-1) : enabled[(at + (['ArrowUp', 'ArrowLeft'].includes(event.key) ? -1 : 1) + enabled.length) % enabled.length];
       setActive(next ?? -1);
     } else if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault(); event.stopPropagation();
-      if (options[active]) choose(options[active]);
+      if (visibleOptions[active]) choose(visibleOptions[active].option);
     } else if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
       event.stopPropagation();
       const now = Date.now();
       search.current = { text: (now - search.current.time > 700 ? '' : search.current.text) + event.key.toLocaleLowerCase(), time: now };
-      const index = options.findIndex(option => !option.disabled && option.label.toLocaleLowerCase().startsWith(search.current.text));
+      const index = visibleOptions.findIndex(entry => !entry.option.disabled && entry.option.label.toLocaleLowerCase().startsWith(search.current.text));
       if (index >= 0) setActive(index);
     }
   };
 
   return <>
     <button ref={trigger} type="button" role="combobox" aria-label={label} aria-haspopup="listbox" aria-expanded={open} aria-controls={open ? id : undefined} disabled={disabled} data-value={Array.isArray(props.value) ? props.value.join(',') : props.value}
-      className={`custom-select-trigger ${selected.length && props.multiple ? 'has-selection' : ''} ${className}`}
+      className={`custom-select-trigger ${props.multiple && props.value.length ? 'has-selection' : ''} ${className}`}
       title={`${label}：${selected.map(option => option.label).join('、') || '全部'}`}
       onClick={() => open ? close() : show()} onKeyDown={event => {
         if (event.nativeEvent.isComposing) return;
@@ -158,16 +209,35 @@ export default function CustomSelect(props: Props) {
     {open && createPortal(<div ref={popup} className={`custom-select-popover glass-panel custom-scrollbar ${props.multiple ? 'is-multiple' : ''}`} style={position} onKeyDown={handleKeys} onClick={event => event.stopPropagation()}>
       {props.multiple && <div className="custom-select-heading"><span>可多选</span><button type="button" onClick={() => { props.onChange([]); list.current?.focus(); }}>清除选择</button></div>}
       <div ref={list} id={id} tabIndex={0} role="listbox" aria-label={`${label}选项`} aria-multiselectable={props.multiple || undefined} aria-activedescendant={active >= 0 ? `${id}-${active}` : undefined} className={`custom-select-options custom-select-${layout}`}>
-        {options.map((option, index) => <div key={option.value} className="custom-select-option-wrap">
-          {option.group && options[index - 1]?.group !== option.group && <div className="custom-select-group">{option.group}</div>}
-          <div id={`${id}-${index}`} role="option" aria-label={option.label} aria-selected={isSelected(option.value)} aria-disabled={option.disabled || undefined} data-value={option.value}
-            className={`custom-select-option ${index === active ? 'is-active' : ''} ${option.iconOnly ? 'is-icon-only' : ''}`} title={option.label}
-            onPointerMove={() => { if (!option.disabled) setActive(index); }} onMouseDown={event => event.preventDefault()} onClick={() => { choose(option); if (props.multiple) list.current?.focus(); }}>
-            {option.icon && <span className="custom-select-icon" aria-hidden="true">{option.icon}</span>}
-            <span className={option.iconOnly ? 'sr-only' : 'min-w-0 flex-1 truncate'}>{option.label}</span>
-            {!option.iconOnly && <Check aria-hidden="true" className={`custom-select-check h-3.5 w-3.5 shrink-0 ${isSelected(option.value) ? '' : 'invisible'}`} />}
-          </div>
-        </div>)}
+        {options.map((option, optionIndex) => {
+          const renderOption = (item: SelectOption, parentValue?: string) => {
+            const index = visibleOptions.findIndex(entry => entry.option.value === item.value);
+            const hasChildren = !parentValue && !!item.children?.length;
+            const expanded = expandedOptions.includes(item.value);
+            const chosen = isSelected(item.value);
+            return <div key={item.value} className={`custom-select-option-wrap ${hasChildren ? `has-children ${chosen ? 'is-group-selected' : ''}` : ''}`}>
+              <div className={hasChildren ? 'custom-select-nested-option-row' : ''}>
+                <div id={`${id}-${index}`} role="option" aria-label={item.label} aria-selected={chosen} aria-disabled={item.disabled || undefined} data-value={item.value}
+                  className={`custom-select-option ${index === active ? 'is-active' : ''} ${item.iconOnly ? 'is-icon-only' : ''} ${hasChildren ? 'custom-select-option-parent' : ''} ${parentValue ? 'custom-select-option-child' : ''}`} title={item.label}
+                  onPointerMove={() => { if (!item.disabled) setActive(index); }} onMouseDown={event => event.preventDefault()} onClick={() => { choose(item); if (props.multiple) list.current?.focus(); }}>
+                  {item.icon && <span className="custom-select-icon" aria-hidden="true">{item.icon}</span>}
+                  <span className={item.iconOnly ? 'sr-only' : `min-w-0 flex-1 truncate ${item.labelClassName || ''}`}>{item.label}</span>
+                  {!item.iconOnly && <Check aria-hidden="true" className={`custom-select-check h-3.5 w-3.5 shrink-0 ${chosen ? '' : 'invisible'}`} />}
+                </div>
+                {hasChildren && <button type="button" className="custom-select-expand" aria-label={`${expanded ? '收起' : '展开'}${item.label}`} aria-expanded={expanded}
+                  onMouseDown={event => event.preventDefault()} onClick={() => {
+                    setExpandedOptions(expanded ? expandedOptions.filter(value => value !== item.value) : [...expandedOptions, item.value]);
+                    list.current?.focus();
+                  }}>{expanded ? <ChevronDown aria-hidden="true" /> : <ChevronRight aria-hidden="true" />}</button>}
+              </div>
+              {hasChildren && expanded && <div className="custom-select-nested-options">{item.children!.map(child => renderOption(child, item.value))}</div>}
+            </div>;
+          };
+          return <div key={option.value} className="custom-select-option-section">
+            {option.group && options[optionIndex - 1]?.group !== option.group && <div className="custom-select-group">{option.group}</div>}
+            {renderOption(option)}
+          </div>;
+        })}
         {!options.length && <div className="px-3 py-4 text-sm text-kards-text-muted">暂无可选项</div>}
       </div>
     </div>, document.body)}

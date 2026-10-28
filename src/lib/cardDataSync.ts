@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import localforage from 'localforage';
-import { collectCardData, fetchCardDataPage, validateCardRecords, type CardDataSource, type CardDataStorage } from './cardData';
+import { collectCardData, fetchCardDataPage, mergeWeatherCardRecords, validateCardRecords, type CardDataSource, type CardDataSnapshot, type CardDataStorage } from './cardData';
 import { CARD_DATABASE_KEY, readCardDataStorage, writeCardDataStorage } from './cardDatabase';
 import type { KardsCardRecord } from '../types/card';
 
@@ -19,8 +19,21 @@ export const useCardDataSync = () => useSyncExternalStore(listener => { listener
 let initialized: Promise<void> | undefined;
 let controller: AbortController | undefined;
 
+function mergeSnapshot(snapshot?: CardDataSnapshot): CardDataSnapshot | undefined {
+  return snapshot ? { ...snapshot, cards: mergeWeatherCardRecords(snapshot.cards) } : undefined;
+}
+
+function mergeStorageWeather(stored: CardDataStorage): CardDataStorage {
+  return {
+    ...stored,
+    active: mergeSnapshot(stored.active),
+    previous: mergeSnapshot(stored.previous),
+    pending: mergeSnapshot(stored.pending),
+  };
+}
+
 export function initializeCardDataSync() {
-  return initialized ||= readCardDataStorage().then(stored => publish({ stored, status: stored.pending ? 'ready' : 'idle' }))
+  return initialized ||= readCardDataStorage().then(mergeStorageWeather).then(stored => publish({ stored, status: stored.pending ? 'ready' : 'idle' }))
     .catch(error => { publish({ status: 'error', error: String(error) }); initialized = undefined; });
 }
 
@@ -31,12 +44,13 @@ export async function checkCardData(source: CardDataSource = 'kardsplayer') {
   const signal = controller.signal;
   publish({ status: 'fetching', completed: 0, total: 0, error: null, message: '' });
   try {
-    const stored = { ...await readCardDataStorage(), pending: undefined };
+    const stored = { ...mergeStorageWeather(await readCardDataStorage()), pending: undefined };
     await writeCardDataStorage(stored);
     publish({ stored });
-    const cards = await collectCardData(offset => window.kardsDesktop?.fetchCardDataPage
+    const fetchedCards = await collectCardData(offset => window.kardsDesktop?.fetchCardDataPage
       ? window.kardsDesktop.fetchCardDataPage(offset, source) : fetchCardDataPage(offset, source),
     (completed, total) => publish({ completed, total }), signal);
+    const cards = mergeWeatherCardRecords(fetchedCards, source);
     signal.throwIfAborted();
     const fetchedAt = new Date().toISOString();
     const next: CardDataStorage = { ...stored, pending: { cards, source, fetchedAt }, lastCheckedAt: fetchedAt };
@@ -56,13 +70,13 @@ export async function deleteDownloadedCardData(part: 'all' | 'active' | 'pending
   const previousStatus = state.status;
   publish({ status: 'applying', error: null });
   try {
-    const stored = await readCardDataStorage();
+    const stored = mergeStorageWeather(await readCardDataStorage());
     let cards: KardsCardRecord[] | undefined;
     if (part === 'all' || part === 'active') {
       const response = await fetch(new URL('./data/cards.json', window.location.href));
       if (!response.ok) throw new Error('读取随包卡牌数据失败');
       const bundled = await response.json() as { cards: KardsCardRecord[] };
-      cards = validateCardRecords(bundled.cards);
+      cards = mergeWeatherCardRecords(validateCardRecords(bundled.cards));
     }
     const next: CardDataStorage = part === 'all' ? { schemaVersion: 1 } : { ...stored, [part]: undefined };
     if (part === 'all') await localforage.removeItem(CARD_DATABASE_KEY);
@@ -80,10 +94,11 @@ export async function applyCardData(current: KardsCardRecord[]) {
   if (state.status !== 'ready' || !state.stored.pending) throw new Error('请先获取并检查最新数据');
   publish({ status: 'applying', error: null });
   try {
-    const stored = await readCardDataStorage();
+    const stored = mergeStorageWeather(await readCardDataStorage());
     if (!stored.pending) throw new Error('待应用数据已改变，请重新获取');
-    const next: CardDataStorage = { ...stored, previous: stored.active || (current.length ? { cards: current, source: 'bundled', fetchedAt: null } : undefined),
-      active: { ...stored.pending, appliedAt: new Date().toISOString() }, pending: undefined };
+    const pending = mergeSnapshot(stored.pending)!;
+    const next: CardDataStorage = { ...stored, previous: stored.active || (current.length ? { cards: mergeWeatherCardRecords(current), source: 'bundled', fetchedAt: null } : undefined),
+      active: { ...pending, appliedAt: new Date().toISOString() }, pending: undefined };
     await writeCardDataStorage(next);
     publish({ status: 'applied', stored: next, message: '更新已应用，卡牌库和构筑已使用新数据。当前卡图按新地址加载，已有缓存保留。' });
     return next.active.cards;
@@ -97,7 +112,7 @@ export async function rollbackCardData() {
   if (state.status === 'fetching' || state.status === 'applying') throw new Error('请等待当前操作结束');
   publish({ status: 'applying', error: null });
   try {
-    const stored = await readCardDataStorage();
+    const stored = mergeStorageWeather(await readCardDataStorage());
     if (!stored.previous) throw new Error('没有可以回退的数据');
     const next: CardDataStorage = { ...stored, active: { ...stored.previous, appliedAt: new Date().toISOString() }, previous: stored.active, pending: undefined };
     await writeCardDataStorage(next);

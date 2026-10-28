@@ -31,6 +31,7 @@ Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴
 | `src/lib/cardImages.ts`、`cardImageDownload.ts`、`imageDownloads.ts` | 图片缓存、下载校验及后台队列 |
 | `src/lib/deckCode.ts`、`deckImport.ts`、`deckRules.ts` | 卡组码、导入和构筑规则 |
 | `src/lib/cardFilters.ts`、`cardPoolLayout.ts` | 共享筛选语义与自适应分页布局 |
+| `src/lib/cardKeywords.ts`、`cardSort.ts` | 统一词条翻译、属性识别与文字强调；牌库主排序及费用、类型次级排序 |
 | `src/data/cardSubtypes.json`、`src/lib/cardSubtypes.ts` | 本地子类定义、卡牌映射及详情展示 |
 | `src/lib/deckRenderer.ts`、`deckRenderCounter.ts` | Canvas 生图及共享计数器绘制 |
 | `src/lib/cardAssets.ts`、`src/data/` | 卡背、总部、桌布和战备卡组清单 |

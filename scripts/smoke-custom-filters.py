@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'test-results/custom-filters'
 OUT.mkdir(parents=True, exist_ok=True)
 records = json.loads((ROOT / 'public/data/cards.json').read_text(encoding='utf-8'))['cards']
+weather_ids = set(json.loads((ROOT / 'src/data/cardStatusGroups.json').read_text(encoding='utf-8'))['weather'])
 specs = [
     ('德军步兵', 'Germany', 'infantry', 0, 'Standard', 'Base'),
     ('德军坦克', 'Germany', 'tank', 7, 'Elite', 'OceaniaStorm'),
@@ -26,10 +27,17 @@ specs = [
     ('喷火测试卡', 'Britain', 'fighter', 3, 'Limited', 'Base'),
 ]
 catalogue = {card['cardId']: card for card in records}
-cards = copy.deepcopy(records[:len(specs) - 2] + [catalogue['ot34'], catalogue['spitfire_mk_ia']])
+fixture_records = [card for card in records if card['cardId'] not in weather_ids]
+cards = copy.deepcopy(fixture_records[:len(specs) - 2] + [catalogue['ot34'], catalogue['spitfire_mk_ia']])
 for card, (name, faction, kind, cost, rarity, expansion) in zip(cards, specs):
-    card['json'] = {'title': {'zh-Hans': name, 'en-EN': 'English ' + name}, 'faction': faction, 'type': kind, 'kredits': cost, 'rarity': rarity, 'set': expansion}
+    card['json'] = {'title': {'zh-Hans': name, 'en-EN': 'English ' + name}, 'description': {'en-EN': 'custom filter fixture'}, 'faction': faction, 'type': kind, 'kredits': cost, 'rarity': rarity, 'set': expansion}
     card['reserved'] = False
+cards[0]['json']['attributes'] = ['blitz', 'guard']
+cards[1]['json']['attributes'] = ['heavyArmor2', 'bond']
+cards[2]['json']['attributes'] = ['BecomesVeteran:fixture_vet', 'OnlySpawnable']
+cards[3]['json']['attributes'] = ['OnlySpawnable']
+cards[4]['json']['attributes'] = ['covert', 'intel2']
+cards[5]['json']['exile'] = 'Britain'
 
 
 with sync_playwright() as playwright:
@@ -73,6 +81,9 @@ with sync_playwright() as playwright:
             print('card count mismatch:', cards.evaluate_all('(els) => els.map(el => [el.getAttribute("aria-label"), el.closest("[data-pool-card-id]")?.getAttribute("data-pool-card-id")])'))
         expect(cards).to_have_count(number)
 
+    def scope_fixture():
+        page.get_by_label('搜索卡牌', exact=True).fill('custom filter fixture')
+
     # Homepage controls, including icon options, retain their single-select behavior.
     expect(page.locator('select')).to_have_count(0)
     select_value(page, '卡组主国筛选', 'Japan')
@@ -80,9 +91,90 @@ with sync_playwright() as playwright:
     select_value(page, '卡组主国筛选', 'All')
     select_value(page, '卡组标签筛选', '测试')
     expect(page.get_by_role('button', name='选择卡组 筛选控件测试', exact=True)).to_be_visible()
+    for label in ['卡组主国筛选', '卡组盟国筛选', '卡组标签筛选']:
+        assert 'has-selection' not in page.get_by_role('combobox', name=label, exact=True).get_attribute('class')
     page.get_by_role('button', name='卡牌', exact=True).click()
+    scope_fixture()
     result_count(11)
-    expect(page.get_by_role('combobox')).to_have_count(7)
+    expect(page.get_by_role('combobox')).to_have_count(9)
+
+    # Sorting direction, numeric/name indicators and fixed type ties.
+    pool_cards = page.get_by_test_id('library-grid').locator('button[aria-label^="查看"]')
+    expect(page.get_by_role('button', name='排序方向：升序', exact=True)).to_have_attribute('aria-pressed', 'false')
+    assert pool_cards.evaluate_all('els => els.slice(0,4).map(el => el.title)') == ['德军步兵', '主国衍生', '主国特殊', '中立指令']
+    sorting = open_select('卡牌排序依据')
+    expect(sorting.get_by_role('option')).to_have_text(['费用', '行动费用', '攻击力', '防御力', '中文名', '英文名'])
+    close_select()
+    page.get_by_role('button', name='排序方向：升序', exact=True).click()
+    expect(pool_cards.first).to_have_attribute('title', '苏军指令')
+    expect(pool_cards.last).to_have_attribute('title', '中立指令')
+    select_value(page, '卡牌排序依据', 'nameEn')
+    expect(page.get_by_role('button', name='排序方向：降序', exact=True)).to_have_text('Z-A')
+    page.get_by_role('button', name='排序方向：降序', exact=True).click()
+    expect(page.get_by_role('button', name='排序方向：升序', exact=True)).to_have_text('A-Z')
+    select_value(page, '卡牌排序依据', 'kredits')
+    expect(page.get_by_role('button', name='排序方向：升序', exact=True).locator('svg')).to_have_count(1)
+    for label in ['卡牌排序依据', '扩展包筛选', '卡牌文字语言']:
+        assert 'has-selection' not in page.get_by_role('combobox', name=label, exact=True).get_attribute('class')
+
+    # One unified attribute map drives OR filtering, numbered keywords and veteran relations.
+    keyword_trigger = page.get_by_role('combobox', name='词条筛选', exact=True)
+    expect(keyword_trigger).to_have_text('词条')
+    keywords = open_select('词条筛选')
+    expect(keywords.get_by_role('option')).to_have_count(17)
+    for key in ['blitz', 'ambush', 'shock', 'guard', 'fury', 'smokescreen']:
+        expect(option(key).locator('span.font-bold')).to_have_class(__import__('re').compile('text-kards-status'))
+    option('none').click()
+    result_count(6)
+    option('blitz').click()
+    result_count(7)
+    close_select()
+    select_value(page, '词条筛选', 'veteran')
+    result_count(1)
+    select_value(page, '词条筛选', 'heavyArmor')
+    result_count(1)
+    expect(pool_cards.first).to_have_attribute('title', '德军坦克')
+    select_value(page, '词条筛选', 'exile')
+    result_count(1)
+    expect(pool_cards.first).to_have_attribute('title', '日本战斗机')
+    select_value(page, '词条筛选', 'All')
+    result_count(11)
+    page.get_by_role('button', name='查看德军步兵', exact=True).click()
+    overlay = page.locator('.card-detail-overlay')
+    expect(overlay).to_have_attribute('data-phase', 'moving')
+    assert overlay.locator('.card-detail-art').evaluate('el=>el.getAnimations()[0].effect.getTiming().duration') == 340
+    expect(overlay.locator('.card-detail-close')).to_be_hidden()
+    overlay.locator('.card-detail-art').evaluate('el=>el.getAnimations()[0].finish()')
+    expect(overlay).to_have_attribute('data-phase', 'ready')
+    expect(overlay.get_by_label('卡牌词条', exact=True)).to_have_text('闪击，守护')
+    expect(overlay.locator('h1 + p[lang="en"]')).to_have_text('English 德军步兵')
+    overlay.locator('.card-detail-close').evaluate('''button=>{
+      button.click();
+      document.querySelector('.card-detail-art').getAnimations().forEach(animation=>animation.pause());
+    }''')
+    expect(overlay).to_have_attribute('data-phase', 'closing')
+    assert overlay.locator('.card-detail-art').evaluate('el=>el.getAnimations()[0].effect.getTiming().duration') == 260
+    expect(overlay.locator('.card-detail-close')).to_be_hidden()
+    overlay.locator('.card-detail-art').evaluate('el=>el.getAnimations()[0].finish()')
+    expect(overlay).to_have_count(0)
+
+    statuses = open_select('卡牌状态筛选')
+    expect(statuses).to_have_attribute('aria-multiselectable', 'true')
+    expect(option('All')).to_have_attribute('aria-selected', 'true')
+    page.get_by_role('button', name='展开衍生', exact=True).click()
+    expect(statuses.get_by_role('option')).to_have_count(9)
+    option('generated').click()
+    expect(option('generated')).to_have_attribute('aria-selected', 'true')
+    expect(option('generated').locator('xpath=../..')).to_have_class(__import__('re').compile('is-group-selected'))
+    option('weather').click()
+    expect(page.get_by_role('combobox', name='卡牌状态筛选', exact=True)).to_have_attribute('data-value', 'weather')
+    expect(option('generated')).to_have_attribute('aria-selected', 'false')
+    expect(option('weather')).to_have_attribute('aria-selected', 'true')
+    option('generated').click()
+    expect(page.get_by_role('combobox', name='卡牌状态筛选', exact=True)).to_have_attribute('data-value', 'generated')
+    option('All').click()
+    expect(page.get_by_role('combobox', name='卡牌状态筛选', exact=True)).to_have_attribute('data-value', '')
+    close_select()
 
     countries = open_select('阵营筛选')
     expect(countries).to_have_attribute('aria-multiselectable', 'true')
@@ -96,7 +188,7 @@ with sync_playwright() as playwright:
     result_count(8)
     expect(option('Germany')).to_have_attribute('aria-selected', 'true')
     expect(option('Soviet')).to_have_attribute('aria-selected', 'true')
-    colors = option('Germany').evaluate('(el) => ({ selected: getComputedStyle(el).color, other: getComputedStyle(el.parentElement.parentElement.querySelector(\'[data-value="Japan"]\')).color })')
+    colors = option('Germany').evaluate('(el) => ({ selected: getComputedStyle(el).color, other: getComputedStyle(el.closest(\'.custom-select-options\').querySelector(\'[data-value="Japan"]\')).color })')
     assert colors['selected'] != colors['other'], colors
     option('Germany').click()
     result_count(4)
@@ -133,6 +225,7 @@ with sync_playwright() as playwright:
     select_value(page, '扩展包筛选', 'Base')
     result_count(2)
     page.get_by_role('button', name='重置筛选', exact=True).click()
+    scope_fixture()
     result_count(11)
     open_select('子类筛选')
     option('t-34').click()
@@ -144,12 +237,13 @@ with sync_playwright() as playwright:
     result_count(1)
     close_select()
     page.get_by_role('button', name='重置筛选', exact=True).click()
+    scope_fixture()
     page.get_by_role('button', name='查看T-34测试卡', exact=True).click()
     detail = page.locator('.card-detail-dialog')
     expect(detail.locator('aside dt', has_text='子类').locator('xpath=following-sibling::dd[1]')).to_have_text('T-34')
     page.keyboard.press('Escape')
     expect(detail).to_have_count(0)
-    for label in ['阵营筛选', '类型筛选', '子类筛选', '稀有度筛选']:
+    for label in ['阵营筛选', '类型筛选', '子类筛选', '词条筛选', '稀有度筛选']:
         expect(page.get_by_role('combobox', name=label, exact=True)).to_have_attribute('data-value', '')
     expect(cost_button(0)).to_have_attribute('aria-pressed', 'false')
     expect(cost_button(7)).to_have_attribute('aria-pressed', 'false')
@@ -254,7 +348,7 @@ with sync_playwright() as playwright:
         assert bounds['x'] >= 0 and bounds['x'] + bounds['width'] <= 981, (label, bounds)
         close_select()
     page.get_by_role('button', name='卡牌', exact=True).click()
-    for label in ['阵营筛选', '类型筛选', '子类筛选', '稀有度筛选', '扩展包筛选', '卡牌状态筛选', '卡牌文字语言']:
+    for label in ['阵营筛选', '类型筛选', '子类筛选', '词条筛选', '稀有度筛选', '扩展包筛选', '卡牌状态筛选', '卡牌文字语言', '卡牌排序依据']:
         open_select(label)
         bounds = page.locator('.custom-select-popover').bounding_box()
         assert bounds['x'] >= 0 and bounds['y'] >= 0 and bounds['x'] + bounds['width'] <= 981 and bounds['y'] + bounds['height'] <= 641, (label, bounds)

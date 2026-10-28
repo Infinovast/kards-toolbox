@@ -68,7 +68,7 @@ export default function CardDetailModal({ card: initialCard, headquarters, origi
     const animation = element.animate([
       { transform: `translate(${x}px, ${y}px) scale(${origin.width / target.width}, ${origin.height / target.height})`, opacity: origin.kind === 'strip' ? 0 : 1 },
       { transform: 'translate(0, 0) scale(1)', opacity: 1 },
-    ], { duration: origin.kind === 'strip' ? 480 : 420, easing: 'cubic-bezier(0.65, 0, 0.35, 1)', fill: 'both' });
+    ], { duration: origin.kind === 'strip' ? 380 : 340, easing: 'cubic-bezier(0.65, 0, 0.35, 1)', fill: 'both' });
     entrance.current = animation;
     animation.onfinish = () => { if (!closing.current) setArrived(true); animation.cancel(); };
     // Finish cleanly when the destination changes while the card is moving.
@@ -91,7 +91,7 @@ export default function CardDetailModal({ card: initialCard, headquarters, origi
     const transform = destination && !reduced
       ? `translate(${destination.left + destination.width / 2 - target.left - target.width / 2}px, ${destination.top + destination.height / 2 - target.top - target.height / 2}px) scale(${destination.width / target.width}, ${destination.height / target.height})`
       : 'none';
-    const duration = reduced ? 80 : 320;
+    const duration = reduced ? 80 : 260;
     exit.current = element.animate([from, { transform, opacity: destination?.kind === 'pool' && !reduced ? 1 : 0 }],
       { duration, easing: 'cubic-bezier(0.65, 0, 0.35, 1)', fill: 'both' });
     backdropExit.current = backdrop.current?.animate([{ opacity: 1 }, { opacity: 0 }], { duration, fill: 'both' }) || null;
@@ -148,7 +148,7 @@ export default function CardDetailModal({ card: initialCard, headquarters, origi
           </div>
           {keywords.length > 0 && <section className="card-detail-section">
             <h3 className="mb-3 font-bold">词条</h3>
-            <ul className="space-y-3 text-sm text-kards-text">{keywords.map(keyword => <li key={keyword}>{keyword}</li>)}</ul>
+            <p aria-label="卡牌词条" className="text-sm leading-7 text-kards-text">{keywords.join('，')}</p>
           </section>}
           {card ? <dl className="card-detail-section grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-3 text-sm">
             {subtypes.length > 0 && <><dt>子类</dt><dd>{subtypes.join(' · ')}</dd></>}
@@ -160,6 +160,7 @@ export default function CardDetailModal({ card: initialCard, headquarters, origi
         <div ref={art} className="card-detail-art">{card ? <CardFace card={card} initialSource={card === initialCard ? origin?.image : undefined} /> : <img src={headquarters!.image} alt={title} className="card-face" />}</div>
         <div inert={!arrived || isClosing} className="card-detail-panel custom-scrollbar">
           <h1 className="text-2xl font-bold">{title}</h1>
+          {card && language.startsWith('zh') && card.json.title?.['en-EN'] && <p className="mt-1 text-xs text-kards-text-muted" lang="en">{card.json.title['en-EN']}</p>}
           {card && cardText(card, language) && <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-kards-text"><CardText text={cardText(card, language)} /></p>}
           {card && <dl className="card-detail-section grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-3 text-sm">
             <dt>部署费用</dt><dd>{card.json.kredits ?? '—'} K</dd>

@@ -66,7 +66,7 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
   const initialState = useRef<DeckBuilderState | null>(null);
   const afterLeave = useRef<(() => void) | undefined>(undefined);
   const { mainNation, allyNation, headquartersId, ruleSet, customRules, entries, deckName, deckId } = history.present;
-  const [filters, setFilters] = useState<CardFilters>({ ...EMPTY_CARD_FILTERS, status: 'active' });
+  const [filters, setFilters] = useState<CardFilters>({ ...EMPTY_CARD_FILTERS, status: ['active'] });
   const setFilter = <K extends keyof CardFilters,>(key: K, value: CardFilters[K]) => setFilters(current => ({ ...current, [key]: value }));
   const [page, setPage] = useState(1);
   useEffect(() => setPage(1), [filters, mainNation, allyNation, cards]);
@@ -259,7 +259,7 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
       <div aria-label="构筑卡牌筛选" className="builder-filter-bar glass-panel custom-scrollbar">
         <div className="builder-filter-leading">
           <div className="builder-search relative"><Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-kards-text-muted" /><input aria-label="构筑搜索卡牌" value={filters.query} onChange={(e) => setFilter('query', e.target.value)} onKeyDown={event => { if (event.key === 'Escape' && filters.query && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); setFilter('query', ''); } }} placeholder="搜索" className={`${inputClass} w-full !pl-7`} /></div>
-          <button type="button" aria-pressed={filters.status === 'All'} className="builder-reserved-toggle" onClick={() => setFilter('status', filters.status === 'All' ? 'active' : 'All')}>显示预备卡</button>
+          <button type="button" aria-pressed={!filters.status.includes('active')} className="builder-reserved-toggle" onClick={() => setFilter('status', filters.status.includes('active') ? [] : ['active'])}>显示预备卡</button>
         </div>
         <div className="builder-filter-costs"><CostFilterButtons value={filters.cost} onChange={cost => setFilter('cost', cost)} label="构筑费用筛选" /></div>
         <div className="builder-filter-trailing">

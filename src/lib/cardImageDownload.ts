@@ -2,8 +2,11 @@
 // AVIF as binary/octet-stream, so determine the MIME type from the actual bytes.
 export function validateCardImageUrl(value: string): string {
   const url = new URL(value);
-  if (!['https://www.kardsplayer.com', 'https://www.kards.com'].includes(url.origin)
-    || !/^\/images\/card\/v\d+\/[\w-]+\/(thumb\/)?[\w.-]+\.(avif|png|webp)$/.test(url.pathname)
+  const catalogueImage = ['https://www.kardsplayer.com', 'https://www.kards.com'].includes(url.origin)
+    && /^\/images\/card\/v\d+\/[\w-]+\/(thumb\/)?[\w.-]+\.(avif|png|webp)$/.test(url.pathname);
+  const weatherImage = url.origin === 'https://kards-assets.kardsdecker.com'
+    && /^\/CardImgs\/temporary_weathers\/(?:[\w.-]|%[\da-f]{2})+\.png$/i.test(url.pathname);
+  if ((!catalogueImage && !weatherImage)
     || url.search || url.hash || url.username || url.password) throw new Error('卡图地址无效');
   return url.href;
 }

@@ -1,8 +1,15 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { CARD_DATA_URL, KARDS_COM_DATA_URL, collectCardData, compareCardData, fetchKardsComCardPage, fetchKardsplayerCardPage, normalizeCardRecord, parseCardDataPage, validateCardRecords } from './cardData';
+import { CARD_DATA_URL, KARDS_COM_DATA_URL, collectCardData, compareCardData, fetchKardsComCardPage, fetchKardsplayerCardPage, mergeWeatherCardRecords, normalizeCardRecord, parseCardDataPage, validateCardRecords } from './cardData';
 
 const records = JSON.parse(readFileSync('public/data/cards.json', 'utf8')).cards;
+const mergedWeather = mergeWeatherCardRecords(records);
+assert.equal(mergedWeather.length, 1664, 'bundled and active catalogues include 18 missing local weather variants');
+assert.equal(mergedWeather.filter(card => card.cardId.startsWith('temp_')).length, 18);
+const temporaryDeluge = mergedWeather.find(card => card.cardId === 'temp_deluge_1')!;
+assert.equal(temporaryDeluge.json.text?.['zh-Hans'], '抑制 1 个单位，抽 1 张牌。');
+assert.equal(temporaryDeluge.json.title?.['ja-JP'], mergedWeather.find(card => card.cardId === 'deluge')?.json.title?.['ja-JP'], 'variants inherit translated base-card names');
+assert.ok(temporaryDeluge.imageUrl?.includes('kards-assets.kardsdecker.com/CardImgs/temporary_weathers/'));
 const local = records.slice(0, 3);
 const remote = structuredClone(local);
 remote[0].json.kredits++;

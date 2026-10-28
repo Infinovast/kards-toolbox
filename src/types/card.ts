@@ -1,5 +1,5 @@
 import { readCardDataStorage } from '../lib/cardDatabase';
-import { validateCardRecords } from '../lib/cardData';
+import { mergeWeatherCardRecords, validateCardRecords } from '../lib/cardData';
 
 export interface KardsCardRecord {
   id: number;
@@ -127,11 +127,11 @@ export function cardImageUrl(card: KardsCardRecord, kind: CardImageKind = 'full'
 
 export async function loadCardDatabase(): Promise<KardsCardRecord[]> {
   const stored = await readCardDataStorage();
-  if (stored.active) return stored.active.cards;
+  if (stored.active) return mergeWeatherCardRecords(stored.active.cards);
   const url = new URL('./data/cards.json', window.location.href);
   const response = await fetch(url);
   if (!response.ok) throw new Error(`读取本地卡牌目录失败（${response.status}）`);
   const database = await response.json() as KardsCardDatabase;
   if (!Array.isArray(database.cards)) throw new Error('本地卡牌目录格式无效');
-  return validateCardRecords(database.cards);
+  return mergeWeatherCardRecords(validateCardRecords(database.cards));
 }
