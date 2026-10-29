@@ -1612,6 +1612,7 @@ export default function App() {
 
       {/* --- Import Modal --- */}
       {showNewDeckModal && <NewDeckDialog
+        cards={cardDatabase}
         onClose={() => setShowNewDeckModal(false)}
         onCreate={() => {
           setShowNewDeckModal(false);

@@ -190,6 +190,35 @@ input, textarea { caret-color: var(--color-kards-gold); }
 @media (min-width: 1280px) { .deck-asset-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
 .deck-asset-grid.headquarters-choice-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .headquarters-choice-grid > * { max-width: 144px; }
+.ready-deck-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 3px; }
+.ready-deck-card { display: flex; position: relative; flex-direction: column; min-width: 0; overflow: hidden; padding: 0; border: 1px solid transparent; border-radius: var(--radius-base); background: var(--ready-deck-color); color: #fff9e8; text-align: left; isolation: isolate; }
+.ready-deck-card::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(0, 0, 0, 0.22); }
+.ready-deck-watermark { position: absolute; top: 10%; left: 14%; z-index: -1; width: 76%; height: 80%; object-fit: contain; opacity: 0.06; pointer-events: none; }
+.ready-deck-card[aria-pressed="true"] { border-color: var(--color-kards-gold); outline: 2px solid var(--color-kards-gold); outline-offset: 1px; }
+.ready-deck-card:hover:not([aria-pressed="true"]) { border-color: #fff9e8; }
+.ready-deck-header { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 12px 16px; border-bottom: 1px solid rgba(255, 249, 232, 0.2); }
+.ready-deck-header-icon { display: block; width: 32px; height: 32px; flex-shrink: 0; }
+.ready-deck-title { min-width: 0; flex: 1; overflow: hidden; font-size: 18px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.ready-deck-check { width: 18px; height: 18px; flex-shrink: 0; }
+.ready-deck-content { position: relative; display: flex; flex-direction: column; justify-content: space-between; min-height: 140px; padding: 16px 0 12px; }
+.ready-deck-nations { display: flex; flex-direction: column; gap: 6px; width: 52%; padding-left: 16px; font-size: 15px; font-variant-numeric: tabular-nums; }
+.ready-deck-nations > span { display: flex; align-items: center; }
+.ready-deck-nations .ready-deck-ally { font-size: 12px; }
+.ready-deck-ally-icon { display: block; width: 17px; height: 17px; margin-right: 5px; }
+.ready-deck-curve { display: flex; align-items: stretch; gap: 5px; width: 54%; height: 48px; margin-top: 12px; padding: 6px 12px 0 16px; background: rgba(0, 0, 0, 0.22); }
+.ready-deck-curve-column { display: flex; flex: 1; flex-direction: column; align-items: center; gap: 3px; min-width: 0; font-size: 9px; line-height: 12px; font-variant-numeric: tabular-nums; }
+.ready-deck-curve-track { display: flex; flex: 1; align-items: flex-end; width: 100%; }
+.ready-deck-curve-track > span { width: 100%; background: #e1dcc5; }
+.ready-deck-art { position: absolute; top: 12px; right: 0; bottom: 0; left: 51%; pointer-events: none; }
+.ready-deck-art img { position: absolute; top: 48%; left: 50%; width: 88px; height: auto; aspect-ratio: 618 / 867; object-fit: contain; filter: drop-shadow(1px 4px 4px rgba(0, 0, 0, 0.45)); }
+.ready-deck-art-back { transform: translate(-78%, -40%) rotate(-8deg) scale(0.95); }
+.ready-deck-art-front { transform: translate(-25%, -55%) rotate(8deg); }
+.ready-deck-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 16px 12px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.ready-deck-rarities { display: flex; gap: 10px; }
+.ready-deck-rarities > span { display: inline-flex; align-items: center; gap: 4px; }
+.ready-deck-rarity-icon { width: 23px; height: 15px; mask-position: center; mask-size: contain; mask-repeat: no-repeat; }
+.ready-deck-total { flex-shrink: 0; }
+@media (max-width: 600px) { .ready-deck-grid { grid-template-columns: minmax(0, 1fr); } }
 .builder-filter-bar { display: grid; grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr); align-items: center; flex-shrink: 0; gap: 12px; min-width: 0; padding: 8px; overflow-x: auto; border: 1px solid var(--color-kards-border); border-radius: var(--radius-lg); }
 .library-filter-bar { display: flex; justify-content: flex-start; }
 .card-status-buttons, .card-status-generated { display: inline-flex; align-items: center; flex-shrink: 0; }
