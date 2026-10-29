@@ -45,6 +45,7 @@ import DeckCardStrip, { DeckHeadquartersStrip } from './components/DeckCardStrip
 import DeckCountIndicator from './components/DeckCountIndicator';
 import ReservedBadge from './components/ReservedBadge';
 import NewDeckDialog from './components/NewDeckDialog';
+import DeckImageImport from './components/DeckImageImport';
 import DeckFolders from './components/DeckFolders';
 import AboutPage from './components/AboutPage';
 import CardDataUpdater from './components/CardDataUpdater';
@@ -253,6 +254,9 @@ export default function App() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [showNewDeckModal, setShowNewDeckModal] = useState(false);
   const [importCode, setImportCode] = useState('');
+  const [importHeadquartersId, setImportHeadquartersId] = useState<string | undefined>();
+  const [importImageBusy, setImportImageBusy] = useState(false);
+  const cancelImageImport = useRef<(() => void) | null>(null);
   const [importName, setImportName] = useState('');
   const [clipboardDeckCandidate, setClipboardDeckCandidate] = useState<ClipboardDeckCandidate | null>(null);
   const lastClipboardPromptRef = useRef<string | null>(null);
@@ -810,9 +814,12 @@ export default function App() {
   const previewDeckLimit = selectedDeck?.ruleSet === 'custom' ? (selectedDeck.customRules?.deckSize ?? DEFAULT_DECK_RULES.standard.deckSize) + 1 : DEFAULT_DECK_RULES.standard.deckSize + 1;
 
   const handleCloseImportModal = () => {
+    cancelImageImport.current?.();
     setShowImportModal(false);
     setImportCode('');
     setImportName('');
+    setImportHeadquartersId(undefined);
+    setImportImageBusy(false);
     setErrorStatus(null);
   };
 
@@ -830,7 +837,7 @@ export default function App() {
     setClipboardDeckCandidate(null);
   };
 
-  const addDeckFromCode = (sourceText: string, name: string) => {
+  const addDeckFromCode = (sourceText: string, name: string, headquartersId?: string) => {
       const deckCode = extractDeckCodeFromText(sourceText);
       const inferredName = inferDeckTitleFromText(sourceText, deckCode);
       const { mainNation, allyNation, totalCards, warnings, isArena, defaultName } = parseDeck(deckCode);
@@ -841,6 +848,7 @@ export default function App() {
         mainNation,
         allyNation,
         code: deckCode,
+        headquartersId: headquartersOptions(mainNation).some(item => item.groupId === headquartersId) ? headquartersId : undefined,
         isFavorite: false,
         totalCards,
         warnings: validateDeck(decodeDeckCode(deckCode).counts, findCardsByImportId(cardDatabase), mainNation, allyNation, DEFAULT_DECK_RULES[isArena ? 'arena' : 'standard']),
@@ -851,6 +859,7 @@ export default function App() {
       setSelectedDeckId(newDeck.id);
       setImportCode('');
       setImportName('');
+      setImportHeadquartersId(undefined);
       setShowImportModal(false);
       setShowNewDeckModal(false);
       setErrorStatus(null);
@@ -863,9 +872,9 @@ export default function App() {
   };
 
   const handleAddDeck = () => {
-    if (!importCode.trim()) return;
+    if (!importCode.trim() || importImageBusy) return;
     try {
-      addDeckFromCode(importCode, importName);
+      addDeckFromCode(importCode, importName, importHeadquartersId);
     } catch (e: any) {
       setErrorStatus(ERROR_LOCALE[e.message] || e.message || '格式错误');
     }
@@ -1655,11 +1664,15 @@ export default function App() {
                     placeholder="输入卡组名称，留空则使用默认名称"
                     className="w-full bg-kards-input-bg border border-kards-border px-4 py-3 text-kards-text focus:outline-none focus:border-kards-gold transition-colors mb-4 rounded-md"
                   />
-                  <label className="block text-xs uppercase tracking-wider text-kards-text-muted mb-2 font-bold">输入卡组码</label>
+                  <DeckImageImport cards={cardDatabase} cancelRef={cancelImageImport} onBusyChange={setImportImageBusy} onError={setErrorStatus}
+                    onRecognized={result => { setImportCode(result.code); setImportHeadquartersId(result.headquartersId); if (result.name) setImportName(result.name); }} />
+                  <label className="block text-xs uppercase tracking-wider text-kards-text-muted mb-2 mt-4 font-bold">输入卡组码</label>
                   <textarea
                     value={importCode || ''}
+                    disabled={importImageBusy}
                     onChange={(e) => {
                       setImportCode(e.target.value);
+                      setImportHeadquartersId(undefined);
                       setErrorStatus(null);
                     }}
                     placeholder="例如: %%53|5ucCbn;5W6L... 或直接粘贴游戏内复制的整段卡组列表"
@@ -1681,8 +1694,8 @@ export default function App() {
                     取消
                   </button>
                   <button 
-                    data-dialog-confirm onClick={handleAddDeck}
-                    className="flex-1 bg-kards-accent py-3 font-bold text-white hover:brightness-125 transition-all shadow-lg rounded-md"
+                    data-dialog-confirm onClick={handleAddDeck} disabled={importImageBusy}
+                    className="flex-1 bg-kards-accent py-3 font-bold text-white hover:brightness-125 transition-all shadow-lg rounded-md disabled:opacity-40"
                   >
                     确认导入
                   </button>

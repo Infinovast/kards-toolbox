@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('kardsDesktop', {
   fetchCardDataPage: (offset: number, source: import('../src/lib/cardData').CardDataSource) => ipcRenderer.invoke('cards:fetch-page', offset, source),
   fetchCardImage: (url: string) => ipcRenderer.invoke('cards:fetch-image', url),
   renderDeckImage: (request: unknown) => ipcRenderer.invoke('deck:render', request),
+  recognizeDeckImage: (data: string) => ipcRenderer.invoke('deck:recognize-image', data),
   setTheme: (mode: string) => ipcRenderer.invoke('app:set-theme', mode),
   getAppInfo: () => ipcRenderer.invoke('app:get-info'),
   readClipboardText: () => ipcRenderer.invoke('clipboard:read-text'),

@@ -4,6 +4,7 @@ import { getCachedCardImage } from './cardImages';
 import type { DeckRenderRequest } from './deckRenderTypes';
 import { BUNKER_HEADQUARTERS, DEFAULT_TABLECLOTH, headquartersForDeck } from './cardAssets';
 import { deckCounterNationIcon, deckRenderCounterSvg } from './deckRenderCounter';
+import { deckQrSvg } from './deckImageCode';
 
 async function imageDataUrl(url: string): Promise<string> {
   if (url.startsWith('data:')) return url;
@@ -24,7 +25,7 @@ export async function renderDeckImage(code: string, cards: KardsCardRecord[], ti
   if (background) background = await imageDataUrl(background);
   const headquarters = headquartersForDeck(headquartersId, deck.mainNation) || BUNKER_HEADQUARTERS;
   const headquartersImage = headquarters ? await imageDataUrl(headquarters.image).catch(() => null) : null;
-  const request: DeckRenderRequest = { title, mainNation: deck.mainNation, allyNation: deck.allyNation, limit, background: background?.startsWith('data:') ? background : null,
+  const request: DeckRenderRequest = { title, code, headquartersId: headquartersImage ? headquarters?.groupId : BUNKER_HEADQUARTERS?.groupId, mainNation: deck.mainNation, allyNation: deck.allyNation, limit, background: background?.startsWith('data:') ? background : null,
     headquartersImage,
     cards: await Promise.all(entries.map(async ([id, count]) => ({ id, count, name: index.has(id) ? cardTitle(index.get(id)!, 'zh-Hans') : `未知卡牌 ${id}`, rarity: index.get(id)?.json.rarity || '', faction: index.get(id)?.json.faction, image: index.has(id) ? await getCachedCardImage(index.get(id)!) : null }))) };
   if (window.kardsDesktop?.renderDeckImage) return window.kardsDesktop.renderDeckImage(request);
@@ -50,9 +51,11 @@ async function renderBrowserPreview(request: DeckRenderRequest, background?: str
   ]);
   const counter = await load(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(deckRenderCounterSvg(request, { main: mainIcon, ally: allyIcon, total: totalIcon }))}`);
   ctx.drawImage(counter, 350, 110);
+  const qr = await load(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(deckQrSvg(request.code, request.headquartersId, request.title))}`);
+  ctx.drawImage(qr, 60 + (cols - 1) * (thumbW + gap) + thumbW - qr.width - 8, Math.round((top - qr.height) / 2) + 8);
   const rarities = ['Elite', 'Special', 'Limited', 'Standard'];
   for (let i = 0; i < 4; i++) {
-    const rarity = rarities[i], x = width - 420 + i % 2 * 180, y = 15 + Math.floor(i / 2) * 72;
+    const rarity = rarities[i], x = width - 650 + i % 2 * 180, y = 27 + Math.floor(i / 2) * 72;
     const icon = await load(`./assets/filters/${rarity.toLowerCase()}.svg`);
     const scale = Math.min(64 / icon.width, 64 / icon.height), iconW = icon.width * scale, iconH = icon.height * scale;
     ctx.drawImage(icon, x + (64 - iconW) / 2, y + 4 + (64 - iconH) / 2, iconW, iconH);

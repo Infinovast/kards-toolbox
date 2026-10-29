@@ -311,7 +311,7 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
         })}
         {!entries.size && <p className="py-10 text-center text-sm text-kards-text-muted">从左侧选择卡牌开始构筑</p>}
       </div>
-      {warnings.length > 0 && <div className="custom-scrollbar max-h-28 shrink-0 overflow-y-auto rounded bg-kards-input-bg p-2 text-xs text-kards-text-muted"><div className="mb-1 font-bold text-kards-status">规则提示 · 允许保存与导出</div>{warnings.map((warning) => <p key={warning}>{warning}</p>)}</div>}
+      {warnings.length > 0 && <div className="custom-scrollbar max-h-28 shrink-0 overflow-y-auto rounded bg-kards-input-bg p-2 text-xs text-kards-text-muted"><div className="mb-1 font-bold text-kards-status">冲突</div>{warnings.map((warning) => <p key={warning}>{warning}</p>)}</div>}
       {message && <p role="status" className="custom-scrollbar max-h-16 shrink-0 overflow-y-auto text-xs text-kards-text-muted">{message}</p>}
       </div>
       <div aria-label="构筑操作" className="builder-actions">

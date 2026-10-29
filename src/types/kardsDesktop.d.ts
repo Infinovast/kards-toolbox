@@ -26,6 +26,7 @@ declare global {
       fetchCardDataPage: (offset: number, source: import('../lib/cardData').CardDataSource) => Promise<import('../lib/cardData').CardDataPage>;
       fetchCardImage: (url: string) => Promise<string>;
       renderDeckImage: (request: import('../lib/deckRenderTypes').DeckRenderRequest) => Promise<string>;
+      recognizeDeckImage: (data: string) => Promise<import('../lib/deckImageImport').WindowsOcrResult>;
       setTheme: (mode: 'dark' | 'light' | 'system') => Promise<boolean>;
       getAppInfo: () => Promise<KardsDesktopAppInfo>;
       readClipboardText: () => Promise<string>;

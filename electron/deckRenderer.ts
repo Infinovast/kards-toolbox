@@ -5,6 +5,7 @@ import path from 'path';
 import type { DeckRenderRequest } from '../src/lib/deckRenderTypes';
 import { deckCounterNationIcon, deckRenderCounterSvg } from '../src/lib/deckRenderCounter';
 import { BUNKER_HEADQUARTERS, DEFAULT_TABLECLOTH } from '../src/lib/cardAssets';
+import { deckQrSvg } from '../src/lib/deckImageCode';
 
 const safe = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c]!);
 const svg = (width: number, height: number, body: string) => Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><style>text{font-family:Microsoft YaHei,Arial,sans-serif}</style>${body}</svg>`);
@@ -50,9 +51,12 @@ export async function renderDeckImage(request: DeckRenderRequest): Promise<strin
     total: `data:image/png;base64,${asset('/assets/kards_logos/Common/KardsLogoWhite_cards.png').toString('base64')}`,
   });
   composites.push({ input: Buffer.from(counter), left: 350, top: 110 });
+  const qr = await sharp(Buffer.from(deckQrSvg(request.code, request.headquartersId, request.title))).png().toBuffer();
+  const qrWidth = (await sharp(qr).metadata()).width!;
+  composites.push({ input: qr, left: 60 + (cols - 1) * (thumbW + pad) + thumbW - qrWidth - 8, top: Math.round((gridStartY - qrWidth) / 2) + 8 });
   const rarities = ['Elite', 'Special', 'Limited', 'Standard'];
   for (let i = 0; i < rarities.length; i++) {
-    const rarity = rarities[i], x = canvasW - 420 + i % 2 * 180, y = 15 + Math.floor(i / 2) * 72;
+    const rarity = rarities[i], x = canvasW - 650 + i % 2 * 180, y = 27 + Math.floor(i / 2) * 72;
     const icon = await sharp(asset(`/assets/filters/${rarity.toLowerCase()}.svg`)).resize(64, 64, { fit: 'contain', background: '#00000000' }).png().toBuffer();
     const count = request.cards.filter(c => c.rarity === rarity).reduce((sum, c) => sum + c.count, 0);
     composites.push({ input: icon, left: x, top: y + 4 }, { input: svg(100, 72, `<text x="0" y="54" font-size="44" font-weight="700" fill="#e4d6b6">${count}</text>`), left: x + 72, top: y });

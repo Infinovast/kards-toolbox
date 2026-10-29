@@ -36,7 +36,7 @@ export default function NewDeckDialog({ onClose, onCreate, onImport, onPreset }:
         {[
           { label: '新建卡组', detail: '从空白卡组开始构筑', Icon: Plus, action: onCreate },
           { label: '战备卡组', detail: '选择预设卡组并查看介绍', Icon: Shield, action: () => setShowPresets(true) },
-          { label: '导入卡组', detail: '粘贴卡组码或游戏分享文本', Icon: Upload, action: onImport },
+          { label: '导入卡组', detail: '粘贴卡组码、分享文本或选择卡组图片', Icon: Upload, action: onImport },
         ].map(({ label, detail, Icon, action }) => <button key={label} onClick={action} className="flex w-full items-center gap-3 rounded border border-kards-border px-4 py-3 text-left text-kards-text hover:border-kards-gold hover:bg-kards-panel-hover">
           <Icon className="h-5 w-5 shrink-0 text-kards-status" /><span className="flex-1"><span className="block text-sm font-bold">{label}</span><span className="mt-1 block text-xs text-kards-text-muted">{detail}</span></span><ChevronRight className="h-4 w-4 text-kards-text-muted" />
         </button>)}

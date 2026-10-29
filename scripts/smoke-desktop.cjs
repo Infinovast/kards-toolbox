@@ -71,7 +71,7 @@ async function main() {
       }
     }
     assert.equal(renderCards.reduce((n, card) => n + card.count, 0), 39);
-    const request = { title: '本地卡图生图验证', mainNation: 'Japan', allyNation: 'Germany', cards: renderCards };
+    const request = { title: '本地卡图生图验证', code, mainNation: 'Japan', allyNation: 'Germany', cards: renderCards };
     const rendered = await page.evaluate(request => window.kardsDesktop.renderDeckImage(request), request);
     const renderedBytes = Buffer.from(rendered.split(',')[1], 'base64');
     const meta = await sharp(renderedBytes).metadata();

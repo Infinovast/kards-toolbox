@@ -94,7 +94,7 @@ with sync_playwright() as p:
     expect(page.get_by_text("40 / 40", exact=True)).to_be_visible()
     select_value(page, "构筑规则", "custom")
     page.get_by_role("spinbutton", name="卡组总张数（含总部）", exact=True).fill("41")
-    expect(page.get_by_text("规则提示 · 允许保存与导出", exact=True)).to_be_visible()
+    expect(page.get_by_text("冲突", exact=True)).to_be_visible()
     settle(page)
     page.screenshot(path=str(SHOTS / "builder-min.png"), full_page=True)
     # Contrast correction: inspect the actual status color in the light theme.
