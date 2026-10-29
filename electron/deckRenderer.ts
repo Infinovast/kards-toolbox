@@ -42,16 +42,16 @@ export async function renderDeckImage(request: DeckRenderRequest): Promise<strin
     ? await sharp(asset(BUNKER_HEADQUARTERS.image)).resize(thumbW, thumbH, { fit: 'cover' }).png().toBuffer()
     : svg(thumbW, thumbH, '<rect width="100%" height="100%" fill="#e6e1d4"/><text x="50%" y="50%" text-anchor="middle" font-size="24" fill="#333">地堡</text>'));
   composites.push({ input: bunker, left: 60 + position % cols * (thumbW + pad), top: gridStartY + Math.floor(position / cols) * (thumbH + pad) });
-  const logo = await sharp(asset('/assets/kards_logos/Common/KardsLogoWhite.png')).trim().resize({ height: 130 }).png().toBuffer();
+  const logo = await sharp(asset('/assets/kards_logos/KardsLogoWhite.png')).trim().resize({ height: 130 }).png().toBuffer();
   composites.push({ input: logo, left: 60, top: 24 });
   composites.push({ input: svg(1100, 85, `<text x="0" y="72" font-size="48" font-weight="700" fill="#f2ead6">${safe(request.title.slice(0, 24))}</text>`), left: 350, top: 15 });
   const nationIcon = (nation: string) => `data:image/svg+xml;base64,${asset(`/assets/filters/${deckCounterNationIcon(nation)}.svg`).toString('base64')}`;
   const counter = deckRenderCounterSvg(request, {
     main: nationIcon(request.mainNation), ally: nationIcon(request.allyNation),
-    total: `data:image/png;base64,${asset('/assets/kards_logos/Common/KardsLogoWhite_cards.png').toString('base64')}`,
+    total: `data:image/png;base64,${asset('/assets/kards_logos/KardsLogoWhite_cards.png').toString('base64')}`,
   });
   composites.push({ input: Buffer.from(counter), left: 350, top: 110 });
-  const qr = await sharp(Buffer.from(deckQrSvg(request.code, request.headquartersId, request.title))).png().toBuffer();
+  const qr = await sharp(Buffer.from(deckQrSvg(request.code, request.headquartersId, request.title, request.cardBackId))).png().toBuffer();
   const qrWidth = (await sharp(qr).metadata()).width!;
   composites.push({ input: qr, left: 60 + (cols - 1) * (thumbW + pad) + thumbW - qrWidth - 8, top: Math.round((gridStartY - qrWidth) / 2) + 8 });
   const rarities = ['Elite', 'Special', 'Limited', 'Standard'];

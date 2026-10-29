@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Check } from 'lucide-react';
 import type { ReadyDeck } from '../data/readyDecks';
-import { defaultCardBackForNation, defaultHeadquartersForNation } from '../lib/cardAssets';
+import { CARD_BACKS, defaultHeadquartersForNation } from '../lib/cardAssets';
 import { cacheCardImage } from '../lib/cardImages';
 import { decodeDeckCode } from '../lib/deckCode';
 import { cardDisplayTitle, factionLabel, type KardsCardRecord } from '../types/card';
@@ -24,10 +24,9 @@ export default function ReadyDeckCard({ deck, cardsById, selected, onSelect }: {
     const decoded = decodeDeckCode(deck.code);
     const curve = Array<number>(8).fill(0);
     const rarities: Record<string, number> = {};
-    let mainCount = 1, allyCount = 0, total = 1;
+    let mainCount = 1, allyCount = 0;
     let featured: KardsCardRecord | undefined;
     for (const [id, count] of decoded.counts) {
-      total += count;
       const card = cardsById.get(id);
       if (!card) continue;
       const faction = card.json.faction?.toLowerCase();
@@ -39,7 +38,7 @@ export default function ReadyDeckCard({ deck, cardsById, selected, onSelect }: {
       if (faction === decoded.mainNation.toLowerCase() && (!featured
         || (RARITY_SLOTS[rarity]?.max || 4) < (RARITY_SLOTS[featured.json.rarity || 'Standard']?.max || 4))) featured = card;
     }
-    return { ...decoded, curve, rarities, mainCount, allyCount, total, featured };
+    return { ...decoded, curve, rarities, mainCount, allyCount, featured };
   }, [deck.code, cardsById]);
   const [art, setArt] = useState('');
   useEffect(() => {
@@ -58,17 +57,17 @@ export default function ReadyDeckCard({ deck, cardsById, selected, onSelect }: {
     <img className="ready-deck-watermark" src={`./assets/filters/${summary.mainNation.toLowerCase()}.svg`} alt="" aria-hidden="true" />
     <span className="ready-deck-header">
       <span className="ready-deck-header-icon" role="img" aria-label={factionLabel(summary.mainNation)}>
-        <FilterIcon name={`${summary.mainNation.toLowerCase()}.svg`} />
+        <img src={appearance.icon} alt="" />
       </span>
       <span className="ready-deck-title">{deck.name}</span>
       {selected && <Check className="ready-deck-check" aria-hidden="true" />}
     </span>
     <span className="ready-deck-content">
       <span className="ready-deck-nations">
-        <span><strong>{factionLabel(summary.mainNation)}</strong><span>（{summary.mainCount}）</span></span>
+        <span><strong>{factionLabel(summary.mainNation)}</strong><span className="ready-deck-nation-count">（{summary.mainCount}）</span></span>
         {summary.allyNation !== summary.mainNation && <span className="ready-deck-ally">
           <span className="ready-deck-ally-icon" aria-hidden="true"><FilterIcon name={`${summary.allyNation.toLowerCase()}.svg`} /></span>
-          <span>{factionLabel(summary.allyNation)}</span><span>（{summary.allyCount}）</span>
+          <span>{factionLabel(summary.allyNation)}</span><span className="ready-deck-nation-count">（{summary.allyCount}）</span>
         </span>}
       </span>
       <span className="ready-deck-curve" role="img" aria-label={`费用曲线：${summary.curve.map((count, cost) => `${cost === 7 ? '7+' : cost} 费 ${count} 张`).join('，')}`}>
@@ -78,7 +77,7 @@ export default function ReadyDeckCard({ deck, cardsById, selected, onSelect }: {
         </span>)}
       </span>
       <span className="ready-deck-art" aria-hidden="true">
-        <img className="ready-deck-art-back" src={defaultCardBackForNation(summary.mainNation)} alt="" />
+        <img className="ready-deck-art-back" src={CARD_BACKS.find(back => back.id === deck.cardBackId)?.file} alt="" />
         {(art || headquarters) && <img className="ready-deck-art-front" src={art || headquarters!.image}
           alt={art && summary.featured ? cardDisplayTitle(summary.featured, 'zh-Hans') : headquarters?.name || ''}
           onError={art ? () => setArt('') : undefined} />}
@@ -87,14 +86,10 @@ export default function ReadyDeckCard({ deck, cardsById, selected, onSelect }: {
     <span className="ready-deck-footer">
       <span className="ready-deck-rarities">
         {RARITIES.map(rarity => <span key={rarity.id} title={`${rarity.label} ${summary.rarities[rarity.id] || 0} 张`}>
-          <span className="ready-deck-rarity-icon" role="img" aria-label={rarity.label} style={{
-            backgroundColor: RARITY_SLOTS[rarity.id].color,
-            maskImage: `url("./assets/filters/${rarity.id.toLowerCase()}.svg")`,
-          }} />
+          <img className="ready-deck-rarity-icon" src={`./assets/wildcards/${rarity.id.toLowerCase()}.svg`} alt={rarity.label} />
           <span>{summary.rarities[rarity.id] || 0}</span>
         </span>)}
       </span>
-      <span className="ready-deck-total" title="总张数包含 1 张总部">{summary.total} 张</span>
     </span>
   </button>;
 }

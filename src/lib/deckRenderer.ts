@@ -19,13 +19,13 @@ async function imageDataUrl(url: string): Promise<string> {
   });
 }
 
-export async function renderDeckImage(code: string, cards: KardsCardRecord[], title = 'KARDS 卡组', background?: string | null, headquartersId?: string, limit = 40): Promise<string> {
+export async function renderDeckImage(code: string, cards: KardsCardRecord[], title = 'KARDS 卡组', background?: string | null, headquartersId?: string, limit = 40, cardBackId?: string): Promise<string> {
   const deck = decodeDeckCode(code), index = findCardsByImportId(cards);
   const entries = [...deck.counts].sort(([a], [b]) => (index.get(a)?.json.kredits ?? 99) - (index.get(b)?.json.kredits ?? 99));
   if (background) background = await imageDataUrl(background);
   const headquarters = headquartersForDeck(headquartersId, deck.mainNation) || BUNKER_HEADQUARTERS;
   const headquartersImage = headquarters ? await imageDataUrl(headquarters.image).catch(() => null) : null;
-  const request: DeckRenderRequest = { title, code, headquartersId: headquartersImage ? headquarters?.groupId : BUNKER_HEADQUARTERS?.groupId, mainNation: deck.mainNation, allyNation: deck.allyNation, limit, background: background?.startsWith('data:') ? background : null,
+  const request: DeckRenderRequest = { title, code, headquartersId: headquartersImage ? headquarters?.groupId : BUNKER_HEADQUARTERS?.groupId, cardBackId, mainNation: deck.mainNation, allyNation: deck.allyNation, limit, background: background?.startsWith('data:') ? background : null,
     headquartersImage,
     cards: await Promise.all(entries.map(async ([id, count]) => ({ id, count, name: index.has(id) ? cardTitle(index.get(id)!, 'zh-Hans') : `未知卡牌 ${id}`, rarity: index.get(id)?.json.rarity || '', faction: index.get(id)?.json.faction, image: index.has(id) ? await getCachedCardImage(index.get(id)!) : null }))) };
   if (window.kardsDesktop?.renderDeckImage) return window.kardsDesktop.renderDeckImage(request);
@@ -42,16 +42,16 @@ async function renderBrowserPreview(request: DeckRenderRequest, background?: str
   const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = Math.max(1440, top + Math.ceil((total + 1) / cols) * (thumbH + gap) + 20);
   const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('无法创建画布');
   ctx.drawImage(bg, 0, 0, width, canvas.height);
-  const logo = await load('/assets/kards_logos/Common/KardsLogoWhite.png'); ctx.drawImage(logo, 40, -25, 240, 240);
+  const logo = await load('/assets/kards_logos/KardsLogoWhite.png'); ctx.drawImage(logo, 40, -25, 240, 240);
   ctx.fillStyle = '#f2ead6'; ctx.font = 'bold 48px Microsoft YaHei,sans-serif'; ctx.fillText(request.title, 350, 87, 1000);
   const [mainIcon, allyIcon, totalIcon] = await Promise.all([
     imageDataUrl(`./assets/filters/${deckCounterNationIcon(request.mainNation)}.svg`),
     imageDataUrl(`./assets/filters/${deckCounterNationIcon(request.allyNation)}.svg`),
-    imageDataUrl('./assets/kards_logos/Common/KardsLogoWhite_cards.png'),
+    imageDataUrl('./assets/kards_logos/KardsLogoWhite_cards.png'),
   ]);
   const counter = await load(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(deckRenderCounterSvg(request, { main: mainIcon, ally: allyIcon, total: totalIcon }))}`);
   ctx.drawImage(counter, 350, 110);
-  const qr = await load(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(deckQrSvg(request.code, request.headquartersId, request.title))}`);
+  const qr = await load(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(deckQrSvg(request.code, request.headquartersId, request.title, request.cardBackId))}`);
   ctx.drawImage(qr, 60 + (cols - 1) * (thumbW + gap) + thumbW - qr.width - 8, Math.round((top - qr.height) / 2) + 8);
   const rarities = ['Elite', 'Special', 'Limited', 'Standard'];
   for (let i = 0; i < 4; i++) {

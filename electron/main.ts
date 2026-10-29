@@ -46,7 +46,7 @@ function getRendererDistPath(relativePath = 'index.html') {
 }
 
 function getIconPath(dark = nativeTheme.shouldUseDarkColors) {
-  return path.join(__dirname, '..', 'dist', 'assets', 'kards_logos', 'Common', dark ? 'KardsLogoWhite_cards_new.png' : 'KardsLogoBlack_cards_new.png');
+  return path.join(__dirname, '..', 'dist', 'assets', 'kards_logos', dark ? 'KardsLogoWhite_cards_new.png' : 'KardsLogoBlack_cards_new.png');
 }
 
 async function showLoadFailure(mainWindow: BrowserWindow, details: string) {

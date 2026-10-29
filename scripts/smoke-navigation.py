@@ -133,7 +133,7 @@ with sync_playwright() as p:
     page.get_by_role("button", name="设置", exact=True).click()
     select_value(page, "显示模式", "light")
     page.get_by_role("button", name="保存并返回", exact=True).click()
-    expect(page.get_by_alt_text("KARDS Logo", exact=True)).to_have_attribute("src", "/assets/kards_logos/Common/KardsLogoBlack.png")
+    expect(page.get_by_alt_text("KARDS Logo", exact=True)).to_have_attribute("src", "/assets/kards_logos/KardsLogoBlack.png")
     page.wait_for_timeout(350)
     if not SKIP_VISUAL: page.screenshot(path=str(OUT / "about-light-min.png"))
     assert page.evaluate("document.documentElement.scrollWidth") == 980

@@ -27,7 +27,8 @@ async function main() {
       return { id, name: card.json.title['zh-Hans'], count: group + 1, image: null, rarity: card.json.rarity, faction: card.json.faction };
     }));
     const headquartersImage = `data:image/png;base64,${(await fs.readFile(path.join(root, 'public', hq.image))).toString('base64')}`;
-    const rendered = await page.evaluate(request => window.kardsDesktop.renderDeckImage(request), { title: 'QR round trip', code, headquartersId: hq.groupId, mainNation: 'Japan', allyNation: 'Germany', headquartersImage, cards });
+    const cardBackId = 'cardback-050';
+    const rendered = await page.evaluate(request => window.kardsDesktop.renderDeckImage(request), { title: 'QR round trip', code, headquartersId: hq.groupId, cardBackId, mainNation: 'Japan', allyNation: 'Germany', headquartersImage, cards });
     const file = { name: 'deck.png', mimeType: 'image/png', buffer: Buffer.from(rendered.split(',')[1], 'base64') };
     const openImport = async () => {
       await page.getByRole('button', { name: '新卡组', exact: true }).click();
@@ -47,6 +48,7 @@ async function main() {
     await page.getByRole('button', { name: '更换总部', exact: true }).click();
     await expect(page.getByRole('button', { name: `使用总部 ${hq.name}`, exact: true })).toHaveAttribute('aria-pressed', 'true');
     await page.getByRole('button', { name: '关闭更换总部', exact: true }).click();
+    await expect(page.getByAltText('Image round trip', { exact: true })).toHaveAttribute('src', '/assets/cardbacks/Japan/cardback-050.png');
 
     dialog = await openImport();
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="700"><rect width="100%" height="100%" fill="white"/><g font-family="Microsoft YaHei" font-size="48" fill="black">${['OCR Pioneer', '第 50 步兵团', '第 50 步兵团', '第 50 步兵团', 'OT-34'].map((name, i) => `<text x="40" y="${100 + i * 120}">${name}</text>`).join('')}</g></svg>`;
@@ -69,7 +71,7 @@ async function main() {
     dialog = await openImport();
     await expect(dialog.getByRole('textbox').last()).toHaveValue('');
     assert.deepEqual(errors, []);
-    console.log('Deck image desktop smoke passed: Sharp QR, production worker, headquarters round trip, actual Windows OCR, failure preservation and cancel/reopen');
+    console.log('Deck image desktop smoke passed: Sharp QR, production worker, headquarters/card back round trip, actual Windows OCR, failure preservation and cancel/reopen');
   } finally {
     await app.close();
   }

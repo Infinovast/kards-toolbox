@@ -52,14 +52,14 @@ function usePreviewDismissal(open: boolean, hide: () => void) {
 // Median RGB of x=120..390, y=80..88 in the supplied 500px card headers.
 // Nation colors are shared by card rows and headquarters rows.
 export const CARD_STRIP_NATIONS: Record<string, { color: string; icon: string; darkText?: boolean }> = {
-  Germany: { color: '#5e6b66', icon: './assets/icons/Germany/German.png' },
-  Britain: { color: '#968c6f', icon: './assets/icons/Britain/Britain.png', darkText: true },
-  Japan: { color: '#9e8041', icon: './assets/icons/Japan/Japan.png', darkText: true },
-  Soviet: { color: '#655541', icon: './assets/icons/Soviet/Soviet.png' },
-  USA: { color: '#656d4f', icon: './assets/icons/USA/Usa.png' },
-  France: { color: '#515a78', icon: './assets/icons/France/France.png' },
-  Italy: { color: '#6a6969', icon: './assets/icons/Italy/Italy.png' },
-  Poland: { color: '#676452', icon: './assets/icons/Poland/Poland.jpg' },
+  Germany: { color: '#5e6b66', icon: './assets/icons/German.png' },
+  Britain: { color: '#968c6f', icon: './assets/icons/Britain.png', darkText: true },
+  Japan: { color: '#9e8041', icon: './assets/icons/Japan.png', darkText: true },
+  Soviet: { color: '#655541', icon: './assets/icons/Soviet.png' },
+  USA: { color: '#656d4f', icon: './assets/icons/Usa.png' },
+  France: { color: '#515a78', icon: './assets/icons/France.png' },
+  Italy: { color: '#6a6969', icon: './assets/icons/Italy.png' },
+  Poland: { color: '#676452', icon: './assets/icons/Poland.jpg' },
   Finland: { color: '#bbbaaa', icon: './assets/filters/finland.svg', darkText: true },
   Neutral: { color: '#3c3d41', icon: './assets/filters/neutral.svg' },
   Anzac: { color: '#9e6f34', icon: './assets/filters/anzac.svg', darkText: true },

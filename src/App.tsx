@@ -167,29 +167,29 @@ const ERROR_LOCALE: Record<string, string> = {
 const NATION_DATA: Record<Nation, { label: string, color: string, flag: string, isMainAllowed: boolean, icon: string }> = {
   Germany: { 
     label: '德', color: '#3d3d3d', flag: 'de', isMainAllowed: true,
-    icon: '/assets/icons/Germany/German.png'
+    icon: '/assets/icons/German.png'
   },
   Britain: { 
     label: '英', color: '#002366', flag: 'gb', isMainAllowed: true,
-    icon: '/assets/icons/Britain/Britain.png'
+    icon: '/assets/icons/Britain.png'
   },
   Japan: { 
     label: '日', color: '#bc002d', flag: 'jp', isMainAllowed: true,
-    icon: '/assets/icons/Japan/Japan.png'
+    icon: '/assets/icons/Japan.png'
   },
   Soviet: { 
     label: '苏', color: '#cc0000', flag: 'su', isMainAllowed: true,
-    icon: '/assets/icons/Soviet/Soviet.png'
+    icon: '/assets/icons/Soviet.png'
   },
   USA: { 
     label: '美', color: '#3c3b6e', flag: 'us', isMainAllowed: true,
-    icon: '/assets/icons/USA/Usa.png'
+    icon: '/assets/icons/Usa.png'
   },
-  France: { label: '法', color: '#0055A4', flag: 'fr', isMainAllowed: false, icon: '/assets/icons/France/France.png' },
-  Italy: { label: '意', color: '#008C45', flag: 'it', isMainAllowed: false, icon: '/assets/icons/Italy/Italy.png' },
-  Poland: { label: '波', color: '#DC143C', flag: 'pl', isMainAllowed: false, icon: '/assets/icons/Poland/Poland.jpg' },
-  Finland: { label: '芬', color: '#003580', flag: 'fi', isMainAllowed: false, icon: '/assets/icons/Finland/Finland.png' },
-  Anzac: { label: '澳', color: '#9E6F34', flag: 'an', isMainAllowed: false, icon: '/assets/icons/ANZAC/anzac.svg' },
+  France: { label: '法', color: '#0055A4', flag: 'fr', isMainAllowed: false, icon: '/assets/icons/France.png' },
+  Italy: { label: '意', color: '#008C45', flag: 'it', isMainAllowed: false, icon: '/assets/icons/Italy.png' },
+  Poland: { label: '波', color: '#DC143C', flag: 'pl', isMainAllowed: false, icon: '/assets/icons/Poland.jpg' },
+  Finland: { label: '芬', color: '#003580', flag: 'fi', isMainAllowed: false, icon: '/assets/icons/Finland.png' },
+  Anzac: { label: '澳', color: '#9E6F34', flag: 'an', isMainAllowed: false, icon: '/assets/icons/anzac.svg' },
 };
 
 const NATION_FLAG_ASSETS: Record<string, string> = {
@@ -255,6 +255,7 @@ export default function App() {
   const [showNewDeckModal, setShowNewDeckModal] = useState(false);
   const [importCode, setImportCode] = useState('');
   const [importHeadquartersId, setImportHeadquartersId] = useState<string | undefined>();
+  const [importCardBackId, setImportCardBackId] = useState<string | undefined>();
   const [importImageBusy, setImportImageBusy] = useState(false);
   const cancelImageImport = useRef<(() => void) | null>(null);
   const [importName, setImportName] = useState('');
@@ -476,7 +477,7 @@ export default function App() {
 
   useEffect(() => {
     const icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
-    if (icon) icon.href = new URL('./assets/kards_logos/Common/' + (effectiveIsDarkMode ? 'KardsLogoWhite_cards_new.png' : 'KardsLogoBlack_cards_new.png'), document.baseURI).href;
+    if (icon) icon.href = new URL('./assets/kards_logos/' + (effectiveIsDarkMode ? 'KardsLogoWhite_cards_new.png' : 'KardsLogoBlack_cards_new.png'), document.baseURI).href;
   }, [effectiveIsDarkMode]);
 
   useEffect(() => {
@@ -578,7 +579,7 @@ export default function App() {
   const [collectionToDelete, setCollectionToDelete] = useState<Collection | null>(null);
   const [collectionToRename, setCollectionToRename] = useState<Collection | null>(null);
   const [renameCollectionName, setRenameCollectionName] = useState('');
-  const [deckImageModal, setDeckImageModal] = useState<{show: boolean, deck: Pick<Deck, 'name' | 'code' | 'headquartersId' | 'ruleSet' | 'customRules'> | null, loading: boolean, imageUrl: string | null, error: string | null, tablecloth: string}>({show: false, deck: null, loading: false, imageUrl: null, error: null, tablecloth: DEFAULT_TABLECLOTH});
+  const [deckImageModal, setDeckImageModal] = useState<{show: boolean, deck: Pick<Deck, 'name' | 'code' | 'headquartersId' | 'ruleSet' | 'customRules' | 'cardBackUrl' | 'allyNation'> | null, loading: boolean, imageUrl: string | null, error: string | null, tablecloth: string}>({show: false, deck: null, loading: false, imageUrl: null, error: null, tablecloth: DEFAULT_TABLECLOTH});
   const [tableclothPickerForImage, setTableclothPickerForImage] = useState(false);
   const deckImageRequest = useRef(0);
   const closeDeckImage = () => { deckImageRequest.current++; setTableclothPickerForImage(false); setDeckImageModal(current => ({ ...current, show: false })); };
@@ -588,17 +589,20 @@ export default function App() {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'tablecloth' | 'cardback', id: string, catId?: string } | null>(null);
 
-  const getOrGenerateDeckImage = async (deck: Pick<Deck, 'name' | 'code' | 'headquartersId' | 'ruleSet' | 'customRules'> & { mainNation?: string }, backgroundOverride?: string) => {
+  const getOrGenerateDeckImage = async (deck: Pick<Deck, 'name' | 'code' | 'headquartersId' | 'ruleSet' | 'customRules' | 'cardBackUrl' | 'allyNation'> & { mainNation?: string }, backgroundOverride?: string) => {
     const mainNation = deck.mainNation || decodeDeckCode(deck.code).mainNation;
     const headquarters = headquartersForDeck(deck.headquartersId, mainNation);
     const background = backgroundOverride || tableclothForHeadquarters(headquarters?.groupId) || selectedTablecloth;
     const limit = (deck.ruleSet === 'custom' ? deck.customRules?.deckSize ?? DEFAULT_DECK_RULES.standard.deckSize : DEFAULT_DECK_RULES.standard.deckSize) + 1;
-    const imageData = await renderDeckImage(deck.code, cardDatabase, deck.name, background, deck.headquartersId, limit);
+    const cardBackUrl = cardBackForDeck({ ...deck, mainNation });
+    const customBack = customCategories.flatMap(category => category.backs).find(back => back.url === cardBackUrl);
+    const cardBackId = CARD_BACKS.find(back => back.file === cardBackUrl)?.id || (customBack ? `custom:${customBack.id}` : undefined);
+    const imageData = await renderDeckImage(deck.code, cardDatabase, deck.name, background, deck.headquartersId, limit, cardBackId);
     await localforage.setItem(`deck_img_local_v1_${deck.code}`, imageData);
     return imageData;
   };
 
-  const handleGetDeckImage = async (deck: Pick<Deck, 'name' | 'code' | 'headquartersId' | 'ruleSet' | 'customRules'> & { mainNation?: string }) => {
+  const handleGetDeckImage = async (deck: Pick<Deck, 'name' | 'code' | 'headquartersId' | 'ruleSet' | 'customRules' | 'cardBackUrl' | 'allyNation'> & { mainNation?: string }) => {
     const request = ++deckImageRequest.current;
     const mainNation = deck.mainNation || decodeDeckCode(deck.code).mainNation;
     const background = tableclothForHeadquarters(headquartersForDeck(deck.headquartersId, mainNation)?.groupId) || selectedTablecloth;
@@ -819,6 +823,7 @@ export default function App() {
     setImportCode('');
     setImportName('');
     setImportHeadquartersId(undefined);
+    setImportCardBackId(undefined);
     setImportImageBusy(false);
     setErrorStatus(null);
   };
@@ -831,16 +836,20 @@ export default function App() {
     if (!clipboardDeckCandidate) return;
 
     setImportCode(clipboardDeckCandidate.sourceText);
+    setImportHeadquartersId(undefined);
+    setImportCardBackId(undefined);
     setImportName(currentName => currentName || clipboardDeckCandidate.name);
     setErrorStatus(null);
     setShowImportModal(true);
     setClipboardDeckCandidate(null);
   };
 
-  const addDeckFromCode = (sourceText: string, name: string, headquartersId?: string) => {
+  const addDeckFromCode = (sourceText: string, name: string, headquartersId?: string, cardBackId?: string) => {
       const deckCode = extractDeckCodeFromText(sourceText);
       const inferredName = inferDeckTitleFromText(sourceText, deckCode);
       const { mainNation, allyNation, totalCards, warnings, isArena, defaultName } = parseDeck(deckCode);
+      const catalogBack = CARD_BACKS.find(back => back.id === cardBackId && cardBackIsAvailable(back, mainNation, allyNation));
+      const customBack = cardBackId?.startsWith('custom:') ? customCategories.flatMap(category => category.backs).find(back => back.id === cardBackId.slice(7)) : undefined;
       
       const newDeck: Deck = {
         id: crypto.randomUUID(),
@@ -849,6 +858,9 @@ export default function App() {
         allyNation,
         code: deckCode,
         headquartersId: headquartersOptions(mainNation).some(item => item.groupId === headquartersId) ? headquartersId : undefined,
+        cardBackUrl: catalogBack?.file || customBack?.url,
+        cardBackScope: catalogBack?.scope,
+        cardBackNation: catalogBack?.nation,
         isFavorite: false,
         totalCards,
         warnings: validateDeck(decodeDeckCode(deckCode).counts, findCardsByImportId(cardDatabase), mainNation, allyNation, DEFAULT_DECK_RULES[isArena ? 'arena' : 'standard']),
@@ -860,6 +872,7 @@ export default function App() {
       setImportCode('');
       setImportName('');
       setImportHeadquartersId(undefined);
+      setImportCardBackId(undefined);
       setShowImportModal(false);
       setShowNewDeckModal(false);
       setErrorStatus(null);
@@ -874,7 +887,7 @@ export default function App() {
   const handleAddDeck = () => {
     if (!importCode.trim() || importImageBusy) return;
     try {
-      addDeckFromCode(importCode, importName, importHeadquartersId);
+      addDeckFromCode(importCode, importName, importHeadquartersId, importCardBackId);
     } catch (e: any) {
       setErrorStatus(ERROR_LOCALE[e.message] || e.message || '格式错误');
     }
@@ -1233,7 +1246,7 @@ export default function App() {
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-3">
             <img 
-              src={effectiveIsDarkMode ? "/assets/kards_logos/Common/KardsLogoWhite_icon_new.png" : "/assets/kards_logos/Common/KardsLogoBlack_icon_new.png"}
+              src={effectiveIsDarkMode ? "/assets/kards_logos/KardsLogoWhite_icon_new.png" : "/assets/kards_logos/KardsLogoBlack_icon_new.png"}
               alt="KARDS Logo" 
               className="h-16 w-auto transition-opacity"
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
@@ -1290,7 +1303,7 @@ export default function App() {
         {/* Left Sidebar */}
         {activeMenu !== 'builder' && <aside aria-label="主导航" className="glass-panel w-24 shrink-0 flex flex-col gap-1 p-1 z-10 border-r border-kards-border transition-colors duration-300">
           <SidebarButton active={activeMenu === 'decks'} onClick={() => setActiveMenu('decks')} icon={<Library className="w-8 h-8" />} label="卡组" />
-          <SidebarButton active={activeMenu === 'cards'} onClick={() => setActiveMenu('cards')} icon={<img src={effectiveIsDarkMode ? "/assets/kards_logos/Common/KardsLogoBeige_cards.png" : "/assets/kards_logos/Common/KardsLogoBlack_cards.png"} alt="" className="h-8 w-8 object-contain" />} label="卡牌" />
+          <SidebarButton active={activeMenu === 'cards'} onClick={() => setActiveMenu('cards')} icon={<img src={effectiveIsDarkMode ? "/assets/kards_logos/KardsLogoBeige_cards.png" : "/assets/kards_logos/KardsLogoBlack_cards.png"} alt="" className="h-8 w-8 object-contain" />} label="卡牌" />
           <div aria-label="应用工具" className="mt-auto flex flex-col gap-1 border-t border-kards-border pt-1">
             <SidebarButton active={showTableclothModal} onClick={() => openTableclothPicker()} icon={<Palette className="w-6 h-6" />} label="桌布" />
             <SidebarButton active={activeMenu === 'settings'} onClick={() => { if (activeMenu !== 'settings') setSettingsReturnMenu(activeMenu); setActiveMenu('settings'); }} icon={<Settings className="w-6 h-6" />} label="设置" />
@@ -1621,7 +1634,7 @@ export default function App() {
           setActiveMenu('builder');
         }}
         onImport={() => { setShowNewDeckModal(false); setErrorStatus(null); setShowImportModal(true); }}
-        onPreset={preset => addDeckFromCode(preset.code, preset.name)}
+        onPreset={preset => addDeckFromCode(preset.code, preset.name, undefined, preset.cardBackId)}
       />}
       <AnimatePresence>
         {showImportModal && (
@@ -1666,7 +1679,7 @@ export default function App() {
                     className="w-full bg-kards-input-bg border border-kards-border px-4 py-3 text-kards-text focus:outline-none focus:border-kards-gold transition-colors mb-4 rounded-md"
                   />
                   <DeckImageImport cards={cardDatabase} cancelRef={cancelImageImport} onBusyChange={setImportImageBusy} onError={setErrorStatus}
-                    onRecognized={result => { setImportCode(result.code); setImportHeadquartersId(result.headquartersId); if (result.name) setImportName(result.name); }} />
+                    onRecognized={result => { setImportCode(result.code); setImportHeadquartersId(result.headquartersId); setImportCardBackId(result.cardBackId); if (result.name) setImportName(result.name); }} />
                   <label className="block text-xs uppercase tracking-wider text-kards-text-muted mb-2 mt-4 font-bold">输入卡组码</label>
                   <textarea
                     value={importCode || ''}
@@ -1674,6 +1687,7 @@ export default function App() {
                     onChange={(e) => {
                       setImportCode(e.target.value);
                       setImportHeadquartersId(undefined);
+                      setImportCardBackId(undefined);
                       setErrorStatus(null);
                     }}
                     placeholder="例如: %%53|5ucCbn;5W6L... 或直接粘贴游戏内复制的整段卡组列表"
