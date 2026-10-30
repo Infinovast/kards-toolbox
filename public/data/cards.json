@@ -1965,7 +1965,7 @@
       "importId": "Cj",
       "json": {
         "id": "102_grenadier_vet",
-        "set": "Special",
+        "set": "OceaniaStorm",
         "text": {},
         "type": "infantry",
         "image": "102_grenadier_vet.avif",
@@ -2403,7 +2403,7 @@
       "importId": "Bg",
       "json": {
         "id": "12th_guards_mechanised_vet",
-        "set": "Special",
+        "set": "BloodAndIron",
         "text": {
           "de-DE": "Ziehe 2 Karten, wenn diese Einheit Veteran wird.",
           "en-EN": "Draw 2 cards when this unit becomes Veteran.",
@@ -4850,7 +4850,7 @@
       "importId": "DF",
       "json": {
         "id": "7th_brigade_vet",
-        "set": "Special",
+        "set": "OceaniaStorm",
         "text": {
           "de-DE": "Wenn diese Einheit Veteran wird, ziehe 2 Karten.",
           "en-EN": "When this unit becomes Veteran, draw 2 cards.",
@@ -11347,7 +11347,7 @@
       "importId": "Cl",
       "json": {
         "id": "panzer_ib_vet",
-        "set": "Special",
+        "set": "BrothersInArms",
         "text": {
           "de-DE": "Wenn diese Einheit Veteran wird, füge deiner Hand einen PANZER I-B hinzu.",
           "en-EN": "When this unit becomes Veteran, add a PANZER I-B to your hand.",
@@ -16358,7 +16358,7 @@
       "importId": "Bi",
       "json": {
         "id": "190th_guard_rifles_vet",
-        "set": "Special",
+        "set": "BloodAndIron",
         "text": {
           "de-DE": "Erhält zu Beginn deines Zuges Schock.",
           "en-EN": "Gains Shock at the start of your turn.",
@@ -16767,7 +16767,7 @@
       "importId": "Ag",
       "json": {
         "id": "22nd_marines_vet",
-        "set": "Special",
+        "set": "NavalWarfare",
         "text": {
           "de-DE": "Verursacht doppelten Schaden, wenn die oberste Karte auf deinem Deck eine Marine-Karte ist.",
           "en-EN": "Deals double damage if there is a Navy card on top of your deck.",
@@ -18077,7 +18077,7 @@
       "importId": "Cr",
       "json": {
         "id": "50_infantry_regiment_vet",
-        "set": "Special",
+        "set": "BrothersInArms",
         "text": {},
         "type": "infantry",
         "image": "50_infantry_regiment_vet.avif",
@@ -18170,7 +18170,7 @@
       "importId": "Bw",
       "json": {
         "id": "511th_regiment_vet",
-        "set": "Special",
+        "set": "OceaniaStorm",
         "text": {
           "de-DE": "Deine Infanterie mit 1 Verteidigung hat +2 Angriff.",
           "en-EN": "Your infantry with 1 defense have +2 attack.",
@@ -18627,7 +18627,7 @@
       "importId": "Cq",
       "json": {
         "id": "64_panzergrenadier_vet",
-        "set": "Special",
+        "set": "WinterWar",
         "text": {
           "de-DE": "Wenn diese Einheit Veteran wird, erhältst du 2 zusätzliche Kredits.",
           "en-EN": "When this unit becomes Veteran gain 2 additional kredits.",
@@ -20726,7 +20726,7 @@
       "importId": "Bo",
       "json": {
         "id": "bt7_1937_vet",
-        "set": "Special",
+        "set": "BrothersInArms",
         "text": {
           "de-DE": "Jedes Mal, wenn der Feind eine Karte zieht, wird dem feindlichen HQ 2 Schaden zugefügt.",
           "en-EN": "Each time the enemy draws a card, deal 2 damage to the enemy HQ.",
@@ -32291,7 +32291,7 @@
       "importId": "DY",
       "json": {
         "id": "102nd_rifles_vet",
-        "set": "Special",
+        "set": "OceaniaStorm",
         "text": {
           "de-DE": "Wenn diese Einheit Veteran wird, füge deiner Hand DER HAMMER hinzu.",
           "en-EN": "When this unit becomes Veteran, add a THE HAMMER to your hand.",
@@ -32845,7 +32845,7 @@
       "importId": "E2",
       "json": {
         "id": "14_panzergrenadier_vet",
-        "set": "Special",
+        "set": "OceaniaStorm",
         "text": {
           "de-DE": "Deine festgesetzen Einheiten können sich bewegen und angreifen.",
           "en-EN": "Your Pinned units can operate.",
@@ -33777,7 +33777,7 @@
       "importId": "Bv",
       "json": {
         "id": "216th_guards_vet",
-        "set": "Special",
+        "set": "OceaniaStorm",
         "text": {
           "de-DE": "Deine anderen Einheiten und dein HQ erhalten +3 Verteidigung, wenn diese Einheit Veteran wird.",
           "en-EN": "Your other units and HQ get +3 defense when this unit becomes Veteran.",
@@ -33987,7 +33987,7 @@
       "importId": "Bj",
       "json": {
         "id": "252nd_rifles_vet",
-        "set": "Special",
+        "set": "WinterWar",
         "text": {
           "de-DE": "Kann nicht festgesetzt oder unterdrückt werden. Erleidet 1 weniger Kampfschaden von Bodeneinheiten.",
           "en-EN": "Cannot be pinned or suppressed. Takes 1 less combat damage from ground units.",
@@ -34095,7 +34095,7 @@
       "importId": "Bl",
       "json": {
         "id": "269th_rifles_vet",
-        "set": "Special",
+        "set": "BloodAndIron",
         "text": {
           "de-DE": "Aktionen deiner anderen Panzer kosten 1 weniger.",
           "en-EN": "Your tanks operate for 1 less.",
@@ -34598,7 +34598,7 @@
       "importId": "Ah",
       "json": {
         "id": "327th_pathfinders_vet",
-        "set": "Special",
+        "set": "BrothersInArms",
         "text": {
           "de-DE": "Zu Beginn deines Zuges zieht sich eine zufällige gegnerische Einheit zurück",
           "en-EN": "At the start of your turn, a random enemy unit Retreats.",
@@ -36555,7 +36555,7 @@
       "importId": "Bx",
       "json": {
         "id": "641st_rifles_vet",
-        "set": "Special",
+        "set": "OceaniaStorm",
         "text": {
           "de-DE": "Zerstörung: Ziehe eine Karte, wenn diese Einheit in diesem Zug eine feindliche Einheit zerstört hat.",
           "en-EN": "Destruction: Draw a card if this unit destroyed an enemy unit this turn.",
@@ -36763,7 +36763,7 @@
       "importId": "zI",
       "json": {
         "id": "6th_brigade_nz_vet",
-        "set": "Special",
+        "set": "OceaniaStorm",
         "text": {
           "de-DE": "Wenn eine verbündete Einheit Veteran wird, füge einem zufälligen Feind 1 Schaden zu.",
           "en-EN": "Deal 1 damage to a random enemy when a friendly unit becomes Veteran.",
@@ -41505,7 +41505,7 @@
       "importId": "B9",
       "json": {
         "id": "hurricane_mk_iic_trop_vet",
-        "set": "Special",
+        "set": "BrothersInArms",
         "text": {},
         "type": "fighter",
         "image": "hurricane_mk_iic_trop_vet.avif",
@@ -45600,7 +45600,7 @@
       "importId": "zH",
       "json": {
         "id": "raaf_walrus_vet",
-        "set": "Special",
+        "set": "OceaniaStorm",
         "text": {
           "de-DE": "Einheiten, die sich links von dieser Einheit befinden, haben -1 Aktionskosten.",
           "en-EN": "Units to the left of this unit operate for 1 less.",
@@ -47601,7 +47601,7 @@
       "importId": "Aj",
       "json": {
         "id": "the_regulars_vet",
-        "set": "Special",
+        "set": "BrothersInArms",
         "text": {
           "de-DE": "Wenn diese Einheit Veteran wird, füge deiner Hand EINIGKEIT MACHT STARK hinzu.",
           "en-EN": "When this unit becomes Veteran, add UNITY IS STRENGTH to your hand.",
@@ -48734,7 +48734,7 @@
       "importId": "Ao",
       "json": {
         "id": "wolfhounds_vet",
-        "set": "Special",
+        "set": "OceaniaStorm",
         "text": {
           "de-DE": "Gib deinen Infanterieeinheiten einmal pro Zug +1+2, nachdem du eine Infanterie eingesetzt oder hinzugefügt hast.",
           "en-EN": "Once per turn, give your infantry units +1+2 after you deploy or add an infantry.",
@@ -49600,7 +49600,7 @@
       "importId": "Bh",
       "json": {
         "id": "14th_guard_rifles_vet",
-        "set": "Special",
+        "set": "BrothersInArms",
         "text": {},
         "type": "infantry",
         "image": "14th_guard_rifles_vet.avif",
@@ -49791,7 +49791,7 @@
       "importId": "zJ",
       "json": {
         "id": "16th_infantry_brigade_vet",
-        "set": "Special",
+        "set": "OceaniaStorm",
         "text": {
           "de-DE": "Deine Einheiten erhalten +2+2, nachdem du eine Regen- oder eine Sturm-Karte gespielt hast.",
           "en-EN": "Your units get +2+2 after you play a Rain or a Storm card.",
@@ -50000,7 +50000,7 @@
       "importId": "Dz",
       "json": {
         "id": "182_landwehr_vet",
-        "set": "Special",
+        "set": "OceaniaStorm",
         "text": {
           "de-DE": "Nachdem du eine Einheit bewegt oder mit ihr angegriffen hast, erhalte Kredits in Höhe der Kredits, die für diese Aktion ausgegeben wurden.",
           "en-EN": "After you operate a unit, gain kredits equal to the kredits spent to operate it.",
@@ -50421,7 +50421,7 @@
       "importId": "Ba",
       "json": {
         "id": "22nd_guards_brigade_vet",
-        "set": "Special",
+        "set": "Base",
         "text": {
           "de-DE": "Wenn diese Einheit Veteran wird, füge allen Feinden 3 Schaden zu.",
           "en-EN": "When this unit becomes Veteran, deal 3 damage to each enemy.",
@@ -51225,7 +51225,7 @@
       "importId": "Bm",
       "json": {
         "id": "392nd_rifles_vet",
-        "set": "Special",
+        "set": "CovertOps",
         "text": {
           "de-DE": "Deine beschädigten Einheiten haben +2 Angriff.",
           "en-EN": "Your damaged units have +2 attack.",
@@ -52456,7 +52456,7 @@
       "importId": "Cp",
       "json": {
         "id": "7_schtzen_vet",
-        "set": "Special",
+        "set": "BrothersInArms",
         "text": {
           "de-DE": "Wenn diese Einheit Veteran wird, füge dem feindlichen HQ 3 Schaden zu.",
           "en-EN": "When this unit becomes Veteran, deal 3 damage to the enemy HQ.",
@@ -55470,7 +55470,7 @@
       "importId": "Ci",
       "json": {
         "id": "fw_ta_152_vet",
-        "set": "Special",
+        "set": "OceaniaStorm",
         "text": {
           "de-DE": "Feindliche Einheiten werden bis zum Ende des Zugs festgesetzt, nachdem sie sich bewegt, angegriffen haben oder eingesetzt wurden.",
           "en-EN": "Enemy units are pinned until end of turn after they operate or are deployed.",
@@ -56842,7 +56842,7 @@
       "importId": "CM",
       "json": {
         "id": "ki45_dragon_slayer_vet",
-        "set": "Special",
+        "set": "BrothersInArms",
         "text": {},
         "type": "fighter",
         "image": "ki45_dragon_slayer_vet.avif",
@@ -57705,7 +57705,7 @@
       "importId": "B8",
       "json": {
         "id": "matilda_mk_iv_vet",
-        "set": "Special",
+        "set": "BloodAndIron",
         "text": {
           "de-DE": "Zu Beginn deines Zuges wird eine zufällige feindliche Einheit festgesetzt.",
           "en-EN": "At the start of your turn, pin a random enemy unit.",
@@ -58946,7 +58946,7 @@
       "importId": "Cn",
       "json": {
         "id": "panzer_iiij_late_vet",
-        "set": "Special",
+        "set": "BloodAndIron",
         "text": {},
         "type": "tank",
         "image": "panzer_iiij_late_vet.avif",
@@ -60823,7 +60823,7 @@
       "importId": "Ck",
       "json": {
         "id": "stuka_87g_vet",
-        "set": "Special",
+        "set": "BrothersInArms",
         "text": {
           "de-DE": "Der Feind wirft eine Karte ab, wenn du eine Bodeneinheit angreifst und zerstörst.",
           "en-EN": "The enemy discards a card when you attack and destroy a ground unit.",
@@ -69246,7 +69246,7 @@
       "importId": "zG",
       "json": {
         "id": "the_silent_seventh_vet",
-        "set": "Special",
+        "set": "OceaniaStorm",
         "text": {
           "de-DE": "Deine Karte ganz links in der Hand kostet 2 weniger, mindestens aber 1.",
           "en-EN": "Your left-most card costs 2 less, to a minimum of 1.",
@@ -69353,7 +69353,7 @@
       "importId": "DA",
       "json": {
         "id": "tropic_lightning_vet",
-        "set": "Special",
+        "set": "OceaniaStorm",
         "text": {
           "de-DE": "Entwickle zu Beginn deines Zuges EINE HANDVOLL HELDEN, ZWANG oder FÜR DIE FREIHEIT.",
           "en-EN": "At the start of your turn, Develop A FEW GOOD MEN, DURESS or FOR FREEDOM.",
@@ -70044,7 +70044,7 @@
       "importId": "Ct",
       "json": {
         "id": "119_grenadier_vet",
-        "set": "Special",
+        "set": "BrothersInArms",
         "text": {
           "de-DE": "Gib am Ende deines Zuges allen feindlichen Einheiten -1-2.",
           "en-EN": "At the end of your turn give all enemy units -1-2.",
@@ -70415,7 +70415,7 @@
       "importId": "Bk",
       "json": {
         "id": "266th_guard_rifles_vet",
-        "set": "Special",
+        "set": "BrothersInArms",
         "text": {
           "de-DE": "Wenn du eine Einheit einsetzt, wird sie, wenn möglich, Veteran.",
           "en-EN": "When you deploy a unit, it becomes Veteran if able.",
@@ -70521,7 +70521,7 @@
       "importId": "Cs",
       "json": {
         "id": "35_grenadier_vet",
-        "set": "Special",
+        "set": "BrothersInArms",
         "text": {
           "de-DE": "Am Ende deines Zuges erleidet das feindliche HQ 4 Schaden.",
           "en-EN": "At the end of your turn, the enemy HQ takes 4 damage.",
@@ -71343,7 +71343,7 @@
       "importId": "Co",
       "json": {
         "id": "ace_of_spades_vet",
-        "set": "Special",
+        "set": "Homefront",
         "text": {
           "de-DE": "Sende zu Beginn deines Zugs alle Einheiten auf die Hand ihres Besitzers zurück.",
           "en-EN": "At the start of your turn, send all units to hand.",
@@ -71889,7 +71889,7 @@
       "importId": "CL",
       "json": {
         "id": "cedar_division_vet",
-        "set": "Special",
+        "set": "BloodAndIron",
         "text": {
           "de-DE": "Ziehe 2 Karten, wenn deine Hand zu Beginn deines Zuges leer ist.",
           "en-EN": "Draw 2 additional cards if your hand is empty at the start of your turn.",
@@ -72187,7 +72187,7 @@
       "importId": "An",
       "json": {
         "id": "cyclone_division_vet",
-        "set": "Special",
+        "set": "BloodAndIron",
         "text": {
           "de-DE": "Füge deiner Hand zu Beginn deines Zuges einen zufälligen Sherman-Panzer mit Blitz hinzu.",
           "en-EN": "At the start of your turn, add a random Sherman to your hand with Blitz.",
@@ -75042,7 +75042,7 @@
       "importId": "Af",
       "json": {
         "id": "179th_tomahawks_vet",
-        "set": "Special",
+        "set": "BrothersInArms",
         "text": {
           "de-DE": "Zu Beginn deines Zuges zerstöre eine zufällige gegnerische Einheit.",
           "en-EN": "At the start of your turn, destroy a random enemy unit.",
@@ -76470,7 +76470,7 @@
       "importId": "Cm",
       "json": {
         "id": "panzer_ivh_vet",
-        "set": "Special",
+        "set": "BloodAndIron",
         "text": {
           "de-DE": "Deine Bodeneinheiten mit 4 oder mehr Angriffen haben Blitz.",
           "en-EN": "Your ground units with 4 or more attack have Blitz.",
@@ -77366,7 +77366,7 @@
       "importId": "Ai",
       "json": {
         "id": "47th_infantry_regiment_vet",
-        "set": "Special",
+        "set": "Breakthrough",
         "text": {
           "de-DE": "Wenn das 47. INFANTERIEREGIMENT an die Front rückt, füge eine Kopie daneben hinzu.",
           "en-EN": "When 47th INFANTRY REGIMENT moves to the frontline, add a copy beside it.",

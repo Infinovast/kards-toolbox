@@ -90,12 +90,21 @@ export function validateCardRecords(values: unknown, source: CardDataSource = 'k
   if (!Array.isArray(values) || !values.length) throw new Error('牌库为空或格式无效，已保留当前数据');
   const seen = new Set<string>();
   const seenCardIds = new Set<string>();
-  return values.map(value => {
+  const cards = values.map(value => {
     const card = normalizeCardRecord(value, source);
     if (seen.has(card.importId) || seenCardIds.has(card.cardId)) throw new Error(`牌库存在重复卡牌 ${card.importId}，请重新获取`);
     seen.add(card.importId);
     seenCardIds.add(card.cardId);
     return card;
+  });
+  // Veteran forms inherit their base set. Resolve after collecting records so
+  // bases from later API pages and existing local snapshots work identically.
+  const byId = new Map(cards.map(card => [card.cardId, card]));
+  return cards.map(card => {
+    if (card.json.set !== 'Special') return card;
+    const baseId = card.json.attributes?.find(attribute => attribute.startsWith('VeteranOf:'))?.slice('VeteranOf:'.length);
+    const set = baseId && byId.get(baseId)?.json.set;
+    return set && set !== 'Special' ? { ...card, json: { ...card.json, set } } : card;
   });
 }
 
@@ -222,7 +231,7 @@ function fieldChanges(before: unknown, after: unknown, prefix = ''): CardFieldCh
 }
 
 export function compareCardData(local: KardsCardRecord[], remote: KardsCardRecord[]): CardDataChange[] {
-  const oldCards = new Map(local.map(card => [card.importId, normalizeCardRecord(card)]));
+  const oldCards = new Map((local.length ? validateCardRecords(local) : []).map(card => [card.importId, card]));
   const newCards = new Map(validateCardRecords(remote).map(card => [card.importId, card]));
   const changes: CardDataChange[] = [];
   for (const [importId, after] of newCards) {

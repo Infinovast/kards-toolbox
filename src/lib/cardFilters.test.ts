@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { EMPTY_CARD_FILTERS, hasCardFilterConditions, isInBuilderPool, matchesCardFilters } from './cardFilters';
+import { EMPTY_CARD_FILTERS, hasCardFilterConditions, isGeneratedCard, isInBuilderPool, matchesCardFilters } from './cardFilters';
 import { mergeWeatherCardRecords } from './cardData';
 import { CARD_SUBTYPES, cardSubtypeLabels } from './cardSubtypes';
 import { CARD_KEYWORDS, CARD_TEXT_KEYWORDS, cardHasKeyword, cardKeywords } from './cardKeywords';
 import { CARD_SORT_OPTIONS, sortCards } from './cardSort';
 import { cardStatusLabel } from './cardDetails';
+import { DEFAULT_DECK_RULES, validateDeck } from './deckRules';
 import type { KardsCardRecord } from '../types/card';
 
 const base: KardsCardRecord = { id: 1, cardId: 'card-a', importId: 'aa', reserved: false, json: {
@@ -17,6 +18,18 @@ for (const query of ['测试', 'INFANTRY', 'fallback', 'card-a', 'aa', '  步兵
   assert.ok(matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, query }), query);
 }
 assert.ok(!matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, query: 'not found' }));
+for (const query of ['测.步兵', 'Te.t In.antry', 'card.a', 'fall.ack', '测..兵']) {
+  assert.ok(matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, query }), `single-character wildcard: ${query}`);
+}
+for (const query of ['测.兵', '测试.步兵', 'Test.*Infantry', '[测试]', '测试|步兵']) {
+  assert.ok(!matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, query }), `only dot is a wildcard: ${query}`);
+}
+const punctuation = changed({ title: { 'zh-Hans': '甲[乙](丙)+丁?戊\\己^庚$辛|壬{癸}😀尾' } });
+for (const query of ['甲.乙](丙)+丁?戊\\己^庚$辛|壬{癸}.尾', '}[.尾']) {
+  assert.equal(matchesCardFilters(punctuation, { ...EMPTY_CARD_FILTERS, query }), query.startsWith('甲'), `literal punctuation and Unicode: ${query}`);
+}
+assert.ok(matchesCardFilters(changed({ text: { 'zh-Hans': '首\n尾' } }), { ...EMPTY_CARD_FILTERS, query: '首.尾' }), 'dot also matches a newline');
+assert.ok(matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, query: 'test' }), 'plain search works after wildcard queries');
 const translated = changed({ title: { ...base.json.title, 'ja-JP': '歩兵部隊', 'de-DE': 'Testeinheit' }, text: { 'zh-Hans': '部署：抽取一张牌' } });
 for (const query of ['歩兵', 'testeinheit', '部署', 'fallback']) {
   assert.ok(matchesCardFilters(translated, { ...EMPTY_CARD_FILTERS, query }), `all retained title/text/description languages remain searchable: ${query}`);
@@ -63,8 +76,14 @@ assert.equal(weatherCards.length, 30);
 assert.ok(weatherCards.every(card => matchesCardFilters(card, { ...EMPTY_CARD_FILTERS, status: ['weather'] })));
 const mergedCatalog = mergeWeatherCardRecords(cards);
 assert.equal(mergedCatalog.filter(card => matchesCardFilters(card, { ...EMPTY_CARD_FILTERS, status: ['permanent'] })).length, 410);
-const generatedCatalog = mergedCatalog.filter(card => ['OnlySpawnable', 'Special'].includes(card.json.set || ''));
+const generatedCatalog = mergedCatalog.filter(isGeneratedCard);
 assert.equal(generatedCatalog.length, 147);
+for (const card of mergedCatalog.filter(card => card.json.attributes?.some(attribute => attribute.startsWith('VeteranOf:')))) {
+  assert.ok(matchesCardFilters(card, { ...EMPTY_CARD_FILTERS, expansion: card.json.set!, status: ['veteran'] }), 'veterans match their inherited expansion and generated category');
+  assert.ok(!matchesCardFilters(card, { ...EMPTY_CARD_FILTERS, status: ['active'] }));
+  assert.ok(!isInBuilderPool(card, card.json.faction!, card.json.faction!), 'normalizing the set must not make veteran forms constructible');
+  assert.ok(validateDeck(new Map([[card.importId, 1]]), new Map([[card.importId, card]]), 'Germany', 'Britain', DEFAULT_DECK_RULES.standard).some(warning => warning.includes('是衍生卡')), 'standard validation still rejects normalized veteran forms');
+}
 for (const [status, expected] of [['veteran', 44], ['weather', 30], ['research', 30], ['punishment', 12], ['other', 31]] as const) {
   assert.equal(generatedCatalog.filter(card => matchesCardFilters(card, { ...EMPTY_CARD_FILTERS, status: [status] })).length, expected, `${status} status grouping`);
 }

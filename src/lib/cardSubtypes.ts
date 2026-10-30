@@ -17,6 +17,9 @@ export function cardHasSubtype(cardId: string, subtypeId: string) {
 }
 
 export function cardSubtypeLabels(cardId: string, language: CardLanguage = 'zh-Hans') {
-  const names = new Map(CARD_SUBTYPES.map(subtype => [subtype.id, subtype.name[language] || subtype.name['en-EN']]));
-  return (subtypesByCardId.get(cardId) || []).map(id => names.get(id)!).filter(Boolean);
+  return cardSubtypes(cardId).map(subtype => subtype.name[language] || subtype.name['en-EN']);
+}
+
+export function cardSubtypes(cardId: string) {
+  return CARD_SUBTYPES.filter(subtype => cardHasSubtype(cardId, subtype.id));
 }

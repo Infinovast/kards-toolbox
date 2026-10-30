@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { CardText } from '../components/CardText';
-import { ALL_CARD_KEYWORDS, CARD_KEYWORDS, COMBAT_KEYWORDS, KEYWORD_FILTER_GROUPS, cardHasKeyword, cardTextKeywordMatches } from './cardKeywords';
+import CardKeywordList from '../components/CardKeywordList';
+import { ALL_CARD_KEYWORDS, CARD_KEYWORDS, COMBAT_KEYWORDS, KEYWORD_FILTER_GROUPS, cardHasKeyword, cardKeywordItems, cardTextKeywordMatches } from './cardKeywords';
 
 const expectedLabels = ['伏击', '闪击', '奋战', '守护', '重甲', '冲击', '烟幕', '被守护', '战斗', '部署', '亡计', '免疫', '动员', '压制', '山地', '开发', '情报', '抑制', '控制', '撤退', '流亡', '老兵', '收缴', '被收缴', '钳击', '隐蔽', '揭示', '转换', '协力', '预报', '抉择', '抽取', '倒计时', '无词条', '无描述'];
 assert.deepEqual(ALL_CARD_KEYWORDS.map(item => item.label).sort(), expectedLabels.sort());
@@ -14,6 +15,15 @@ assert.equal(new Set(KEYWORD_FILTER_GROUPS.flatMap(group => group.keywords.map(i
 assert.ok(ALL_CARD_KEYWORDS.filter(item => item.highlighted).every(item => item.attribute), 'combat keywords are a strict subset of attribute keywords');
 assert.equal(ALL_CARD_KEYWORDS.find(item => item.label === '压制')?.english, 'Pin');
 assert.equal(ALL_CARD_KEYWORDS.find(item => item.label === '抑制')?.english, 'Suppress');
+assert.equal(ALL_CARD_KEYWORDS.filter(item => item.icon).length, 18);
+assert.equal(ALL_CARD_KEYWORDS.find(item => item.id === 'veteran')?.icon, '/assets/keywords/VeteranOf.png');
+const iconCard = { id: 1, cardId: 'icons', importId: 'aa', json: { attributes: ['BecomesVeteran:next', 'heavyArmor2', 'VeteranOf:base', 'guard', 'guard', 'futureAbility'] } };
+assert.deepEqual(cardKeywordItems(iconCard, 'zh-Hans').map(item => [item.label, item.icon]), [
+  ['重甲 2', '/assets/keywords/heavyArmor.png'], ['老兵', '/assets/keywords/VeteranOf.png'], ['守护', '/assets/keywords/guard.png'], ['futureAbility', undefined],
+]);
+const iconMarkup = renderToStaticMarkup(<CardKeywordList card={iconCard} language="zh-Hans" />);
+assert.equal((iconMarkup.match(/class="keyword-symbol"/g) || []).length, 3);
+assert.ok(iconMarkup.includes('，') && !iconMarkup.includes('BecomesVeteran.png'));
 
 for (const definition of ALL_CARD_KEYWORDS.filter(item => item.textMatch !== false)) {
   for (const text of [definition.label, definition.english, definition.english.toLowerCase()]) {

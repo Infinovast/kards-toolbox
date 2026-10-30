@@ -3,7 +3,9 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { CARD_BACK_CATEGORIES, CARD_BACKS, DEFAULT_HEADQUARTERS_BY_NATION, DEFAULT_TABLECLOTH, HEADQUARTERS, HEADQUARTERS_STACKS, TABLECLOTHS, USER_TABLECLOTHS, cardBackForDeck, cardBackIsAvailable, defaultCardBackForNation, defaultHeadquartersForNation, headquartersForDeck, headquartersOptions, resolveSelectedTablecloth, tableclothForHeadquarters } from './cardAssets';
 import manifest from '../data/assets.json';
-import { CARD_PACKS, FACTION_ASSETS, WILDCARDS, cardFactionIcon, factionIcon } from './assetCatalog';
+import { CARD_PACKS, FACTION_ASSETS, SUBCLASS_ICONS, WILDCARDS, cardFactionIcon, factionIcon, wildcardAsset } from './assetCatalog';
+import { ALL_CARD_KEYWORDS } from './cardKeywords';
+import { CARD_SUBTYPES } from './cardSubtypes';
 import { factionLabel, typeLabel, type KardsCardRecord } from '../types/card';
 
 const assetPath = (url: string) => path.resolve('public', url.replace(/^\/assets\//, 'assets/'));
@@ -73,9 +75,19 @@ for (const [nation, asset] of Object.entries(FACTION_ASSETS)) {
 assert.equal(cardFactionIcon('unknown', 'fighter'), FACTION_ASSETS.Neutral.icon);
 assert.equal(cardFactionIcon('Germany', 'fighter'), FACTION_ASSETS.Germany.icon, 'a missing air variant uses the regular icon');
 assert.equal(CARD_PACKS.length, 28);
+assert.deepEqual(Object.keys(SUBCLASS_ICONS).sort(), CARD_SUBTYPES.map(item => item.id).sort());
+assert.equal(SUBCLASS_ICONS['t-34'], SUBCLASS_ICONS.sherman);
+assert.equal(SUBCLASS_ICONS.naval, '/assets/subclass/navy.png');
+assert.equal(SUBCLASS_ICONS.spitfire, '/assets/subclass/fighter.png');
+assert.equal(SUBCLASS_ICONS.commandos, '/assets/subclass/infantry.png');
 assert.equal(new Set(CARD_PACKS.map(pack => pack.id)).size, CARD_PACKS.length);
 assert.equal(Object.keys(WILDCARDS).length, 6);
 assert.ok(Object.values(WILDCARDS).every(group => Object.keys(group).length === 4));
+for (const nation of ['USA', 'Britain', 'Germany', 'Japan', 'Soviet']) {
+  for (const rarity of ['Elite', 'Special', 'Limited', 'Standard']) assert.equal(wildcardAsset(nation.toLowerCase(), rarity), WILDCARDS[nation][rarity]);
+}
+for (const nation of ['France', 'Italy', 'Finland', 'Poland', 'Anzac', 'Neutral', undefined]) assert.equal(wildcardAsset(nation, 'Standard'), WILDCARDS.Common.Standard);
+assert.equal(wildcardAsset('USA', 'unknown'), undefined);
 
 // Check exact-case paths and coverage so moves/additions cannot silently leave broken URLs.
 function imagePaths(value: unknown): string[] {
@@ -83,7 +95,7 @@ function imagePaths(value: unknown): string[] {
   return value && typeof value === 'object' ? Object.values(value).flatMap(imagePaths) : [];
 }
 const catalogPaths = new Set([
-  ...imagePaths(manifest), ...CARD_BACKS.map(item => item.file),
+  ...imagePaths(manifest), ...imagePaths(ALL_CARD_KEYWORDS), ...CARD_BACKS.map(item => item.file),
   ...HEADQUARTERS.map(item => item.image), ...TABLECLOTHS.map(item => item.file),
 ]);
 const actualImages = new Set(readdirSync('public/assets', { recursive: true }).map(file => `/assets/${String(file).replaceAll('\\', '/')}`)

@@ -113,6 +113,13 @@
     "order": "/assets/types/order.svg",
     "tank": "/assets/types/tank.svg"
   },
+  "subclasses": {
+    "t-34": "/assets/subclass/tank.png",
+    "sherman": "/assets/subclass/tank.png",
+    "naval": "/assets/subclass/navy.png",
+    "spitfire": "/assets/subclass/fighter.png",
+    "commandos": "/assets/subclass/infantry.png"
+  },
   "rarities": {
     "Elite": "/assets/rarity/elite.svg",
     "Limited": "/assets/rarity/limited.svg",
@@ -516,5 +523,10 @@
       "file": "/assets/cardpacks/t_pack_covert_officer.png",
       "kind": "officer"
     }
+  ],
+  "unusedKeywordIcons": [
+    "/assets/keywords/BecomesVeteran.png",
+    "/assets/keywords/passive_effect.png",
+    "/assets/keywords/trigger.png"
   ]
 }

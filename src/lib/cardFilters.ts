@@ -1,4 +1,4 @@
-import type { KardsCardRecord } from '../types/card';
+import { isVeteranCard, type KardsCardRecord } from '../types/card';
 import { cardHasSubtype } from './cardSubtypes';
 import { cardHasKeyword } from './cardKeywords';
 import cardStatusGroups from '../data/cardStatusGroups.json';
@@ -17,6 +17,20 @@ export interface CardFilters {
 }
 
 export const EMPTY_CARD_FILTERS: CardFilters = { query: '', factions: [], cardType: [], subtypes: [], keywords: [], keywordMode: 'or', cost: [], rarity: [], expansion: 'All', status: [] };
+export const CARD_SEARCH_HINT = '支持用“.”匹配 1 个任意字符';
+
+let lastSearchTerm = '';
+let searchPattern: RegExp | null = null;
+function matchesCardSearch(card: KardsCardRecord, query: string) {
+  const term = query.trim().toLocaleLowerCase();
+  if (!term) return true;
+  if (term !== lastSearchTerm) {
+    lastSearchTerm = term;
+    searchPattern = term.includes('.') ? new RegExp(term.split('.').map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[\\s\\S]'), 'u') : null;
+  }
+  return [card.cardId, card.importId, ...Object.values(card.json.title || {}), ...Object.values(card.json.text || {}), ...Object.values(card.json.description || {})]
+    .some(value => searchPattern ? searchPattern.test(value.toLocaleLowerCase()) : value.toLocaleLowerCase().includes(term));
+}
 
 export function hasCardFilterConditions(filters: CardFilters) {
   return !!(filters.factions.length || filters.cardType.length || filters.subtypes.length || filters.keywords.length
@@ -28,7 +42,7 @@ const researchCardIds = new Set(cardStatusGroups.research);
 const punishmentCardIds = new Set(cardStatusGroups.punishment);
 
 export function isGeneratedCard(card: KardsCardRecord) {
-  return ['OnlySpawnable', 'Special'].includes(card.json.set || '');
+  return isVeteranCard(card) || ['OnlySpawnable', 'Special'].includes(card.json.set || '');
 }
 
 function generatedCategory(card: KardsCardRecord) {
@@ -49,9 +63,7 @@ function matchesStatus(card: KardsCardRecord, status: string) {
 }
 
 export function matchesCardFilters(card: KardsCardRecord, filters: CardFilters) {
-  const term = filters.query.trim().toLocaleLowerCase();
-  return (!term || [card.cardId, card.importId, ...Object.values(card.json.title || {}), ...Object.values(card.json.text || {}), ...Object.values(card.json.description || {})]
-    .some(value => value.toLocaleLowerCase().includes(term)))
+  return matchesCardSearch(card, filters.query)
     && (!filters.factions.length || filters.factions.some(faction => faction.toLowerCase() === card.json.faction?.toLowerCase()))
     && (!filters.cardType.length || filters.cardType.includes(card.json.type || ''))
     && (!filters.subtypes.length || filters.subtypes.some(subtype => cardHasSubtype(card.cardId, subtype)))

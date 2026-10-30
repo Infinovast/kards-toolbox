@@ -18,10 +18,16 @@ export const FACTION_ASSETS: Record<string, FactionAsset> = manifest.factions;
 export const LOGOS = manifest.logos;
 export const RESERVE_ICON = manifest.reserve;
 export const TYPE_ICONS: Record<string, string> = manifest.types;
+export const SUBCLASS_ICONS: Record<string, string> = manifest.subclasses;
 export const RARITY_ICONS: Record<string, string> = manifest.rarities;
 export const SET_ICONS: Record<string, string> = manifest.sets;
 export const WILDCARDS: Record<string, Record<string, WildcardAsset>> = manifest.wildcards;
 export const CARD_PACKS = manifest.cardpacks;
+
+export function wildcardAsset(nation?: string, rarity?: string): WildcardAsset | undefined {
+  const key = Object.keys(WILDCARDS).find(id => id.toLowerCase() === nation?.toLowerCase());
+  return (WILDCARDS[key || 'Common'] || WILDCARDS.Common)[rarity || ''];
+}
 
 export function factionAsset(nation?: string): FactionAsset {
   const key = Object.keys(FACTION_ASSETS).find(id => id.toLowerCase() === nation?.toLowerCase());

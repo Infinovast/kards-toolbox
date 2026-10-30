@@ -3,15 +3,18 @@ import { createPortal } from 'react-dom';
 import { Shield, X } from 'lucide-react';
 import { CardFace } from './CardFace';
 import { expansionLabel, FilterIcon } from './CardFilterSelects';
-import { cardKeywords, cardRelations, cardStatusLabel } from '../lib/cardDetails';
+import { cardRelations, cardStatusLabel } from '../lib/cardDetails';
 import { handleDialogKeys } from '../lib/dialogKeyboard';
-import { cardSubtypeLabels } from '../lib/cardSubtypes';
 import { cardDisplayTitle, cardText, factionLabel, typeLabel, type CardLanguage, type KardsCardRecord } from '../types/card';
 import ReservedBadge from './ReservedBadge';
 import { CardText } from './CardText';
 import type { HeadquartersAsset } from '../lib/cardAssets';
 import { captureCardDetailOrigin, type CardDetailOrigin } from '../lib/cardDetailOrigin';
-import { cardFactionIcon, TYPE_ICONS } from '../lib/assetCatalog';
+import { cardFactionIcon, SET_ICONS, TYPE_ICONS } from '../lib/assetCatalog';
+import CardKeywordList from './CardKeywordList';
+import CardRarity from './CardRarity';
+import CardSubtypeInfo from './CardSubtypeInfo';
+import { cardKeywordItems } from '../lib/cardKeywords';
 import type { CardDetailItem } from '../lib/cardDetailPaging';
 import useCardDetailPaging from '../lib/useCardDetailPaging';
 
@@ -132,8 +135,7 @@ export default function CardDetailModal({ card: initialCard, headquarters: initi
     };
   }, []);
   const cardsById = useMemo(() => new Map(cards.map(item => [item.cardId, item])), [cards]);
-  const keywords = card ? cardKeywords(card, language) : [];
-  const subtypes = card ? cardSubtypeLabels(card.cardId, language) : [];
+  const keywords = card ? cardKeywordItems(card, language) : [];
   const relatedCards = (card ? cardRelations(card) : []).flatMap(relation => {
     const related = cardsById.get(relation.cardId);
     return related ? [{ ...relation, card: related }] : [];
@@ -143,7 +145,6 @@ export default function CardDetailModal({ card: initialCard, headquarters: initi
   const englishName = card ? language.startsWith('zh') ? card.json.title?.['en-EN'] : undefined : headquarters!.englishName;
   const type = (card?.json.type || '').toLowerCase();
   const isUnit = !['order', 'countermeasure'].includes(type);
-  const rarity = ({ Standard: '普通', Limited: '稀有', Special: '罕见', Elite: '精英' })[card?.json.rarity || ''] || card?.json.rarity || headquarters?.rarity || '—';
   const setName = card ? expansionLabel(card.json.set, language) : '';
   const faction = card?.json.faction || (headquarters?.nation === 'Blank' ? 'Neutral' : headquarters?.nation) || 'Neutral';
   return createPortal(<div ref={overlay} className="card-detail-overlay" data-phase={isClosing ? 'closing' : arrived ? 'ready' : 'moving'} data-origin={origin?.kind}>
@@ -166,13 +167,14 @@ export default function CardDetailModal({ card: initialCard, headquarters: initi
           </div>
           {keywords.length > 0 && <section className="card-detail-section">
             <h3 className="mb-3 font-bold">词条</h3>
-            <p aria-label="卡牌词条" className="text-sm leading-7 text-kards-text"><CardText text={keywords.join('，')} highlightCombat /></p>
+            <CardKeywordList card={card!} language={language} className="text-sm leading-7 text-kards-text" />
           </section>}
           {card ? <dl className="card-detail-section grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-3 text-sm">
-            {subtypes.length > 0 && <><dt>子类</dt><dd>{subtypes.join(' · ')}</dd></>}
+            <CardSubtypeInfo cardId={card.cardId} language={language} />
+            <dt>稀有度</dt><dd><CardRarity rarity={card.json.rarity} faction={faction} previewEnabled={arrived && !isClosing} /></dd>
             <dt>状态</dt><dd className="flex items-center gap-2">{card.reserved && <ReservedBadge />}{cardStatusLabel(card)}</dd>
             <dt>卡池</dt><dd>{card.json.permanent_pool ? '常备卡池' : '轮换卡池'}</dd>
-          </dl> : <dl className="card-detail-section grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 text-sm"><dt>稀有度</dt><dd>{rarity}</dd></dl>}
+          </dl> : <dl className="card-detail-section grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 text-sm"><dt>稀有度</dt><dd><CardRarity rarity={headquarters?.rarity === '普通' ? 'Standard' : headquarters?.rarity} faction={faction} previewEnabled={arrived && !isClosing} /></dd></dl>}
         </aside>
         <div ref={art} className="card-detail-art">{card ? <CardFace card={card} initialSource={card === initialCard ? origin?.image : undefined} /> : <img src={headquarters!.image} alt={title} className="card-face" />}</div>
         <div inert={!arrived || isClosing} className="card-detail-panel custom-scrollbar">
@@ -182,8 +184,7 @@ export default function CardDetailModal({ card: initialCard, headquarters: initi
           {card && <dl className="card-detail-section grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-3 text-sm">
             <dt>部署费用</dt><dd>{card.json.kredits ?? '—'} K</dd>
             {isUnit && <><dt>行动费用</dt><dd>{card.json.operationCost ?? '—'} K</dd><dt>攻击 / 生命</dt><dd>{card.json.attack ?? '—'} / {card.json.defense ?? '—'}</dd></>}
-            <dt>稀有度</dt><dd>{rarity}</dd>
-            <dt>扩展包</dt><dd>{setName}</dd>
+            {card.json.set && card.json.set !== 'OnlySpawnable' && <><dt>扩展包</dt><dd className="flex items-center gap-1"><span className="h-5 w-5 shrink-0"><FilterIcon src={SET_ICONS[card.json.set] || SET_ICONS.All} /></span>{setName}</dd></>}
             <dt>卡组码 ID</dt><dd>{card.importId}</dd>
             <dt>卡牌 ID</dt><dd className="break-all">{card.cardId}</dd>
           </dl>}

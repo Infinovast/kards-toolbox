@@ -7,6 +7,7 @@ export interface CardKeywordDefinition {
   english: string;
   attribute: boolean;
   highlighted: boolean;
+  icon?: string;
   numbered?: boolean;
   attributeAliases?: { key: string; display: boolean }[];
   excludeFollowing?: string[];
@@ -69,13 +70,21 @@ export function cardHasKeyword(card: KardsCardRecord, keyword: string) {
   return entries.some(entry => entry.id === keyword);
 }
 
-export function cardKeywords(card: KardsCardRecord, language: CardLanguage): string[] {
+export function cardKeywordItems(card: KardsCardRecord, language: CardLanguage) {
   const zh = language.startsWith('zh');
-  return [...new Set(cardKeywordEntries(card, true).map(({ id, amount }) => {
+  const seen = new Set<string>();
+  return cardKeywordEntries(card, true).flatMap(({ id, amount }) => {
     const definition = definitions.get(id.toLowerCase());
     const label = definition ? zh ? definition.label : definition.english : id;
-    return amount ? `${label} ${amount}` : label;
-  }))];
+    const text = amount ? `${label} ${amount}` : label;
+    if (seen.has(text)) return [];
+    seen.add(text);
+    return [{ id, label: text, icon: definition?.icon }];
+  });
+}
+
+export function cardKeywords(card: KardsCardRecord, language: CardLanguage): string[] {
+  return cardKeywordItems(card, language).map(item => item.label);
 }
 
 const escapePattern = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

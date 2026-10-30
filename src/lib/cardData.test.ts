@@ -3,6 +3,19 @@ import { readFileSync } from 'node:fs';
 import { CARD_DATA_URL, KARDS_COM_DATA_URL, collectCardData, compareCardData, fetchKardsComCardPage, fetchKardsplayerCardPage, mergeWeatherCardRecords, normalizeCardRecord, parseCardDataPage, validateCardRecords } from './cardData';
 
 const records = JSON.parse(readFileSync('public/data/cards.json', 'utf8')).cards;
+const veteranRecords = records.filter(card => card.json.attributes?.some(attribute => attribute.startsWith('VeteranOf:')));
+assert.equal(veteranRecords.length, 44);
+for (const veteran of veteranRecords) {
+  const baseId = veteran.json.attributes.find(attribute => attribute.startsWith('VeteranOf:')).slice('VeteranOf:'.length);
+  assert.equal(veteran.json.set, records.find(card => card.cardId === baseId).json.set, `${veteran.cardId} stores its base expansion`);
+}
+const oldVeteranRecords = records.map(card => veteranRecords.includes(card) ? { ...card, json: { ...card.json, set: 'Special' } } : card);
+assert.deepEqual(validateCardRecords(oldVeteranRecords), validateCardRecords(records), 'stored snapshots and freshly fetched API catalogues normalize all veteran expansions');
+assert.equal(compareCardData(oldVeteranRecords, records).length, 0, 'source-only special-form labels do not produce spurious update changes');
+const veteran = veteranRecords[0], baseId = veteran.json.attributes.find(attribute => attribute.startsWith('VeteranOf:')).slice('VeteranOf:'.length);
+const baseRecord = records.find(card => card.cardId === baseId);
+assert.equal(validateCardRecords([{ ...veteran, json: { ...veteran.json, set: 'Special' } }, { ...baseRecord, json: { ...baseRecord.json, set: 'FutureExpansion' } }])[0].json.set, 'FutureExpansion', 'a veteran resolves a later-page base and inherits future expansion changes');
+assert.equal(validateCardRecords([{ ...veteran, json: { ...veteran.json, set: 'Special' } }])[0].json.set, 'Special', 'incomplete API pages retain unresolved data until the complete catalogue arrives');
 const mergedWeather = mergeWeatherCardRecords(records);
 assert.equal(mergedWeather.length, 1664, 'bundled and active catalogues include 18 missing local weather variants');
 assert.equal(mergedWeather.filter(card => card.cardId.startsWith('temp_')).length, 18);
