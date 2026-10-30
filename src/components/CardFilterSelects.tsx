@@ -3,7 +3,7 @@ import { CARD_FACTIONS, CARD_RARITIES, CARD_TYPES, type CardLanguage } from '../
 import CustomSelect, { type SelectOption } from './CustomSelect';
 import type { CardFilters } from '../lib/cardFilters';
 import { CARD_SUBTYPES } from '../lib/cardSubtypes';
-import { CARD_KEYWORDS } from '../lib/cardKeywords';
+import { KEYWORD_FILTER_GROUPS } from '../lib/cardKeywords';
 import { factionIcon, RARITY_ICONS, SET_ICONS, TYPE_ICONS } from '../lib/assetCatalog';
 
 export function FilterIcon({ src, fullColor = false }: { src: string; fullColor?: boolean }) {
@@ -102,10 +102,9 @@ export default function CardFilterSelects({ filters, onChange, expansions, langu
     {!builder && <CustomSelect label="阵营筛选" placeholder="阵营" multiple value={filters.factions} onChange={factions => onChange({ ...filters, factions })} options={nationOptions(language)} layout="grid" />}
     <CustomSelect label={`${prefix}类型筛选`} placeholder="类型" multiple value={filters.cardType} onChange={cardType => onChange({ ...filters, cardType })} layout="grid" options={CARD_TYPES.map(item => ({ value: item.id, label: zh ? item.label : englishTypes[item.id], icon: <FilterIcon src={TYPE_ICONS[item.id]} /> }))} />
     <CustomSelect label={`${prefix}子类筛选`} placeholder="子类" multiple value={filters.subtypes} onChange={subtypes => onChange({ ...filters, subtypes })} layout="grid" options={CARD_SUBTYPES.map(item => ({ value: item.id, label: item.name[zh ? 'zh-Hans' : 'en-EN'] }))} />
-    {!builder && <div role="group" aria-label="词条匹配筛选" className="library-sort-controls keyword-filter-controls"><CustomSelect label="词条筛选" placeholder="词条" multiple value={filters.keywords} onChange={keywords => onChange({ ...filters, keywords })} layout="grid" options={[
-      ...CARD_KEYWORDS.map(item => ({ value: item.id, label: zh ? item.label : item.english, labelClassName: item.highlighted ? 'font-bold text-kards-status' : undefined })),
-      { value: 'none', label: zh ? '无词条' : 'No keywords' },
-    ]} /><button type="button" className="library-sort-direction" aria-label={`词条匹配：${filters.keywordMode === 'and' ? '和' : '或'}`} aria-pressed={filters.keywordMode === 'and'}
+    {!builder && <div role="group" aria-label="词条匹配筛选" className="library-sort-controls keyword-filter-controls"><CustomSelect label="词条筛选" placeholder="词条" multiple value={filters.keywords} onChange={keywords => onChange({ ...filters, keywords })} layout="columns" options={KEYWORD_FILTER_GROUPS.flatMap(group => group.keywords.map(item => ({
+      value: item.id, group: zh ? group.label : group.english, label: (zh ? item.label : item.english) + (item.descriptionPrefix ? '－' : ''), labelClassName: item.highlighted ? 'font-bold text-kards-status' : undefined,
+    })))} /><button type="button" className="library-sort-direction" aria-label={`词条匹配：${filters.keywordMode === 'and' ? '和' : '或'}`} aria-pressed={filters.keywordMode === 'and'}
       title={filters.keywordMode === 'and' ? '满足全部词条，点击切换为或' : '满足任一词条，点击切换为和'}
       onClick={() => onChange({ ...filters, keywordMode: filters.keywordMode === 'and' ? 'or' : 'and' })}>{filters.keywordMode === 'and' ? '和' : '或'}</button></div>}
     <CustomSelect label={`${prefix}稀有度筛选`} placeholder="稀有度" multiple value={filters.rarity} onChange={rarity => onChange({ ...filters, rarity })} layout="grid" options={CARD_RARITIES.map(value => ({ value, label: zh ? rarityLabels[value] : value, iconOnly: true, icon: <FilterIcon src={RARITY_ICONS[value]} /> }))} />

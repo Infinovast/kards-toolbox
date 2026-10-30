@@ -18,6 +18,8 @@ import { HEADQUARTERS_STACKS, type HeadquartersAsset } from '../lib/cardAssets';
 import ReservedBadge from './ReservedBadge';
 import CustomSelect from './CustomSelect';
 import SearchClearButton from './SearchClearButton';
+import { revealDetailItem, type CardDetailItem } from '../lib/cardDetailPaging';
+import useCardDetailPaging from '../lib/useCardDetailPaging';
 import { CARD_LANGUAGES, type CardLanguage } from '../types/card';
 import {
   cardText,
@@ -54,11 +56,11 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
 
   const filteredCards = useMemo(() => sortCards(cards.filter(card => matchesCardFilters(card, filters)), sortKey, sortDirection), [cards, filters, sortKey, sortDirection]);
   const searchAlternatives = useMemo(() => {
-    if (filteredCards.length || !filters.query.trim()) return { queryOnly: 0, filtersOnly: 0 };
+    if (filteredCards.length > 3 || !filters.query.trim() || !hasCardFilterConditions(filters)) return { queryOnly: 0, filtersOnly: 0 };
     const queryOnly = { ...EMPTY_CARD_FILTERS, query: filters.query };
     const filtersOnly = { ...filters, query: '' };
     return {
-      queryOnly: hasCardFilterConditions(filters) ? cards.filter(card => matchesCardFilters(card, queryOnly)).length : 0,
+      queryOnly: cards.filter(card => matchesCardFilters(card, queryOnly)).length,
       filtersOnly: cards.filter(card => matchesCardFilters(card, filtersOnly)).length,
     };
   }, [cards, filteredCards.length, filters]);
@@ -76,6 +78,20 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
   ], [visibleHeadquartersStacks, filteredCards]);
   const pool = useCardPoolLayout('library', poolItems.length, page, setPage);
   const pageItems = poolItems.slice(pool.start, pool.end);
+  const detailSequence: CardDetailItem[] = useMemo(() => expandedStack
+    ? expandedStack.cards.map(headquarters => ({ headquarters }))
+    : poolItems.flatMap<CardDetailItem>(item => item.kind === 'card' ? [{ card: item.card }] : item.stack.cards.map(headquarters => ({ headquarters }))), [expandedStack, poolItems]);
+  const revealSource = async (item: CardDetailItem) => {
+    const index = poolItems.findIndex(entry => item.card ? entry.kind === 'card' && entry.card.cardId === item.card.cardId
+      : entry.kind === 'headquarters' && entry.stack.cards.some(hq => hq.id === item.headquarters.id));
+    if (index >= 0) setPage(Math.floor(index / pool.capacity) + 1);
+    return revealDetailItem(item, 'pool', expandedStack && item.headquarters ? headquartersDialogRef.current : pool.ref.current);
+  };
+  useCardDetailPaging({ ref: detailRef, enabled: detailMode === 'sidebar' && !!(selectedCard || selectedHeadquarters), items: detailSequence,
+    item: selectedCard ? { card: selectedCard } : selectedHeadquarters ? { headquarters: selectedHeadquarters } : undefined, mode: 'sidebar',
+    onSelect: item => { setSelectedCard(item.card || null); setSelectedHeadquarters(item.headquarters || null); },
+    onReveal: revealSource,
+  });
 
   useEffect(() => {
     if (!expandedStack) return;
@@ -102,6 +118,15 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
     setExpandedHeadquarters(null);
   };
   const resetFilters = () => { setFilters({ ...EMPTY_CARD_FILTERS }); setSortKey('kredits'); setSortDirection('asc'); setPage(1); setExpandedHeadquarters(null); };
+  const searchHint = <div role="status" className="library-empty-content glass-panel">
+    <h2 className="library-empty-title">当前条件下搜索结果较少</h2>
+    {searchAlternatives.queryOnly > 0 && <button type="button" className="library-global-search" onClick={() => selectFilter({ ...EMPTY_CARD_FILTERS, query: filters.query })}>
+      全局搜索找到了 <strong>{searchAlternatives.queryOnly.toLocaleString()}</strong> 个结果，<span className="underline underline-offset-4">点击查看</span>
+    </button>}
+    {searchAlternatives.filtersOnly > 0 && <button type="button" className="library-global-search" onClick={() => selectFilter({ ...filters, query: '' })}>
+      全局筛选找到了 <strong>{searchAlternatives.filtersOnly.toLocaleString()}</strong> 个结果，<span className="underline underline-offset-4">点击查看</span>
+    </button>}
+  </div>;
 
   return (
     <div onKeyDown={event => {
@@ -143,29 +168,22 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
           </div>
         </div>
 
+        {filteredCards.length > 0 && filteredCards.length <= 3 && filters.query.trim() && <div className="library-sparse-hint">{searchHint}</div>}
         <div ref={pool.ref} style={pool.style} data-testid="library-grid" data-capacity={pool.capacity} className="card-gallery card-gallery-library relative min-h-0 flex-1">
           {pageItems.map(item => {
             if (item.kind === 'headquarters') return <button key={item.stack.id} type="button" aria-haspopup="dialog" aria-expanded={expandedHeadquarters === item.stack.id} aria-label={`展开${item.stack.label}总部`} onClick={() => setExpandedHeadquarters(item.stack.id)} className="card-tile hq-stack-tile card-action group">
             <span className="hq-stack-art" aria-hidden="true">{item.stack.cards.map((headquarters, index) => {
               const offset = index - (item.stack.cards.length - 1) / 2;
-              return <img key={headquarters.id} src={headquarters.image} alt="" style={{ transform: `translateX(${offset * 3}px) rotate(${offset * 1.4}deg)`, zIndex: index + 1 }} />;
+              return <img key={headquarters.id} data-detail-source={`hq:${headquarters.id}`} src={headquarters.image} alt="" style={{ transform: `translateX(${offset * 3}px) rotate(${offset * 1.4}deg)`, zIndex: index + 1 }} />;
             })}</span>
           </button>;
             const { card } = item;
-            return <button key={card.importId} onClick={event => { setDetailOrigin(captureCardDetailOrigin(event.currentTarget, 'pool')); setSelectedHeadquarters(null); setSelectedCard(card); }} className="card-tile card-action group text-left" title={cardDisplayTitle(card, language)} aria-label={`查看${cardDisplayTitle(card, language)}`}>
+            return <button key={card.importId} data-detail-source={card.cardId} onClick={event => { setDetailOrigin(captureCardDetailOrigin(event.currentTarget, 'pool')); setSelectedHeadquarters(null); setSelectedCard(card); }} className="card-tile card-action group text-left" title={cardDisplayTitle(card, language)} aria-label={`查看${cardDisplayTitle(card, language)}`}>
               <span className="library-card-art"><CardFace card={card} />{card.reserved && <ReservedBadge className="library-reserved-badge" />}</span>
             </button>;
           })}
           {!poolItems.length && <div role="status" className="library-empty-results text-kards-text-muted">
-            <div className="library-empty-content glass-panel">
-              <h2 className="library-empty-title">当前条件下搜索无结果</h2>
-              {searchAlternatives.queryOnly > 0 && <button type="button" className="library-global-search" onClick={() => selectFilter({ ...EMPTY_CARD_FILTERS, query: filters.query })}>
-                全局搜索找到了 <strong>{searchAlternatives.queryOnly.toLocaleString()}</strong> 个结果，<span className="underline underline-offset-4">点击查看</span>
-              </button>}
-              {searchAlternatives.filtersOnly > 0 && <button type="button" className="library-global-search" onClick={() => selectFilter({ ...filters, query: '' })}>
-                全局筛选找到了 <strong>{searchAlternatives.filtersOnly.toLocaleString()}</strong> 个结果，<span className="underline underline-offset-4">点击查看</span>
-              </button>}
-            </div>
+            {searchHint}
           </div>}
         </div>
 
@@ -181,7 +199,7 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
             <button onClick={() => setExpandedHeadquarters(null)} aria-label="关闭总部卡牌" className="rounded p-1 text-kards-text-muted hover:text-kards-text"><X className="h-5 w-5" /></button>
           </div>
           <div className="custom-scrollbar grid min-h-0 grid-cols-[repeat(auto-fill,minmax(112px,1fr))] gap-3 overflow-y-auto">
-            {expandedStack.cards.map(headquarters => <button key={headquarters.id} type="button" title={headquarters.name}
+            {expandedStack.cards.map(headquarters => <button key={headquarters.id} data-detail-source={`hq:${headquarters.id}`} type="button" title={headquarters.name}
               onClick={event => { setDetailOrigin(captureCardDetailOrigin(event.currentTarget, 'pool')); setSelectedCard(null); setSelectedHeadquarters(headquarters); }}
               aria-label={'查看总部卡牌：' + headquarters.name} className="hq-expanded-card card-action min-w-0">
               <img src={headquarters.image} alt="" className="card-face hq-expanded-card-art" />
@@ -190,13 +208,15 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
         </section>
       </div>}
 
-      {detailMode === 'sidebar' && selectedCard && (
-        <aside ref={detailRef} role="dialog" aria-modal="false" aria-label="卡牌详情" tabIndex={-1} className="glass-panel custom-scrollbar absolute bottom-5 right-5 top-5 z-30 flex w-[300px] max-w-[calc(100%-40px)] flex-col overflow-y-auto rounded-lg border border-kards-border p-4 shadow-xl">
+      {detailMode === 'sidebar' && (selectedCard || selectedHeadquarters) && (
+        <aside ref={detailRef} role="dialog" aria-modal="false" aria-label={selectedCard ? '卡牌详情' : '总部详情'} tabIndex={-1} className="glass-panel custom-scrollbar absolute bottom-5 right-5 top-5 z-30 flex w-[300px] max-w-[calc(100%-40px)] flex-col overflow-y-auto rounded-lg border border-kards-border p-4 shadow-xl">
           <button onClick={closeDetails} aria-label="关闭卡牌详情" className="absolute right-3 top-3 z-10 rounded-full bg-black/60 p-1 text-white"><X className="h-4 w-4" /></button>
+          <div className="detail-sidebar-content">
+          {selectedCard && <>
           <CardFace card={selectedCard} className="mx-auto mb-4 max-h-[55vh] w-full object-contain" />
           <h2 className="text-lg font-bold text-kards-text">{cardDisplayTitle(selectedCard, language)}</h2>
           {language.startsWith('zh') && selectedCard.json.title?.['en-EN'] && <p className="mt-1 text-xs text-kards-text-muted" lang="en">{selectedCard.json.title['en-EN']}</p>}
-          {keywords.length > 0 && <p aria-label="卡牌词条" className="mt-2 text-sm text-kards-text"><CardText text={keywords.join('，')} /></p>}
+          {keywords.length > 0 && <p aria-label="卡牌词条" className="mt-2 text-sm text-kards-text"><CardText text={keywords.join('，')} highlightCombat /></p>}
           {cardText(selectedCard, language) && <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-kards-text-muted"><CardText text={cardText(selectedCard, language)} /></p>}
           <dl className="mt-4 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-kards-border pt-4 text-sm text-kards-text">
             <dt>阵营</dt><dd className="flex items-center gap-2"><img src={cardFactionIcon(selectedCard.json.faction, selectedCard.json.type)} alt="" className="h-5 w-5 object-contain" />{factionLabel(selectedCard.json.faction)}</dd><dt>类型</dt><dd>{typeLabel(selectedCard.json.type)}</dd>
@@ -214,18 +234,18 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
               ? <button key={`${label}:${cardId}`} title={`${label}：${cardDisplayTitle(related, language)}`} aria-label={`${label}：${cardDisplayTitle(related, language)}`} onClick={() => setSelectedCard(related)} className="w-[84px] rounded border border-kards-border bg-kards-input-bg p-1 hover:border-kards-gold"><CardFace card={related} className="w-full" /></button>
               : <p key={`${label}:${cardId}`} className="break-all text-xs text-kards-text-muted">{label}：{cardId}（本地缺少资料，请在设置中更新）</p>; })}
           </div></section>}
-        </aside>
-      )}
-      {detailMode === 'sidebar' && selectedHeadquarters && <aside ref={detailRef} role="dialog" aria-modal="false" aria-label="总部详情" tabIndex={-1} className="glass-panel custom-scrollbar absolute bottom-5 right-5 top-5 z-30 flex w-[300px] max-w-[calc(100%-40px)] flex-col overflow-y-auto rounded-lg border border-kards-border p-4 shadow-xl">
-        <button onClick={closeDetails} aria-label="关闭总部详情" className="absolute right-3 top-3 z-10 rounded-full bg-black/60 p-1 text-white"><X className="h-4 w-4" /></button>
-        <img src={selectedHeadquarters.image} alt={selectedHeadquarters.name} className="mx-auto mb-4 max-h-[55vh] w-full object-contain" />
-        <h2 className="text-lg font-bold text-kards-text">{selectedHeadquarters.name}</h2>
-        <p className="mt-1 text-xs text-kards-text-muted" lang="en">{selectedHeadquarters.englishName}</p>
-        <dl className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-kards-border pt-3 text-sm text-kards-text"><dt>阵营</dt><dd>{factionLabel(selectedHeadquarters.sourceFaction)}</dd><dt>总部图</dt><dd>{factionLabel(selectedHeadquarters.nation)}</dd><dt>稀有度</dt><dd>{selectedHeadquarters.rarity || '—'}</dd></dl>
-        {selectedHeadquarters.brief && <p className="mt-3 text-sm leading-relaxed text-kards-text">{selectedHeadquarters.brief}</p>}
-        {selectedHeadquarters.history && <section className="mt-4 border-t border-kards-border pt-3"><h3 className="text-sm font-bold text-kards-text">历史背景</h3><p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-kards-text-muted">{selectedHeadquarters.history}</p></section>}
-      </aside>}
-      {detailMode === 'modal' && (selectedCard || selectedHeadquarters) && <CardDetailModal card={selectedCard || undefined} headquarters={selectedHeadquarters || undefined} origin={detailOrigin} cards={cards} language={language} onClose={closeDetails} />}
+          </>}
+          {selectedHeadquarters && <>
+            <img src={selectedHeadquarters.image} alt={selectedHeadquarters.name} className="mx-auto mb-4 max-h-[55vh] w-full object-contain" />
+            <h2 className="text-lg font-bold text-kards-text">{selectedHeadquarters.name}</h2>
+            <p className="mt-1 text-xs text-kards-text-muted" lang="en">{selectedHeadquarters.englishName}</p>
+            <dl className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-kards-border pt-3 text-sm text-kards-text"><dt>阵营</dt><dd>{factionLabel(selectedHeadquarters.sourceFaction)}</dd><dt>总部图</dt><dd>{factionLabel(selectedHeadquarters.nation)}</dd><dt>稀有度</dt><dd>{selectedHeadquarters.rarity || '—'}</dd></dl>
+            {selectedHeadquarters.brief && <p className="mt-3 text-sm leading-relaxed text-kards-text">{selectedHeadquarters.brief}</p>}
+            {selectedHeadquarters.history && <section className="mt-4 border-t border-kards-border pt-3"><h3 className="text-sm font-bold text-kards-text">历史背景</h3><p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-kards-text-muted">{selectedHeadquarters.history}</p></section>}
+          </>}
+          </div>
+      </aside>)}
+      {detailMode === 'modal' && (selectedCard || selectedHeadquarters) && <CardDetailModal card={selectedCard || undefined} headquarters={selectedHeadquarters || undefined} origin={detailOrigin} cards={cards} sequence={detailSequence} onNavigate={revealSource} language={language} onClose={closeDetails} />}
     </div>
   );
 }

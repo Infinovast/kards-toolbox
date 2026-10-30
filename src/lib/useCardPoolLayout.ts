@@ -27,8 +27,7 @@ export default function useCardPoolLayout(variant: 'library' | 'builder', itemCo
   const capacity = layout.columns * layout.rows;
   const pageCount = Math.max(1, Math.ceil(itemCount / capacity));
   const currentPage = Math.min(page, pageCount);
-  // Backfill the last page from its predecessor instead of leaving a partial row.
-  const start = Math.max(0, Math.min((currentPage - 1) * capacity, itemCount - capacity));
+  const start = (currentPage - 1) * capacity;
   useLayoutEffect(() => { if (page !== currentPage) onPageChange(currentPage); }, [page, currentPage, onPageChange]);
   useWheelPagination(ref, currentPage, pageCount, onPageChange);
   return { ref, capacity, page: currentPage, pageCount, start, end: start + capacity, style: {

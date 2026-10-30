@@ -40,6 +40,7 @@ import CardLibrary from './components/CardLibrary';
 import TableclothBackground from './components/TableclothBackground';
 import CardDetailModal from './components/CardDetailModal';
 import type { CardDetailOrigin } from './lib/cardDetailOrigin';
+import { revealDetailItem, type CardDetailItem } from './lib/cardDetailPaging';
 import DeckBuilder, { type BuilderDeck } from './components/DeckBuilder';
 import DeckCardStrip, { DeckHeadquartersStrip } from './components/DeckCardStrip';
 import DeckCountIndicator from './components/DeckCountIndicator';
@@ -804,6 +805,11 @@ export default function App() {
     catch { return []; }
   }, [selectedDeck?.code, cardDatabase]);
   const previewTotalCards = previewEntries.reduce((sum, entry) => sum + entry.count, 1);
+  const previewHeadquarters = selectedDeck && headquartersForDeck(selectedDeck.headquartersId, selectedDeck.mainNation);
+  const previewDetailSequence: CardDetailItem[] = [
+    ...(previewHeadquarters ? [{ headquarters: previewHeadquarters }] : []),
+    ...previewEntries.flatMap(entry => entry.card ? [{ card: entry.card }] : []),
+  ];
   const previewAllyCount = selectedDeck?.mainNation === selectedDeck?.allyNation ? 0 : previewEntries.reduce((sum, entry) => sum + (entry.card?.json.faction?.toLowerCase() === selectedDeck?.allyNation?.toLowerCase() ? entry.count : 0), 0);
   const previewMainCount = 1 + previewEntries.reduce((sum, entry) => sum + (entry.card?.json.faction?.toLowerCase() === selectedDeck?.mainNation.toLowerCase() ? entry.count : 0), 0);
   const previewDeckLimit = selectedDeck?.ruleSet === 'custom' ? (selectedDeck.customRules?.deckSize ?? DEFAULT_DECK_RULES.standard.deckSize) + 1 : DEFAULT_DECK_RULES.standard.deckSize + 1;
@@ -1293,7 +1299,7 @@ export default function App() {
         <TableclothBackground source={activeTablecloth} />
         
         {/* Left Sidebar */}
-        {activeMenu !== 'builder' && <aside aria-label="主导航" className="glass-panel w-24 shrink-0 flex flex-col gap-1 p-1 z-10 border-r border-kards-border transition-colors duration-300">
+        {activeMenu !== 'builder' && <aside aria-label="主导航" className="glass-panel w-[72px] shrink-0 flex flex-col gap-1 p-1 z-10 border-r border-kards-border transition-colors duration-300">
           <SidebarButton active={activeMenu === 'decks'} onClick={() => setActiveMenu('decks')} icon={<Library className="w-8 h-8" />} label="卡组" />
           <SidebarButton active={activeMenu === 'cards'} onClick={() => setActiveMenu('cards')} icon={<img src={effectiveIsDarkMode ? LOGOS.cards.beige : LOGOS.cards.black} alt="" className="h-8 w-8 object-contain" />} label="卡牌" />
           <div aria-label="应用工具" className="mt-auto flex flex-col gap-1 border-t border-kards-border pt-1">
@@ -1454,9 +1460,9 @@ export default function App() {
                   <DeckCountIndicator mainNation={selectedDeck.mainNation} allyNation={selectedDeck.allyNation} mainCount={previewMainCount} allyCount={previewAllyCount} total={previewTotalCards} limit={previewDeckLimit} />
                 </div>
                 <ul aria-label="卡组紧凑列表" className="space-y-0.5 text-sm">
-                  <li><DeckHeadquartersStrip nation={selectedDeck.mainNation} headquartersId={selectedDeck.headquartersId} onClick={(headquarters, origin) => { selectDeck(selectedDeck.id); setDetailOrigin(origin); setDetailHeadquarters(headquarters); }} /></li>
+                  <li><DeckHeadquartersStrip nation={selectedDeck.mainNation} headquartersId={selectedDeck.headquartersId} onClick={(headquarters, origin) => { selectDeck(selectedDeck.id); setDetailOrigin(origin); setDetailCard(null); setDetailHeadquarters(headquarters); }} /></li>
                   {previewEntries.map(entry => <li key={entry.id}><DeckCardStrip card={entry.card} importId={entry.id} count={entry.count} onClick={origin => {
-                    if (entry.card) { selectDeck(selectedDeck.id); setDetailOrigin(origin); setDetailCard(entry.card); }
+                    if (entry.card) { selectDeck(selectedDeck.id); setDetailOrigin(origin); setDetailHeadquarters(null); setDetailCard(entry.card); }
                   }} /></li>)}
                 </ul>
               </div>
@@ -1551,7 +1557,7 @@ export default function App() {
     </div>
 
       <ImageDownloadProgress />
-      {activeMenu === 'decks' && (detailCard || detailHeadquarters) && <CardDetailModal card={detailCard || undefined} headquarters={detailHeadquarters || undefined} origin={detailOrigin} cards={cardDatabase} onClose={() => { setDetailCard(null); setDetailHeadquarters(null); }} />}
+      {activeMenu === 'decks' && (detailCard || detailHeadquarters) && <CardDetailModal card={detailCard || undefined} headquarters={detailHeadquarters || undefined} origin={detailOrigin} cards={cardDatabase} sequence={previewDetailSequence} onNavigate={item => revealDetailItem(item, 'strip', deckDetailsRef.current)} onClose={() => { setDetailCard(null); setDetailHeadquarters(null); }} />}
 
       {/* --- Clipboard Import Prompt --- */}
       <AnimatePresence>

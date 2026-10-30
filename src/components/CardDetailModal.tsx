@@ -12,17 +12,24 @@ import { CardText } from './CardText';
 import type { HeadquartersAsset } from '../lib/cardAssets';
 import { captureCardDetailOrigin, type CardDetailOrigin } from '../lib/cardDetailOrigin';
 import { cardFactionIcon, TYPE_ICONS } from '../lib/assetCatalog';
+import type { CardDetailItem } from '../lib/cardDetailPaging';
+import useCardDetailPaging from '../lib/useCardDetailPaging';
 
-export default function CardDetailModal({ card: initialCard, headquarters, origin, cards, language = 'zh-Hans', onClose, onSourceDoubleClick }: {
+export default function CardDetailModal({ card: initialCard, headquarters: initialHeadquarters, origin, cards, sequence = [], onNavigate, language = 'zh-Hans', onClose, onSourceDoubleClick }: {
   card?: KardsCardRecord;
   headquarters?: HeadquartersAsset;
   origin?: CardDetailOrigin;
   cards: KardsCardRecord[];
+  sequence?: CardDetailItem[];
+  onNavigate?: (item: CardDetailItem) => Promise<CardDetailOrigin | undefined>;
   language?: CardLanguage;
   onClose: () => void;
   onSourceDoubleClick?: () => void;
 }) {
   const [card, setCard] = useState<KardsCardRecord | null>(initialCard || null);
+  const [headquarters, setHeadquarters] = useState(initialHeadquarters);
+  const overlay = useRef<HTMLDivElement>(null);
+  const currentOrigin = useRef(origin);
   const panel = useRef<HTMLElement>(null);
   const art = useRef<HTMLDivElement>(null);
   const backdrop = useRef<HTMLDivElement>(null);
@@ -53,7 +60,13 @@ export default function CardDetailModal({ card: initialCard, headquarters, origi
     document.addEventListener('click', repeat, true);
     return () => document.removeEventListener('click', repeat, true);
   }, [origin, !!onSourceDoubleClick]);
-  useEffect(() => { setCard(initialCard || null); }, [initialCard, headquarters]);
+  const cancelPaging = useCardDetailPaging({ ref: overlay, enabled: true, ready: arrived && !isClosing, items: sequence,
+    item: card ? { card } : headquarters ? { headquarters } : undefined, mode: 'modal',
+    onSelect: item => { setCard(item.card || null); setHeadquarters(item.headquarters); },
+    onReveal: async item => { currentOrigin.current = await onNavigate?.(item); },
+    onMoving: moving => { entrance.current?.cancel(); setArrived(!moving); },
+  });
+  useEffect(() => { setCard(initialCard || null); setHeadquarters(initialHeadquarters); currentOrigin.current = origin; }, [initialCard, initialHeadquarters]);
   useLayoutEffect(() => {
     const element = art.current;
     if (!element || !origin || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -84,9 +97,11 @@ export default function CardDetailModal({ card: initialCard, headquarters, origi
     if (!element) { close.current(); return; }
     const current = getComputedStyle(element);
     const from = { transform: current.transform, opacity: current.opacity };
+    cancelPaging();
     entrance.current?.cancel();
     const target = element.getBoundingClientRect();
-    const destination = origin?.element?.isConnected ? captureCardDetailOrigin(origin.element, origin.kind, origin.image) : origin;
+    const source = currentOrigin.current;
+    const destination = source?.element?.isConnected ? captureCardDetailOrigin(source.element, source.kind, source.image) : source;
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const transform = destination && !reduced
       ? `translate(${destination.left + destination.width / 2 - target.left - target.width / 2}px, ${destination.top + destination.height / 2 - target.top - target.height / 2}px) scale(${destination.width / target.width}, ${destination.height / target.height})`
@@ -111,7 +126,9 @@ export default function CardDetailModal({ card: initialCard, headquarters, origi
     return () => {
       document.removeEventListener('keydown', keydown, true);
       exit.current?.cancel(); backdropExit.current?.cancel();
-      if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
+      const source = currentOrigin.current?.element;
+      const focusTarget = source?.closest<HTMLElement>('button, [tabindex="0"]') || previous;
+      if (focusTarget instanceof HTMLElement && focusTarget.isConnected) focusTarget.focus({ preventScroll: true });
     };
   }, []);
   const cardsById = useMemo(() => new Map(cards.map(item => [item.cardId, item])), [cards]);
@@ -129,7 +146,7 @@ export default function CardDetailModal({ card: initialCard, headquarters, origi
   const rarity = ({ Standard: '普通', Limited: '稀有', Special: '罕见', Elite: '精英' })[card?.json.rarity || ''] || card?.json.rarity || headquarters?.rarity || '—';
   const setName = card ? expansionLabel(card.json.set, language) : '';
   const faction = card?.json.faction || (headquarters?.nation === 'Blank' ? 'Neutral' : headquarters?.nation) || 'Neutral';
-  return createPortal(<div className="card-detail-overlay" data-phase={isClosing ? 'closing' : arrived ? 'ready' : 'moving'} data-origin={origin?.kind}>
+  return createPortal(<div ref={overlay} className="card-detail-overlay" data-phase={isClosing ? 'closing' : arrived ? 'ready' : 'moving'} data-origin={origin?.kind}>
     <div ref={backdrop} className="card-detail-backdrop" onClick={requestClose} />
     <section ref={panel} role="dialog" aria-modal="true" aria-label={'卡牌详情：' + title}
       tabIndex={-1} onKeyDown={event => {
@@ -149,7 +166,7 @@ export default function CardDetailModal({ card: initialCard, headquarters, origi
           </div>
           {keywords.length > 0 && <section className="card-detail-section">
             <h3 className="mb-3 font-bold">词条</h3>
-            <p aria-label="卡牌词条" className="text-sm leading-7 text-kards-text"><CardText text={keywords.join('，')} /></p>
+            <p aria-label="卡牌词条" className="text-sm leading-7 text-kards-text"><CardText text={keywords.join('，')} highlightCombat /></p>
           </section>}
           {card ? <dl className="card-detail-section grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-3 text-sm">
             {subtypes.length > 0 && <><dt>子类</dt><dd>{subtypes.join(' · ')}</dd></>}
@@ -176,7 +193,7 @@ export default function CardDetailModal({ card: initialCard, headquarters, origi
             <h3 className="mb-3 font-bold">关联卡牌</h3>
             <div className="flex flex-wrap gap-3">{relatedCards.map(related => <button key={related.label + related.cardId} type="button"
               title={related.label + '：' + cardDisplayTitle(related.card, language)} aria-label={related.label + '：' + cardDisplayTitle(related.card, language)}
-              onClick={() => setCard(related.card)} className="card-action w-[86px]"><CardFace card={related.card} /></button>)}</div>
+              onClick={() => { setCard(related.card); setHeadquarters(undefined); currentOrigin.current = undefined; }} className="card-action w-[86px]"><CardFace card={related.card} /></button>)}</div>
           </section>}
         </div>
       </div>

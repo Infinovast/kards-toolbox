@@ -21,7 +21,7 @@ type Props = {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
-  layout?: 'list' | 'grid';
+  layout?: 'list' | 'grid' | 'columns';
 } & ({ multiple: true; value: string[]; onChange: (value: string[]) => void }
   | { multiple?: false; value: string; onChange: (value: string) => void });
 
@@ -103,8 +103,8 @@ export default function CustomSelect(props: Props) {
       const below = window.innerHeight - rect.bottom - gap - margin;
       const above = rect.top - gap - margin;
       const upwards = below < 260 && above > below;
-      const maxHeight = Math.max(80, Math.min(420, upwards ? above : below));
-      const width = Math.min(window.innerWidth - margin * 2, Math.max(rect.width, layout === 'grid' ? 300 : 232));
+      const maxHeight = Math.max(80, Math.min(layout === 'columns' ? 500 : 420, upwards ? above : below));
+      const width = Math.min(window.innerWidth - margin * 2, layout === 'columns' ? popup.current.scrollWidth + 2 : Math.max(rect.width, layout === 'grid' ? 300 : 232));
       const height = Math.min(popup.current.scrollHeight, maxHeight);
       setPosition({ width, maxHeight, left: Math.max(margin, Math.min(rect.left, window.innerWidth - width - margin)), top: upwards ? Math.max(margin, rect.top - height - gap) : rect.bottom + gap });
     };
@@ -206,10 +206,12 @@ export default function CustomSelect(props: Props) {
       </span>
       <ChevronDown aria-hidden="true" className={`h-3.5 w-3.5 shrink-0 ${open ? 'rotate-180' : ''}`} />
     </button>
-    {open && createPortal(<div ref={popup} className={`custom-select-popover glass-panel custom-scrollbar ${props.multiple ? 'is-multiple' : ''}`} style={position} onKeyDown={handleKeys} onClick={event => event.stopPropagation()}>
+    {open && createPortal(<div ref={popup} className={`custom-select-popover glass-panel custom-scrollbar ${props.multiple ? 'is-multiple' : ''} ${layout === 'columns' ? 'custom-select-compact-columns' : ''}`} style={position} onKeyDown={handleKeys} onClick={event => event.stopPropagation()}>
       {props.multiple && <div className="custom-select-heading"><span>可多选</span><button type="button" onClick={() => { props.onChange([]); list.current?.focus(); }}>清除选择</button></div>}
       <div ref={list} id={id} tabIndex={0} role="listbox" aria-label={`${label}选项`} aria-multiselectable={props.multiple || undefined} aria-activedescendant={active >= 0 ? `${id}-${active}` : undefined} className={`custom-select-options custom-select-${layout}`}>
-        {options.map((option, optionIndex) => {
+        {(layout === 'columns' ? [...new Set(options.map(option => option.group))] : [undefined]).map(group => <div key={group || 'options'} className={layout === 'columns' ? 'custom-select-column' : 'contents'}>
+        {layout === 'columns' && <div className="custom-select-group">{group}</div>}
+        {options.filter(option => layout !== 'columns' || option.group === group).map((option, optionIndex) => {
           const renderOption = (item: SelectOption, parentValue?: string) => {
             const index = visibleOptions.findIndex(entry => entry.option.value === item.value);
             const hasChildren = !parentValue && !!item.children?.length;
@@ -234,10 +236,10 @@ export default function CustomSelect(props: Props) {
             </div>;
           };
           return <div key={option.value} className="custom-select-option-section">
-            {option.group && options[optionIndex - 1]?.group !== option.group && <div className="custom-select-group">{option.group}</div>}
+            {layout !== 'columns' && option.group && options[optionIndex - 1]?.group !== option.group && <div className="custom-select-group">{option.group}</div>}
             {renderOption(option)}
           </div>;
-        })}
+        })}</div>)}
         {!options.length && <div className="px-3 py-4 text-sm text-kards-text-muted">暂无可选项</div>}
       </div>
     </div>, document.body)}

@@ -10,10 +10,11 @@ import PageIndicator from './PageIndicator';
 import useCardPoolLayout from '../lib/useCardPoolLayout';
 import { captureCardDetailOrigin, type CardDetailOrigin } from '../lib/cardDetailOrigin';
 import CardDetailModal from './CardDetailModal';
+import { revealDetailItem, type CardDetailItem } from '../lib/cardDetailPaging';
 import CardFilterSelects, { CostFilterButtons, nationOptions } from './CardFilterSelects';
 import { decodeDeckCode, encodeDeckCode, findCardsByImportId } from '../lib/deckCode';
 import { DEFAULT_DECK_RULES, validateDeck, type DeckRuleSet, type DeckRules } from '../lib/deckRules';
-import { defaultHeadquartersForNation, type HeadquartersAsset } from '../lib/cardAssets';
+import { defaultHeadquartersForNation, headquartersForDeck, type HeadquartersAsset } from '../lib/cardAssets';
 import { CardFace, RaritySlots } from './CardFace';
 import ReservedBadge from './ReservedBadge';
 import SearchClearButton from './SearchClearButton';
@@ -155,6 +156,19 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
       || (left ? cardTitle(left, 'zh-Hans') : leftId).localeCompare(right ? cardTitle(right, 'zh-Hans') : rightId, 'zh-Hans')
       || leftId.localeCompare(rightId);
   }), [entries, cardsById]);
+  const detailSequence: CardDetailItem[] = detailOrigin?.kind === 'strip'
+    ? [
+      ...(headquartersForDeck(headquartersId, mainNation) ? [{ headquarters: headquartersForDeck(headquartersId, mainNation)! }] : []),
+      ...sortedEntries.flatMap(([id]) => { const card = cardsById.get(id); return card ? [{ card }] : []; }),
+    ] : matchingCards.map(card => ({ card }));
+  const revealSource = async (item: CardDetailItem) => {
+    const kind = detailOrigin?.kind || 'pool';
+    if (kind === 'pool' && item.card) {
+      const index = matchingCards.findIndex(card => card.cardId === item.card.cardId);
+      if (index >= 0) setPage(Math.floor(index / pool.capacity) + 1);
+    }
+    return revealDetailItem(item, kind, kind === 'pool' ? pool.ref.current : rootRef.current);
+  };
 
   const deckLimit = rules.deckSize + 1;
   const totalWithHeadquarters = totalCards + 1;
@@ -277,10 +291,11 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
             onClick={event => {
               if (event.detail > 1) { adjustCard(card.importId, 1, event.currentTarget); return; }
               setDetailOrigin(captureCardDetailOrigin(event.currentTarget, 'pool', undefined, event.nativeEvent));
+              setSelectedHeadquarters(null);
               setSelectedCard(card);
             }}
             onContextMenu={event => { event.preventDefault(); adjustCard(card.importId, -1, event.currentTarget); }}
-            aria-label={'查看' + cardDisplayTitle(card, 'zh-Hans')} title={cardDisplayTitle(card, 'zh-Hans')} className="card-action group block w-full text-left">
+            data-detail-source={card.cardId} aria-label={'查看' + cardDisplayTitle(card, 'zh-Hans')} title={cardDisplayTitle(card, 'zh-Hans')} className="card-action group block w-full text-left">
             <span className="library-card-art"><CardFace card={card} enabled={active} />{card.reserved && <ReservedBadge className="library-reserved-badge" />}</span>
           </button>
           <RaritySlots rarity={card.json.rarity} count={entries.get(card.importId) || 0} />
@@ -303,11 +318,11 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
         <label className="text-xs text-kards-text"><input type="checkbox" checked={customRules.allowGenerated} onChange={event => setCustomRules({ ...customRules, allowGenerated: event.target.checked })} /> 允许导入的衍生卡</label>
       </div>}
       <div aria-label="构筑卡牌列表" className="min-h-16 space-y-1">
-        <DeckHeadquartersStrip nation={mainNation} headquartersId={headquartersId} onClick={(headquarters, origin) => { setDetailOrigin(origin); setSelectedHeadquarters(headquarters); }} />
+        <DeckHeadquartersStrip nation={mainNation} headquartersId={headquartersId} onClick={(headquarters, origin) => { setDetailOrigin(origin); setSelectedCard(null); setSelectedHeadquarters(headquarters); }} />
         {sortedEntries.map(([id, count]) => {
           const card = cardsById.get(id);
           return <div key={id} className="deck-builder-card-row"><DeckCardStrip card={card} importId={id} count={count} enabled={active && draftLoaded} draggable={active}
-            onClick={origin => { if (card) { setDetailOrigin(origin); setSelectedCard(card); } }} onDoubleClick={() => adjustCard(id, 1)} onRemove={() => adjustCard(id, -1)}
+            onClick={origin => { if (card) { setDetailOrigin(origin); setSelectedHeadquarters(null); setSelectedCard(card); } }} onDoubleClick={() => adjustCard(id, 1)} onRemove={() => adjustCard(id, -1)}
             onDragStart={event => { event.dataTransfer.setData(DECK_CARD_DRAG_TYPE, id); event.dataTransfer.effectAllowed = 'move'; }} onDragEnd={() => setDragOverZone(null)} /></div>;
         })}
         {!entries.size && <p className="py-10 text-center text-sm text-kards-text-muted">从左侧选择卡牌开始构筑</p>}
@@ -323,7 +338,7 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
     </aside>
     </div>
     {active && <DeckCardMotion flights={cardMotion.flights} onFinish={cardMotion.finish} />}
-    {active && (selectedCard || selectedHeadquarters) && <CardDetailModal card={selectedCard || undefined} headquarters={selectedHeadquarters || undefined} origin={detailOrigin} cards={cards}
+    {active && (selectedCard || selectedHeadquarters) && <CardDetailModal card={selectedCard || undefined} headquarters={selectedHeadquarters || undefined} origin={detailOrigin} cards={cards} sequence={detailSequence} onNavigate={revealSource}
       onSourceDoubleClick={selectedCard ? () => adjustCard(selectedCard.importId, 1, detailOrigin?.element) : undefined}
       onClose={() => { setSelectedCard(null); setSelectedHeadquarters(null); }} />}
     {active && pendingNation && createPortal(<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
