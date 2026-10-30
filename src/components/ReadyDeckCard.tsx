@@ -8,6 +8,7 @@ import { cardDisplayTitle, factionLabel, type KardsCardRecord } from '../types/c
 import { CARD_STRIP_NATIONS } from './DeckCardStrip';
 import { RARITY_SLOTS } from './CardFace';
 import { FilterIcon } from './CardFilterSelects';
+import { factionIcon, WILDCARDS } from '../lib/assetCatalog';
 
 const RARITIES = [
   { id: 'Elite', label: '精英' }, { id: 'Special', label: '罕见' },
@@ -54,7 +55,7 @@ export default function ReadyDeckCard({ deck, cardsById, selected, onSelect }: {
   const tallest = Math.max(1, ...summary.curve);
   return <button type="button" aria-label={deck.name} aria-pressed={selected} onClick={onSelect}
     className="ready-deck-card" style={{ '--ready-deck-color': appearance.color } as CSSProperties}>
-    <img className="ready-deck-watermark" src={`./assets/filters/${summary.mainNation.toLowerCase()}.svg`} alt="" aria-hidden="true" />
+    <img className="ready-deck-watermark" src={factionIcon(summary.mainNation, 'white')} alt="" aria-hidden="true" />
     <span className="ready-deck-header">
       <span className="ready-deck-header-icon" role="img" aria-label={factionLabel(summary.mainNation)}>
         <img src={appearance.icon} alt="" />
@@ -66,7 +67,7 @@ export default function ReadyDeckCard({ deck, cardsById, selected, onSelect }: {
       <span className="ready-deck-nations">
         <span><strong>{factionLabel(summary.mainNation)}</strong><span className="ready-deck-nation-count">（{summary.mainCount}）</span></span>
         {summary.allyNation !== summary.mainNation && <span className="ready-deck-ally">
-          <span className="ready-deck-ally-icon" aria-hidden="true"><FilterIcon name={`${summary.allyNation.toLowerCase()}.svg`} /></span>
+          <span className="ready-deck-ally-icon" aria-hidden="true"><FilterIcon src={factionIcon(summary.allyNation, 'white')} /></span>
           <span>{factionLabel(summary.allyNation)}</span><span className="ready-deck-nation-count">（{summary.allyCount}）</span>
         </span>}
       </span>
@@ -85,10 +86,14 @@ export default function ReadyDeckCard({ deck, cardsById, selected, onSelect }: {
     </span>
     <span className="ready-deck-footer">
       <span className="ready-deck-rarities">
-        {RARITIES.map(rarity => <span key={rarity.id} title={`${rarity.label} ${summary.rarities[rarity.id] || 0} 张`}>
-          <img className="ready-deck-rarity-icon" src={`./assets/wildcards/${rarity.id.toLowerCase()}.svg`} alt={rarity.label} />
-          <span>{summary.rarities[rarity.id] || 0}</span>
-        </span>)}
+        {RARITIES.map(rarity => {
+          const wildcard = WILDCARDS.Common[rarity.id], crop = wildcard.crop;
+          return <span key={rarity.id} title={`${rarity.label} ${summary.rarities[rarity.id] || 0} 张`}>
+            <span className="ready-deck-rarity-icon"><img src={wildcard.file} alt={rarity.label}
+              style={{ width: `${100 / crop.width}%`, height: `${100 / crop.height}%`, left: `${-100 * crop.x / crop.width}%`, top: `${-100 * crop.y / crop.height}%` }} /></span>
+            <span>{summary.rarities[rarity.id] || 0}</span>
+          </span>;
+        })}
       </span>
     </span>
   </button>;

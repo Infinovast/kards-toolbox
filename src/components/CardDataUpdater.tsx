@@ -3,6 +3,7 @@ import { Download, RotateCcw, Search, Trash2, X } from 'lucide-react';
 import { cardDisplayTitle, type KardsCardRecord } from '../types/card';
 import CustomSelect from './CustomSelect';
 import PageIndicator from './PageIndicator';
+import SearchClearButton from './SearchClearButton';
 import { compareCardData, type CardFieldChange } from '../lib/cardData';
 import type { CardDataSource } from '../lib/cardData';
 import { applyCardData, cancelCardDataCheck, checkCardData, deleteDownloadedCardData, initializeCardDataSync, rollbackCardData, useCardDataSync } from '../lib/cardDataSync';
@@ -93,7 +94,7 @@ export default function CardDataUpdater({ cards, onApplied }: { cards: KardsCard
       {!changes.length ? <p className="mt-4 text-sm text-kards-text">两份数据一致，无需更新。</p> : <>
         <div className="my-4 flex flex-wrap gap-3">
           <CustomSelect label="数据对比类型" value={kind} onChange={setKind} options={[{ value: 'all', label: `全部差异（${changes.length}）` }, ...Object.entries(kindLabels).map(([value, label]) => ({ value, label: `${label}（${counts[value]}）` }))]} />
-          <div className="relative min-w-40 flex-1"><Search className="absolute left-3 top-3 h-4 w-4 text-kards-text-muted" /><input aria-label="搜索数据差异" value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Escape' && query && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); setQuery(''); } }} placeholder="搜索卡名或编号" className="w-full rounded border border-kards-border bg-kards-input-bg py-2 pl-9 pr-3 text-sm text-kards-text" /></div>
+          <div className="relative min-w-40 flex-1"><Search className="absolute left-3 top-3 h-4 w-4 text-kards-text-muted" /><input aria-label="搜索数据差异" value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Escape' && query && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); setQuery(''); } }} placeholder="搜索卡名或编号" className="w-full rounded border border-kards-border bg-kards-input-bg py-2 pl-9 pr-9 text-sm text-kards-text" /><SearchClearButton label="清除数据差异搜索" value={query} onClear={() => setQuery('')} /></div>
         </div>
         <div className="divide-y divide-kards-border border-y border-kards-border">
           {filtered.slice((page - 1) * 30, page * 30).map(change => <details key={change.importId} className="py-1">

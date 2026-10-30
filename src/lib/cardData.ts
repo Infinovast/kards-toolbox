@@ -1,5 +1,6 @@
 import type { KardsCardRecord } from '../types/card';
 import bundledWeatherCards from '../data/weatherCards.json';
+import { weatherCardFamily } from './weatherCards';
 
 export const CARD_DATA_URL = 'https://api.kardsplayer.com/graphql';
 export const KARDS_COM_DATA_URL = 'https://herokuapi.kards.com/graphql';
@@ -138,7 +139,11 @@ export function mergeWeatherCardRecords(values: unknown, source: CardDataSource 
       json: { ...card.json, import_id: importId },
     });
   }
-  return validateCardRecords([...merged.values()], source);
+  return validateCardRecords([...merged.values()].map(card => {
+    const family = weatherCardFamily(card.cardId);
+    const base = family?.variant ? merged.get(family.baseId) : undefined;
+    return base ? { ...card, thumbUrl: base.thumbUrl } : card;
+  }), source);
 }
 
 export function parseCardDataPage(payload: unknown, source: CardDataSource = 'kardsplayer'): CardDataPage {

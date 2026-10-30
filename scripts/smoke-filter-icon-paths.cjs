@@ -3,6 +3,11 @@ const { _electron: electron, expect } = require('playwright/test');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const assert = require('node:assert/strict');
+const catalogue = require('../src/data/assets.json');
+const filterPaths = new Set([
+  ...Object.values(catalogue.factions).map(asset => asset.white || asset.icon),
+  ...Object.values(catalogue.types), ...Object.values(catalogue.rarities), ...Object.values(catalogue.sets),
+]);
 
 async function main() {
   const root = path.resolve(__dirname, '..');
@@ -16,9 +21,9 @@ async function main() {
   try {
     const page = await app.firstWindow();
     const requests = new Set(), failures = [], badResponses = [], pageErrors = [];
-    page.on('request', request => { if (request.url().includes('/filters/')) requests.add(request.url()); });
-    page.on('requestfailed', request => { if (request.url().includes('/filters/')) failures.push({ url: request.url(), error: request.failure()?.errorText }); });
-    page.on('response', response => { if (response.url().includes('/filters/') && !response.ok()) badResponses.push({ url: response.url(), status: response.status() }); });
+    page.on('request', request => { if (filterPaths.has(new URL(request.url()).pathname)) requests.add(request.url()); });
+    page.on('requestfailed', request => { if (filterPaths.has(new URL(request.url()).pathname)) failures.push({ url: request.url(), error: request.failure()?.errorText }); });
+    page.on('response', response => { if (filterPaths.has(new URL(response.url()).pathname) && !response.ok()) badResponses.push({ url: response.url(), status: response.status() }); });
     page.on('pageerror', error => pageErrors.push(error.message));
     await page.route(/^https?:/, route => route.abort());
     await page.waitForURL('kards://app/index.html');
@@ -41,7 +46,7 @@ async function main() {
         const url = new URL(match[1]);
         assert.equal(url.protocol, new URL(page.url()).protocol);
         assert.equal(url.host, new URL(page.url()).host);
-        assert.match(url.pathname, /^\/assets\/filters\/[^/]+\.(svg|png)$/);
+        assert.ok(filterPaths.has(url.pathname), url.pathname);
         assert.ok(icon.width > 0 && icon.height > 0);
         checkedUrls.add(url.href);
       }
@@ -52,7 +57,7 @@ async function main() {
     await checkMenu('阵营筛选', 10);
     await checkMenu('类型筛选', 7);
     await checkMenu('稀有度筛选', 4);
-    await checkMenu('扩展包筛选', 16);
+    await checkMenu('扩展包筛选', Object.keys(catalogue.sets).length);
     // Select some icons too: trigger chips must use the same corrected paths.
     await page.getByRole('combobox', { name: '阵营筛选', exact: true }).click();
     const list = page.getByRole('listbox');
@@ -61,7 +66,7 @@ async function main() {
     await list.press('Escape');
     const triggerMasks = await page.getByRole('combobox', { name: '阵营筛选', exact: true }).locator('.filter-symbol').evaluateAll(elements => elements.map(element => getComputedStyle(element).maskImage));
     assert.equal(triggerMasks.length, 2);
-    assert.ok(triggerMasks.every(mask => mask.startsWith('url("kards://app/assets/filters/')));
+    assert.ok(triggerMasks.every(mask => mask.startsWith('url("kards://app/assets/faction_icons/')));
     // Electron's file-protocol successes are not exposed as Playwright network
     // events. Fetch the *computed* URLs, rather than a separately built good path.
     const assets = await page.evaluate(async urls => Promise.all(urls.map(async url => {

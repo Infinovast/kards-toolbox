@@ -1,10 +1,5 @@
 import type { DeckRenderRequest } from './deckRenderTypes';
 
-export function deckCounterNationIcon(nation: string) {
-  const id = nation.toLowerCase();
-  return ['germany', 'britain', 'japan', 'soviet', 'usa', 'france', 'italy', 'poland', 'finland', 'anzac'].includes(id) ? id : 'neutral';
-}
-
 // Both renderers share the same counter geometry and count the headquarters once.
 export function deckRenderCounterSvg(request: DeckRenderRequest, icons: { main: string; ally: string; total: string }) {
   const main = request.mainNation.toLowerCase(), ally = request.allyNation.toLowerCase();

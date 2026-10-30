@@ -9,6 +9,7 @@ import { CacheBundleInstaller } from './cacheBundle';
 import { fetchCardDataPage, type CardDataSource } from '../src/lib/cardData';
 import { downloadCardImage } from '../src/lib/cardImageDownload';
 import type { DeckRenderRequest } from '../src/lib/deckRenderTypes';
+import { LOGOS } from '../src/lib/assetCatalog';
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -48,7 +49,7 @@ function getRendererDistPath(relativePath = 'index.html') {
 }
 
 function getIconPath(dark = nativeTheme.shouldUseDarkColors) {
-  return path.join(__dirname, '..', 'dist', 'assets', 'kards_logos', dark ? 'KardsLogoWhite_cards_new.png' : 'KardsLogoBlack_cards_new.png');
+  return getRendererDistPath(dark ? LOGOS.app.white : LOGOS.app.black);
 }
 
 async function showLoadFailure(mainWindow: BrowserWindow, details: string) {

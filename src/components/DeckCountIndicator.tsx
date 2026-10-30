@@ -1,7 +1,8 @@
 import { FilterIcon } from './CardFilterSelects';
+import { factionIcon, LOGOS } from '../lib/assetCatalog';
 
 function nationIcon(nation: string) {
-  return <FilterIcon name={`${nation.toLowerCase()}.svg`} fullColor={nation.toLowerCase() === 'neutral'} />;
+  return <FilterIcon src={factionIcon(nation, 'white')} fullColor={nation.toLowerCase() === 'neutral'} />;
 }
 
 export default function DeckCountIndicator({ mainNation, allyNation, mainCount, allyCount, total, limit, compact = false }: {
@@ -25,8 +26,8 @@ export default function DeckCountIndicator({ mainNation, allyNation, mainCount, 
     </div>
     <div className={`deck-count-total ${overLimit ? 'is-over' : ''}`} title="总牌数 / 上限">
       <span className="deck-count-icon" aria-hidden="true">
-        <img src="./assets/kards_logos/KardsLogoBlack_cards.png" alt="" className="deck-count-logo-light" />
-        <img src="./assets/kards_logos/KardsLogoWhite_cards.png" alt="" className="deck-count-logo-dark" />
+        <img src={LOGOS.cards.black} alt="" className="deck-count-logo-light" />
+        <img src={LOGOS.cards.white} alt="" className="deck-count-logo-dark" />
       </span>
       <span className="deck-count-value"><strong>{total}</strong><span>/{limit}</span></span>
     </div>

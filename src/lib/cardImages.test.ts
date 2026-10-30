@@ -6,6 +6,7 @@ import { cacheCardImage, getCachedCardImage, readCardImageCache, recordImageCach
 import { downloadCardImage, validateCardImageUrl } from './cardImageDownload';
 import { cardKeywords, cardRelations } from './cardDetails';
 import { isGeneratedCard, isInBuilderPool } from './cardFilters';
+import { mergeWeatherCardRecords } from './cardData';
 
 const cards: KardsCardRecord[] = JSON.parse(readFileSync('public/data/cards.json', 'utf8')).cards;
 const base = cards.find(card => card.cardId === '50_infantry_regiment')!;
@@ -113,4 +114,17 @@ assert.deepEqual((await readCardImageCache([base, veteran])).batch?.importIds, [
 await startImageDownload([veteran]);
 assert.deepEqual((await readCardImageCache([base, veteran])).batch?.importIds, [veteran.importId]);
 assert.equal(await getCachedCardImage(base, 'thumbnail'), avifData, 'old thumbnails survive for rollback');
+const weatherCards = mergeWeatherCardRecords(cards);
+const delugeFamily = ['deluge', 'temp_deluge_1', 'temp_deluge_2'].map(id => weatherCards.find(card => card.cardId === id)!);
+const beforeWeather = downloaded.length;
+await Promise.all(delugeFamily.map(card => cacheCardImage(card, 'thumbnail', false)));
+assert.deepEqual(downloaded.slice(beforeWeather), [delugeFamily[0].thumbUrl], 'base and forms share one thumbnail download, including concurrent requests');
+const weatherInventory = await readCardImageCache(delugeFamily);
+assert.equal(new Set(weatherInventory.entries.map(entry => entry.thumbnail.key)).size, 1, 'weather family thumbnails share one cache file');
+assert.ok(weatherInventory.entries.every(entry => entry.thumbnail.status === 'cached'));
+assert.equal(weatherInventory.cachedThumbnail, 3, 'one shared thumbnail covers all three cards');
+for (const card of delugeFamily) assert.equal(await getCachedCardImage(card, 'thumbnail'), avifData);
+const beforeWeatherFull = downloaded.length;
+await Promise.all(delugeFamily.map(card => cacheCardImage(card, 'full', false)));
+assert.deepEqual([...downloaded.slice(beforeWeatherFull)].sort(), delugeFamily.map(card => card.imageUrl!).sort(), 'full weather artwork remains distinct');
 console.log('Kardsplayer image and card-detail tests passed: independent legacy thumbnails, paired cache, persisted failure/partial inventory/retry, batch scope, catalogue URLs, AVIF MIME, veteran details');

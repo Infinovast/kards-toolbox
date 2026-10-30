@@ -47,7 +47,7 @@ with sync_playwright() as playwright:
     page = context.new_page()
     errors, bad_assets = [], []
     page.on('pageerror', lambda error: errors.append(str(error)))
-    page.on('response', lambda response: bad_assets.append(response.url) if '/assets/filters/' in response.url and response.status != 200 else None)
+    page.on('response', lambda response: bad_assets.append(response.url) if '/assets/' in response.url and response.status != 200 else None)
     page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(('http://127.0.0.1:5173', 'ws://127.0.0.1:5173', 'data:', 'blob:')) else route.abort())
     page.goto('http://127.0.0.1:5173')
     page.wait_for_load_state('networkidle')
@@ -191,7 +191,7 @@ with sync_playwright() as playwright:
     expect(countries).to_have_attribute('aria-multiselectable', 'true')
     expect(countries.get_by_role('option')).to_have_count(11)
     expect(option('Germany')).to_contain_text('德国')
-    expect(option('Neutral').locator('img')).to_have_attribute('src', './assets/filters/neutral.svg')
+    expect(option('Neutral').locator('img')).to_have_attribute('src', '/assets/faction_icons/Neutral/neutral.svg')
     option('Germany').click()
     result_count(4)
     expect(option('Germany')).to_have_attribute('aria-selected', 'true')
@@ -383,10 +383,13 @@ with sync_playwright() as playwright:
     page.keyboard.press('Escape')
     expect(page.locator('[role="dialog"][aria-modal="true"]')).to_have_count(0)
     # Verify that every shipped icon URL resolves locally, without reading image pixels.
-    manifest = json.loads((ROOT / 'public/assets/filters/sources.json').read_text(encoding='utf-8'))
-    for filename in manifest:
-        response = page.request.get('http://127.0.0.1:5173/assets/filters/' + filename)
-        assert response.status == 200, filename
+    catalogue = json.loads((ROOT / 'src/data/assets.json').read_text(encoding='utf-8'))
+    manifest = [item.get('white', item['icon']) for item in catalogue['factions'].values()]
+    for section in ['types', 'rarities', 'sets']:
+        manifest.extend(catalogue[section].values())
+    for url in manifest:
+        response = page.request.get('http://127.0.0.1:5173' + url)
+        assert response.status == 200, url
     assert not errors, errors
     assert not bad_assets, bad_assets
     report = {'status': 'passed', 'screenshots': False, 'imageInspection': False, 'offlineIcons': len(manifest), 'pageErrors': errors, 'checks': ['no native selects', 'five multiselect filters', 'subtype mapping and detail metadata', 'OR and AND semantics', 'deselect/reset', 'neutral diamond', 'Chinese and English option labels', 'single-select sets and official ordering', 'cost button dimensions', 'rarity icons only', 'keyboard navigation and focus', 'IME guard', 'popup Esc before editor/dialog', 'outside click', 'one open menu', 'minimum viewport and portal clipping', 'builder nation/Elite/generated restrictions', 'nested card-back dialogs', 'local assets with network blocked']}

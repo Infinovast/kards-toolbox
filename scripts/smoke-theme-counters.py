@@ -74,7 +74,7 @@ with sync_playwright() as p:
 
     page.get_by_role('button', name='选择卡组 芬兰标志测试', exact=True).click()
     details = page.get_by_role('dialog', name='卡组详情', exact=True)
-    expect(details.locator('.deck-card-nation').last).to_have_attribute('src', './assets/filters/finland.svg')
+    expect(details.locator('.deck-card-nation').last).to_have_attribute('src', '/assets/faction_icons/Finland/finland.png')
     details.get_by_role('button', name='关闭卡组详情', exact=True).click()
     page.get_by_role('button', name='选择卡组 计数器测试', exact=True).click()
     counter = details.locator('.deck-count-indicator')

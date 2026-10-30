@@ -3,8 +3,9 @@ import { decodeDeckCode, findCardsByImportId } from './deckCode';
 import { getCachedCardImage } from './cardImages';
 import type { DeckRenderRequest } from './deckRenderTypes';
 import { BUNKER_HEADQUARTERS, DEFAULT_TABLECLOTH, headquartersForDeck } from './cardAssets';
-import { deckCounterNationIcon, deckRenderCounterSvg } from './deckRenderCounter';
+import { deckRenderCounterSvg } from './deckRenderCounter';
 import { deckQrSvg } from './deckImageCode';
+import { factionIcon, LOGOS, RARITY_ICONS } from './assetCatalog';
 
 async function imageDataUrl(url: string): Promise<string> {
   if (url.startsWith('data:')) return url;
@@ -42,12 +43,12 @@ async function renderBrowserPreview(request: DeckRenderRequest, background?: str
   const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = Math.max(1440, top + Math.ceil((total + 1) / cols) * (thumbH + gap) + 20);
   const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('无法创建画布');
   ctx.drawImage(bg, 0, 0, width, canvas.height);
-  const logo = await load('/assets/kards_logos/KardsLogoWhite.png'); ctx.drawImage(logo, 40, -25, 240, 240);
+  const logo = await load(LOGOS.wordmark.white); ctx.drawImage(logo, 40, -25, 240, 240);
   ctx.fillStyle = '#f2ead6'; ctx.font = 'bold 48px Microsoft YaHei,sans-serif'; ctx.fillText(request.title, 350, 87, 1000);
   const [mainIcon, allyIcon, totalIcon] = await Promise.all([
-    imageDataUrl(`./assets/filters/${deckCounterNationIcon(request.mainNation)}.svg`),
-    imageDataUrl(`./assets/filters/${deckCounterNationIcon(request.allyNation)}.svg`),
-    imageDataUrl('./assets/kards_logos/KardsLogoWhite_cards.png'),
+    imageDataUrl(factionIcon(request.mainNation, 'white')),
+    imageDataUrl(factionIcon(request.allyNation, 'white')),
+    imageDataUrl(LOGOS.cards.white),
   ]);
   const counter = await load(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(deckRenderCounterSvg(request, { main: mainIcon, ally: allyIcon, total: totalIcon }))}`);
   ctx.drawImage(counter, 350, 110);
@@ -56,7 +57,7 @@ async function renderBrowserPreview(request: DeckRenderRequest, background?: str
   const rarities = ['Elite', 'Special', 'Limited', 'Standard'];
   for (let i = 0; i < 4; i++) {
     const rarity = rarities[i], x = width - 650 + i % 2 * 180, y = 27 + Math.floor(i / 2) * 72;
-    const icon = await load(`./assets/filters/${rarity.toLowerCase()}.svg`);
+    const icon = await load(RARITY_ICONS[rarity]);
     const scale = Math.min(64 / icon.width, 64 / icon.height), iconW = icon.width * scale, iconH = icon.height * scale;
     ctx.drawImage(icon, x + (64 - iconW) / 2, y + 4 + (64 - iconH) / 2, iconW, iconH);
     ctx.font = 'bold 44px Microsoft YaHei,sans-serif'; ctx.fillText(String(request.cards.filter(c => c.rarity === rarity).reduce((sum, c) => sum + c.count, 0)), x + 72, y + 54);

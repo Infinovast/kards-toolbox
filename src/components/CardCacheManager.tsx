@@ -5,6 +5,7 @@ import { deleteCachedImages, getCachedCardImage, readCardImageCache, useCardImag
 import { startImageDownload, useImageDownload } from '../lib/imageDownloads';
 import CustomSelect from './CustomSelect';
 import PageIndicator from './PageIndicator';
+import SearchClearButton from './SearchClearButton';
 
 type CacheSnapshot = Awaited<ReturnType<typeof readCardImageCache>>;
 const labels = { cached: '已缓存', missing: '未缓存', failed: '缓存失败', running: '正在缓存' };
@@ -115,7 +116,7 @@ export default function CardCacheManager({ cards }: { cards: KardsCardRecord[] }
     {scope === 'recent' && snapshot?.batch && <time dateTime={snapshot.batch.startedAt} className="mt-3 block text-xs text-kards-text-muted">{new Date(snapshot.batch.startedAt).toLocaleString('zh-CN', { hour12: false })}</time>}
     <div className="my-4 flex flex-wrap items-center gap-2" aria-label="缓存状态分类">
       {(['cached', 'missing', 'failed'] as const).map(kind => <button key={kind} aria-pressed={status === kind} onClick={() => setStatus(kind)} className={`rounded border px-3 py-2 text-sm tabular-nums ${status === kind ? 'border-kards-gold bg-kards-gold/10 text-kards-text' : 'border-kards-border text-kards-text-muted'}`}>{labels[kind]}（{counts[kind]}）</button>)}
-      <div className="relative min-w-48 flex-1"><Search className="absolute left-3 top-3 h-4 w-4 text-kards-text-muted" /><input aria-label="搜索缓存卡牌" value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Escape' && query && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); setQuery(''); } }} placeholder="搜索卡名或编号" className="w-full rounded border border-kards-border bg-kards-input-bg py-2 pl-9 pr-3 text-sm text-kards-text" /></div>
+      <div className="relative min-w-48 flex-1"><Search className="absolute left-3 top-3 h-4 w-4 text-kards-text-muted" /><input aria-label="搜索缓存卡牌" value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Escape' && query && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); setQuery(''); } }} placeholder="搜索卡名或编号" className="w-full rounded border border-kards-border bg-kards-input-bg py-2 pl-9 pr-9 text-sm text-kards-text" /><SearchClearButton label="清除缓存卡牌搜索" value={query} onClear={() => setQuery('')} /></div>
     </div>
     <div className="mb-4 flex flex-wrap gap-2">
       <button onClick={() => download('missing')} disabled={!snapshot || !!error || !counts.missing || busy} className="rounded border border-kards-border px-3 py-2 text-sm text-kards-text disabled:opacity-40">缓存未缓存卡图</button>

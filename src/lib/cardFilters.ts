@@ -9,13 +9,19 @@ export interface CardFilters {
   cardType: string[];
   subtypes: string[];
   keywords: string[];
+  keywordMode: 'or' | 'and';
   cost: string[];
   rarity: string[];
   expansion: string;
   status: string[];
 }
 
-export const EMPTY_CARD_FILTERS: CardFilters = { query: '', factions: [], cardType: [], subtypes: [], keywords: [], cost: [], rarity: [], expansion: 'All', status: [] };
+export const EMPTY_CARD_FILTERS: CardFilters = { query: '', factions: [], cardType: [], subtypes: [], keywords: [], keywordMode: 'or', cost: [], rarity: [], expansion: 'All', status: [] };
+
+export function hasCardFilterConditions(filters: CardFilters) {
+  return !!(filters.factions.length || filters.cardType.length || filters.subtypes.length || filters.keywords.length
+    || filters.cost.length || filters.rarity.length || filters.status.length || filters.expansion !== 'All');
+}
 
 const weatherCardIds = new Set(cardStatusGroups.weather);
 const researchCardIds = new Set(cardStatusGroups.research);
@@ -49,7 +55,9 @@ export function matchesCardFilters(card: KardsCardRecord, filters: CardFilters) 
     && (!filters.factions.length || filters.factions.some(faction => faction.toLowerCase() === card.json.faction?.toLowerCase()))
     && (!filters.cardType.length || filters.cardType.includes(card.json.type || ''))
     && (!filters.subtypes.length || filters.subtypes.some(subtype => cardHasSubtype(card.cardId, subtype)))
-    && (!filters.keywords.length || filters.keywords.some(keyword => cardHasKeyword(card, keyword)))
+    && (!filters.keywords.length || (filters.keywordMode === 'and'
+      ? filters.keywords.every(keyword => cardHasKeyword(card, keyword))
+      : filters.keywords.some(keyword => cardHasKeyword(card, keyword))))
     && (!filters.rarity.length || filters.rarity.includes(card.json.rarity || ''))
     && (!filters.cost.length || filters.cost.some(cost => cost === '7' ? (card.json.kredits ?? 0) >= 7 : String(card.json.kredits ?? 0) === cost))
     && (filters.expansion === 'All' || card.json.set === filters.expansion)

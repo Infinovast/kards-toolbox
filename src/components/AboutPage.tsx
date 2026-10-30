@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { version } from '../../package.json';
+import { LOGOS } from '../lib/assetCatalog';
 
 export default function AboutPage({ isDarkMode, onBack }: { isDarkMode: boolean; onBack: () => void }) {
   const [desktop, setDesktop] = useState<KardsDesktopAppInfo | null>(null);
@@ -11,7 +12,7 @@ export default function AboutPage({ isDarkMode, onBack }: { isDarkMode: boolean;
   return <section aria-label="关于 KARDS Toolbox" className="my-auto w-full max-w-2xl shrink-0 rounded-lg glass-panel p-6 sm:p-8">
     <button onClick={onBack} className="mb-8 flex items-center gap-2 text-sm text-kards-text-muted hover:text-kards-text"><ArrowLeft className="h-4 w-4" />返回</button>
     <div className="flex items-center gap-4 sm:gap-5">
-      <img src={isDarkMode ? "/assets/kards_logos/KardsLogoWhite_icon_new.png" : "/assets/kards_logos/KardsLogoBlack_icon_new.png"} alt="" className="h-16 w-16 shrink-0 object-contain sm:h-20 sm:w-20" />
+      <img src={isDarkMode ? LOGOS.brand.white : LOGOS.brand.black} alt="" className="h-16 w-16 shrink-0 object-contain sm:h-20 sm:w-20" />
       <div>
         <h2 className="text-3xl font-bold text-kards-text">KARDS Toolbox</h2>
         <p className="mt-2 text-lg text-kards-text">KARDS 工具箱</p>

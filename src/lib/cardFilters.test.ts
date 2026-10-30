@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { EMPTY_CARD_FILTERS, isInBuilderPool, matchesCardFilters } from './cardFilters';
+import { EMPTY_CARD_FILTERS, hasCardFilterConditions, isInBuilderPool, matchesCardFilters } from './cardFilters';
 import { mergeWeatherCardRecords } from './cardData';
 import { CARD_SUBTYPES, cardSubtypeLabels } from './cardSubtypes';
 import { CARD_KEYWORDS, CARD_TEXT_KEYWORDS, cardHasKeyword, cardKeywords } from './cardKeywords';
@@ -100,6 +100,15 @@ assert.ok(matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, keywords: ['none'] }
 assert.ok(matchesCardFilters(changed({ attributes: ['OnlySpawnable'] }), { ...EMPTY_CARD_FILTERS, keywords: ['none'] }));
 assert.ok(matchesCardFilters(withKeywords, { ...EMPTY_CARD_FILTERS, keywords: ['none', 'shock'] }));
 assert.ok(!matchesCardFilters(withKeywords, { ...EMPTY_CARD_FILTERS, keywords: ['none'] }));
+assert.ok(matchesCardFilters(withKeywords, { ...EMPTY_CARD_FILTERS, keywordMode: 'and', keywords: ['shock', 'covert', 'heavyArmor'] }));
+assert.ok(!matchesCardFilters(withKeywords, { ...EMPTY_CARD_FILTERS, keywordMode: 'and', keywords: ['shock', 'guard'] }));
+assert.ok(!matchesCardFilters(withKeywords, { ...EMPTY_CARD_FILTERS, keywordMode: 'and', keywords: ['none', 'shock'] }));
+assert.ok(matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, keywordMode: 'and', keywords: ['none'] }));
+assert.ok(matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, keywordMode: 'and' }), 'an empty keyword selection never restricts cards');
+assert.ok(!hasCardFilterConditions({ ...EMPTY_CARD_FILTERS, query: 'search', keywordMode: 'and' }), 'text and an unused keyword mode are not restrictive filters');
+for (const condition of [{ factions: ['Germany'] }, { cardType: ['tank'] }, { subtypes: ['t-34'] }, { keywords: ['guard'] }, { cost: ['2'] }, { rarity: ['Elite'] }, { expansion: 'Base' }, { status: ['weather'] }]) {
+  assert.ok(hasCardFilterConditions({ ...EMPTY_CARD_FILTERS, ...condition }), JSON.stringify(condition));
+}
 for (const attribute of ['VeteranOf:base', 'BecomesVeteran:vet']) {
   assert.ok(cardHasKeyword(changed({ attributes: [attribute] }), 'veteran'));
   assert.deepEqual(cardKeywords(changed({ attributes: [attribute] }), 'zh-Hans'), attribute.startsWith('VeteranOf:') ? ['老兵'] : []);
@@ -137,4 +146,20 @@ for (const key of ['nameZh', 'nameEn'] as const) {
   assert.deepEqual(sortCards([zulu, alpha], key), [alpha, zulu]);
   assert.deepEqual(sortCards([alpha, zulu], key, 'desc'), [zulu, alpha]);
 }
+const weather = mergedCatalog.filter(card => matchesCardFilters(card, { ...EMPTY_CARD_FILTERS, status: ['weather'] }));
+// Deliberately put forms ahead of their originals and interleave all nine families.
+const shuffledWeather = [...weather].reverse();
+for (const key of CARD_SORT_OPTIONS.map(option => option.value)) for (const direction of ['asc', 'desc'] as const) {
+  const ids = sortCards(shuffledWeather, key, direction).map(card => card.cardId);
+  for (const variant of weather.filter(card => card.cardId.endsWith('_1'))) {
+    const baseId = variant.cardId.slice(5, -2);
+    const start = ids.indexOf(baseId);
+    assert.deepEqual(ids.slice(start, start + 3), [baseId, `temp_${baseId}_1`, `temp_${baseId}_2`], `${key} ${direction}: weather forms stay together and in order`);
+  }
+}
+const delugeFamily = weather.filter(card => ['deluge', 'temp_deluge_1', 'temp_deluge_2'].includes(card.cardId));
+const unrelatedOrder = { ...delugeFamily[0], cardId: 'unrelated', importId: 'ZZ' };
+const [delugeBase, delugeOne, delugeTwo] = ['deluge', 'temp_deluge_1', 'temp_deluge_2'].map(id => delugeFamily.find(card => card.cardId === id)!);
+assert.deepEqual(sortCards([delugeBase, unrelatedOrder, delugeTwo, delugeOne]).map(card => card.cardId), ['deluge', 'temp_deluge_1', 'temp_deluge_2', 'unrelated'], 'an unrelated card with the same cost and type cannot split a weather family');
+assert.deepEqual(sortCards([delugeTwo, unrelatedOrder, delugeOne]).map(card => card.cardId), ['temp_deluge_1', 'temp_deluge_2', 'unrelated'], 'filtered-out originals still allow forms to group');
 console.log('Shared card filters and builder country pool tests passed');

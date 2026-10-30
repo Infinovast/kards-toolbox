@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Download, Search, X } from 'lucide-react';
 import { CardFace } from './CardFace';
+import { cardFactionIcon } from '../lib/assetCatalog';
 import { startImageDownload, useImageDownload } from '../lib/imageDownloads';
 import { useDismissiblePanel } from '../lib/dialogKeyboard';
-import { EMPTY_CARD_FILTERS, matchesCardFilters, type CardFilters } from '../lib/cardFilters';
+import { EMPTY_CARD_FILTERS, hasCardFilterConditions, matchesCardFilters, type CardFilters } from '../lib/cardFilters';
 import { cardSubtypeLabels } from '../lib/cardSubtypes';
 import { CARD_SORT_OPTIONS, sortCards, type CardSortDirection, type CardSortKey } from '../lib/cardSort';
 import PageIndicator from './PageIndicator';
@@ -16,6 +17,7 @@ import { cardKeywords, cardRelations, cardStatusLabel } from '../lib/cardDetails
 import { HEADQUARTERS_STACKS, type HeadquartersAsset } from '../lib/cardAssets';
 import ReservedBadge from './ReservedBadge';
 import CustomSelect from './CustomSelect';
+import SearchClearButton from './SearchClearButton';
 import { CARD_LANGUAGES, type CardLanguage } from '../types/card';
 import {
   cardText,
@@ -51,6 +53,11 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
   const selectedSubtypes = selectedCard ? cardSubtypeLabels(selectedCard.cardId, language) : [];
 
   const filteredCards = useMemo(() => sortCards(cards.filter(card => matchesCardFilters(card, filters)), sortKey, sortDirection), [cards, filters, sortKey, sortDirection]);
+  const globalSearchCount = useMemo(() => {
+    if (filteredCards.length || !filters.query.trim() || !hasCardFilterConditions(filters)) return 0;
+    const queryOnly = { ...EMPTY_CARD_FILTERS, query: filters.query };
+    return cards.filter(card => matchesCardFilters(card, queryOnly)).length;
+  }, [cards, filteredCards.length, filters]);
   const visibleHeadquartersStacks = useMemo(() => {
     if (filters.query.trim() || filters.cardType.length || filters.subtypes.length || filters.keywords.length || filters.cost.length || filters.rarity.length
       || filters.expansion !== 'All' || filters.status.length) return [];
@@ -104,15 +111,15 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
           <CardStatusSelect value={filters.status} onChange={status => selectFilter({ ...filters, status })} />
           <CostFilterButtons value={filters.cost} onChange={cost => selectFilter({ ...filters, cost })} />
           <CardFilterSelects filters={filters} onChange={selectFilter} expansions={expansions} language={language} />
-          <CustomSelect label="卡牌文字语言" value={language} onChange={value => setLanguage(value as CardLanguage)} options={CARD_LANGUAGES.map(item => ({ value: item.id, label: item.label }))} />
-          <button onClick={resetFilters} className="px-2 py-2 text-sm text-kards-text-muted hover:text-kards-text">重置筛选</button>
+          <button onClick={resetFilters} className="shrink-0 whitespace-nowrap px-2 py-2 text-sm text-kards-text-muted hover:text-kards-text">重置筛选</button>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-1 text-xs text-kards-text-muted">
           <div className="library-search-controls">
           <div className="library-search relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kards-text-muted" />
-            <input aria-label="搜索卡牌" value={filters.query} onChange={(event) => selectFilter({ ...filters, query: event.target.value })} onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.closest('section')?.querySelector<HTMLButtonElement>('[data-testid="library-grid"] button')?.focus(); } }} placeholder="名称、描述、词条..." className="w-full rounded border border-kards-border bg-kards-input-bg py-2 pl-9 pr-3 text-sm text-kards-text outline-none focus:border-kards-gold" />
+            <input aria-label="搜索卡牌" value={filters.query} onChange={(event) => selectFilter({ ...filters, query: event.target.value })} onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.closest('section')?.querySelector<HTMLButtonElement>('[data-testid="library-grid"] button')?.focus(); } }} placeholder="名称、描述、词条..." className="w-full rounded border border-kards-border bg-kards-input-bg py-2 pl-9 pr-9 text-sm text-kards-text outline-none focus:border-kards-gold" />
+            <SearchClearButton label="清除卡牌搜索" value={filters.query} onClear={() => selectFilter({ ...filters, query: '' })} />
           </div>
           <div role="group" aria-label="卡牌排序" className="library-sort-controls">
             <CustomSelect label="卡牌排序依据" value={sortKey} onChange={value => { setSortKey(value as CardSortKey); setPage(1); }} options={[...CARD_SORT_OPTIONS]} />
@@ -121,17 +128,18 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
             </button>
           </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
           <span className="library-result-count">筛选结果 <strong>{filteredCards.length.toLocaleString()}</strong> 张</span>
           <button disabled={!filteredCards.length || download.status === 'running' || download.status === 'paused'} onClick={() => {
             if (filteredCards.length > 100 && !window.confirm(`缓存当前筛选的 ${filteredCards.length.toLocaleString()} 张卡牌大图和缩略图？`)) return;
             startImageDownload(filteredCards);
           }} className="flex h-9 items-center gap-1 rounded border border-kards-border glass-panel px-3 py-2 text-kards-text disabled:opacity-40"><Download className="h-3.5 w-3.5" />缓存筛选结果（{filteredCards.length.toLocaleString()}）</button>
+          <CustomSelect label="卡牌文字语言" value={language} onChange={value => setLanguage(value as CardLanguage)} options={CARD_LANGUAGES.map(item => ({ value: item.id, label: item.label }))} />
           <button type="button" aria-pressed={detailMode === 'modal'} onClick={() => onDetailModeChange(detailMode === 'modal' ? 'sidebar' : 'modal')} className="builder-reserved-toggle">卡牌详情：{detailMode === 'modal' ? '浮窗' : '侧栏'}</button>
           </div>
         </div>
 
-        <div ref={pool.ref} style={pool.style} data-testid="library-grid" data-capacity={pool.capacity} className="card-gallery card-gallery-library min-h-0 flex-1">
+        <div ref={pool.ref} style={pool.style} data-testid="library-grid" data-capacity={pool.capacity} className="card-gallery card-gallery-library relative min-h-0 flex-1">
           {pageItems.map(item => {
             if (item.kind === 'headquarters') return <button key={item.stack.id} type="button" aria-haspopup="dialog" aria-expanded={expandedHeadquarters === item.stack.id} aria-label={`展开${item.stack.label}总部`} onClick={() => setExpandedHeadquarters(item.stack.id)} className="card-tile hq-stack-tile card-action group">
             <span className="hq-stack-art" aria-hidden="true">{item.stack.cards.map((headquarters, index) => {
@@ -144,7 +152,11 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
               <span className="library-card-art"><CardFace card={card} />{card.reserved && <ReservedBadge className="library-reserved-badge" />}</span>
             </button>;
           })}
-          {!poolItems.length && <div className="col-span-full self-center text-center text-kards-text-muted">没有找到匹配的卡牌</div>}
+          {!poolItems.length && <div role="status" className="library-empty-results text-kards-text-muted">
+            {globalSearchCount ? <button type="button" className="library-global-search glass-panel" onClick={() => selectFilter({ ...EMPTY_CARD_FILTERS, query: filters.query })}>
+              当前条件下无结果，但在全局搜索找到了 <strong>{globalSearchCount.toLocaleString()}</strong> 个结果，<span className="underline underline-offset-4">点击查看</span>
+            </button> : '没有找到匹配的卡牌'}
+          </div>}
         </div>
 
         <PageIndicator page={pool.page} pageCount={pool.pageCount} onChange={setPage} />
@@ -177,7 +189,7 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
           {keywords.length > 0 && <p aria-label="卡牌词条" className="mt-2 text-sm text-kards-status">{keywords.join('，')}</p>}
           {cardText(selectedCard, language) && <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-kards-text-muted"><CardText text={cardText(selectedCard, language)} /></p>}
           <dl className="mt-4 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-kards-border pt-4 text-sm text-kards-text">
-            <dt>阵营</dt><dd>{factionLabel(selectedCard.json.faction)}</dd><dt>类型</dt><dd>{typeLabel(selectedCard.json.type)}</dd>
+            <dt>阵营</dt><dd className="flex items-center gap-2"><img src={cardFactionIcon(selectedCard.json.faction, selectedCard.json.type)} alt="" className="h-5 w-5 object-contain" />{factionLabel(selectedCard.json.faction)}</dd><dt>类型</dt><dd>{typeLabel(selectedCard.json.type)}</dd>
             {selectedSubtypes.length > 0 && <><dt>子类</dt><dd>{selectedSubtypes.join(' · ')}</dd></>}
             <dt>部署费用</dt><dd>{selectedCard.json.kredits ?? '—'} K</dd>
             {!['order', 'countermeasure'].includes(selectedCard.json.type || '') && <><dt>行动费用</dt><dd>{selectedCard.json.operationCost ?? '—'} K</dd><dt>攻击 / 生命</dt><dd>{selectedCard.json.attack ?? '—'} / {selectedCard.json.defense ?? '—'}</dd></>}

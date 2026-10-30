@@ -1,0 +1,520 @@
+{
+  "logos": {
+    "wordmark": {
+      "black": "/assets/kards_logos/KardsLogoBlack.png",
+      "white": "/assets/kards_logos/KardsLogoWhite.png",
+      "beige": "/assets/kards_logos/KardsLogoBeige.png"
+    },
+    "cards": {
+      "black": "/assets/kards_logos/KardsLogoBlack_cards.png",
+      "white": "/assets/kards_logos/KardsLogoWhite_cards.png",
+      "beige": "/assets/kards_logos/KardsLogoBeige_cards.png"
+    },
+    "icon": {
+      "black": "/assets/kards_logos/KardsLogoBlack_icon.png",
+      "white": "/assets/kards_logos/KardsLogoWhite_icon.png",
+      "beige": "/assets/kards_logos/KardsLogoBeige_icon.png"
+    },
+    "app": {
+      "black": "/assets/kards_logos/KardsLogoBlack_cards_new.png",
+      "white": "/assets/kards_logos/KardsLogoWhite_cards_new.png"
+    },
+    "brand": {
+      "black": "/assets/kards_logos/KardsLogoBlack_icon_new.png",
+      "white": "/assets/kards_logos/KardsLogoWhite_icon_new.png"
+    }
+  },
+  "reserve": "/assets/reserve.png",
+  "factions": {
+    "Germany": {
+      "icon": "/assets/faction_icons/Germany/germany.png",
+      "white": "/assets/faction_icons/Germany/germany_white.svg",
+      "flag": "/assets/flags/Germany.svg",
+      "stripColor": "#5e6b66"
+    },
+    "Britain": {
+      "icon": "/assets/faction_icons/Britain/britain.png",
+      "white": "/assets/faction_icons/Britain/britain_white.svg",
+      "air": "/assets/faction_icons/Britain/britain_air.png",
+      "flag": "/assets/flags/Britain.svg",
+      "stripColor": "#968c6f",
+      "darkText": true
+    },
+    "Japan": {
+      "icon": "/assets/faction_icons/Japan/japan.png",
+      "white": "/assets/faction_icons/Japan/japan_white.svg",
+      "air": "/assets/faction_icons/Japan/japan_air.png",
+      "flag": "/assets/flags/Japan.svg",
+      "stripColor": "#9e8041",
+      "darkText": true
+    },
+    "Soviet": {
+      "icon": "/assets/faction_icons/Soviet/soviet.png",
+      "white": "/assets/faction_icons/Soviet/soviet-white.svg",
+      "air": "/assets/faction_icons/Soviet/soviet_air.png",
+      "flag": "/assets/flags/Soviet.svg",
+      "stripColor": "#655541"
+    },
+    "USA": {
+      "icon": "/assets/faction_icons/USA/usa.png",
+      "white": "/assets/faction_icons/USA/usa_white.svg",
+      "air": "/assets/faction_icons/USA/usa_air.png",
+      "flag": "/assets/flags/USA.svg",
+      "stripColor": "#656d4f"
+    },
+    "France": {
+      "icon": "/assets/faction_icons/France/france.png",
+      "white": "/assets/faction_icons/France/france_white.svg",
+      "air": "/assets/faction_icons/France/france_air.png",
+      "flag": "/assets/flags/France.svg",
+      "stripColor": "#515a78"
+    },
+    "Italy": {
+      "icon": "/assets/faction_icons/Italy/italy.png",
+      "white": "/assets/faction_icons/Italy/italy_white.svg",
+      "air": "/assets/faction_icons/Italy/italy_air.png",
+      "flag": "/assets/flags/Italy.svg",
+      "stripColor": "#6a6969"
+    },
+    "Poland": {
+      "icon": "/assets/faction_icons/Poland/poland.png",
+      "white": "/assets/faction_icons/Poland/poland_white.svg",
+      "air": "/assets/faction_icons/Poland/poland_air.png",
+      "flag": "/assets/flags/Poland.svg",
+      "stripColor": "#676452"
+    },
+    "Finland": {
+      "icon": "/assets/faction_icons/Finland/finland.png",
+      "white": "/assets/faction_icons/Finland/finland_white.svg",
+      "air": "/assets/faction_icons/Finland/finland_air.png",
+      "flag": "/assets/flags/Finland.svg",
+      "stripColor": "#bbbaaa",
+      "darkText": true
+    },
+    "Anzac": {
+      "icon": "/assets/faction_icons/Anzac/anzac.png",
+      "white": "/assets/faction_icons/Anzac/anzac_white.svg",
+      "air": "/assets/faction_icons/Anzac/anzac_air.png",
+      "flag": "/assets/flags/au.svg",
+      "stripColor": "#9e6f34",
+      "darkText": true
+    },
+    "Neutral": {
+      "icon": "/assets/faction_icons/Neutral/neutral.svg",
+      "stripColor": "#3c3d41"
+    }
+  },
+  "types": {
+    "artillery": "/assets/types/artillery.svg",
+    "bomber": "/assets/types/bomber.svg",
+    "countermeasure": "/assets/types/countermeasure.svg",
+    "fighter": "/assets/types/fighter.svg",
+    "infantry": "/assets/types/infantry.svg",
+    "order": "/assets/types/order.svg",
+    "tank": "/assets/types/tank.svg"
+  },
+  "rarities": {
+    "Elite": "/assets/rarity/elite.svg",
+    "Limited": "/assets/rarity/limited.svg",
+    "Special": "/assets/rarity/special.svg",
+    "Standard": "/assets/rarity/standard.svg"
+  },
+  "sets": {
+    "Allegiance": "/assets/sets/set-Allegiance.svg",
+    "Base": "/assets/sets/set-Base.svg",
+    "BloodAndIron": "/assets/sets/set-BloodAndIron.svg",
+    "Breakthrough": "/assets/sets/set-Breakthrough.svg",
+    "BrothersInArms": "/assets/sets/set-BrothersInArms.png",
+    "CovertOps": "/assets/sets/set-CovertOps.svg",
+    "Homefront": "/assets/sets/set-Homefront.svg",
+    "Legions": "/assets/sets/set-Legions.svg",
+    "NavalWarfare": "/assets/sets/set-NavalWarfare.svg",
+    "OceaniaStorm": "/assets/sets/set-OceaniaStorm.svg",
+    "TheatersOfWar": "/assets/sets/set-TheatersOfWar.svg",
+    "WinterWar": "/assets/sets/set-WinterWar.svg",
+    "WorldAtWar": "/assets/sets/set-WorldAtWar.png",
+    "All": "/assets/sets/set-all.svg"
+  },
+  "wildcards": {
+    "Common": {
+      "Elite": {
+        "file": "/assets/wildcards/Common/Wildcard_Elite.png",
+        "crop": {
+          "x": 0.2666015625,
+          "y": 0.2158203125,
+          "width": 0.484375,
+          "height": 0.6650390625
+        }
+      },
+      "Limited": {
+        "file": "/assets/wildcards/Common/Wildcard_Limited.png",
+        "crop": {
+          "x": 0.2666015625,
+          "y": 0.2158203125,
+          "width": 0.484375,
+          "height": 0.6650390625
+        }
+      },
+      "Special": {
+        "file": "/assets/wildcards/Common/Wildcard_Special.png",
+        "crop": {
+          "x": 0.267578125,
+          "y": 0.2158203125,
+          "width": 0.482421875,
+          "height": 0.6650390625
+        }
+      },
+      "Standard": {
+        "file": "/assets/wildcards/Common/Wildcard_Standard.png",
+        "crop": {
+          "x": 0.2666015625,
+          "y": 0.2158203125,
+          "width": 0.484375,
+          "height": 0.6650390625
+        }
+      }
+    },
+    "Britain": {
+      "Elite": {
+        "file": "/assets/wildcards/Britain/Wildcard_Elite_BRI.png",
+        "crop": {
+          "x": 0.265625,
+          "y": 0.171875,
+          "width": 0.5078125,
+          "height": 0.69140625
+        }
+      },
+      "Limited": {
+        "file": "/assets/wildcards/Britain/Wildcard_Limited_BRI.png",
+        "crop": {
+          "x": 0.265625,
+          "y": 0.171875,
+          "width": 0.5078125,
+          "height": 0.69140625
+        }
+      },
+      "Special": {
+        "file": "/assets/wildcards/Britain/Wildcard_Special_BRI.png",
+        "crop": {
+          "x": 0.265625,
+          "y": 0.171875,
+          "width": 0.5078125,
+          "height": 0.69140625
+        }
+      },
+      "Standard": {
+        "file": "/assets/wildcards/Britain/Wildcard_Standard_BRI_2x.png",
+        "crop": {
+          "x": 0.16015625,
+          "y": 0.1484375,
+          "width": 0.69921875,
+          "height": 0.72265625
+        }
+      }
+    },
+    "Germany": {
+      "Elite": {
+        "file": "/assets/wildcards/Germany/Wildcard_Elite_GER.png",
+        "crop": {
+          "x": 0.265625,
+          "y": 0.171875,
+          "width": 0.5078125,
+          "height": 0.69140625
+        }
+      },
+      "Limited": {
+        "file": "/assets/wildcards/Germany/Wildcard_Limited_GER.png",
+        "crop": {
+          "x": 0.265625,
+          "y": 0.171875,
+          "width": 0.5078125,
+          "height": 0.69140625
+        }
+      },
+      "Special": {
+        "file": "/assets/wildcards/Germany/Wildcard_Special_GER.png",
+        "crop": {
+          "x": 0.265625,
+          "y": 0.171875,
+          "width": 0.5078125,
+          "height": 0.69140625
+        }
+      },
+      "Standard": {
+        "file": "/assets/wildcards/Germany/Wildcard_Standard_GER_2x.png",
+        "crop": {
+          "x": 0.15234375,
+          "y": 0.13671875,
+          "width": 0.7109375,
+          "height": 0.74609375
+        }
+      }
+    },
+    "Japan": {
+      "Elite": {
+        "file": "/assets/wildcards/Japan/Wildcard_Elite_JAP.png",
+        "crop": {
+          "x": 0.263671875,
+          "y": 0.171875,
+          "width": 0.5078125,
+          "height": 0.69140625
+        }
+      },
+      "Limited": {
+        "file": "/assets/wildcards/Japan/Wildcard_Limited_JAP.png",
+        "crop": {
+          "x": 0.263671875,
+          "y": 0.171875,
+          "width": 0.5078125,
+          "height": 0.69140625
+        }
+      },
+      "Special": {
+        "file": "/assets/wildcards/Japan/Wildcard_Special_JAP.png",
+        "crop": {
+          "x": 0.263671875,
+          "y": 0.171875,
+          "width": 0.5078125,
+          "height": 0.69140625
+        }
+      },
+      "Standard": {
+        "file": "/assets/wildcards/Japan/Wildcard_Standard_JAP_2x.png",
+        "crop": {
+          "x": 0.16015625,
+          "y": 0.15234375,
+          "width": 0.67578125,
+          "height": 0.69921875
+        }
+      }
+    },
+    "Soviet": {
+      "Elite": {
+        "file": "/assets/wildcards/Soviet/Wildcard_Elite_SOV.png",
+        "crop": {
+          "x": 0.265625,
+          "y": 0.171875,
+          "width": 0.5078125,
+          "height": 0.69140625
+        }
+      },
+      "Limited": {
+        "file": "/assets/wildcards/Soviet/Wildcard_Limited_SOV.png",
+        "crop": {
+          "x": 0.265625,
+          "y": 0.171875,
+          "width": 0.5078125,
+          "height": 0.69140625
+        }
+      },
+      "Special": {
+        "file": "/assets/wildcards/Soviet/Wildcard_Special_SOV.png",
+        "crop": {
+          "x": 0.265625,
+          "y": 0.171875,
+          "width": 0.5078125,
+          "height": 0.69140625
+        }
+      },
+      "Standard": {
+        "file": "/assets/wildcards/Soviet/Wildcard_Standard_SOV_2x.png",
+        "crop": {
+          "x": 0.15234375,
+          "y": 0.13671875,
+          "width": 0.7109375,
+          "height": 0.7421875
+        }
+      }
+    },
+    "USA": {
+      "Elite": {
+        "file": "/assets/wildcards/USA/Wildcard_Elite_USA.png",
+        "crop": {
+          "x": 0.265625,
+          "y": 0.171875,
+          "width": 0.5078125,
+          "height": 0.69140625
+        }
+      },
+      "Limited": {
+        "file": "/assets/wildcards/USA/Wildcard_Limited_USA.png",
+        "crop": {
+          "x": 0.265625,
+          "y": 0.171875,
+          "width": 0.5078125,
+          "height": 0.69140625
+        }
+      },
+      "Special": {
+        "file": "/assets/wildcards/USA/Wildcard_Special_USA.png",
+        "crop": {
+          "x": 0.265625,
+          "y": 0.171875,
+          "width": 0.5078125,
+          "height": 0.69140625
+        }
+      },
+      "Standard": {
+        "file": "/assets/wildcards/USA/Wildcard_Standard_USA_2x.png",
+        "crop": {
+          "x": 0.1484375,
+          "y": 0.140625,
+          "width": 0.72265625,
+          "height": 0.73828125
+        }
+      }
+    }
+  },
+  "cardpacks": [
+    {
+      "id": "BIA_Officer_Shaded_01_1024px",
+      "file": "/assets/cardpacks/BIA_Officer_Shaded_01_1024px.png",
+      "kind": "officer"
+    },
+    {
+      "id": "BIA_pack_Shaded_01_1024px",
+      "file": "/assets/cardpacks/BIA_pack_Shaded_01_1024px.png",
+      "kind": "standard"
+    },
+    {
+      "id": "Kards_Officer_Packs_BloodAndIron_tilted",
+      "file": "/assets/cardpacks/Kards_Officer_Packs_BloodAndIron_tilted.png",
+      "kind": "officer"
+    },
+    {
+      "id": "Kards_Packs_BloodAndIron_tilted",
+      "file": "/assets/cardpacks/Kards_Packs_BloodAndIron_tilted.png",
+      "kind": "standard"
+    },
+    {
+      "id": "Legions_pack_shaded",
+      "file": "/assets/cardpacks/Legions_pack_shaded.png",
+      "kind": "standard"
+    },
+    {
+      "id": "Legions_shaded",
+      "file": "/assets/cardpacks/Legions_shaded.png",
+      "kind": "officer"
+    },
+    {
+      "id": "National_Shaded-01",
+      "file": "/assets/cardpacks/National_Shaded-01.png",
+      "nation": "Japan",
+      "kind": "standard"
+    },
+    {
+      "id": "National_Shaded-01_officer_Japan",
+      "file": "/assets/cardpacks/National_Shaded-01_officer_Japan.png",
+      "nation": "Japan",
+      "kind": "officer"
+    },
+    {
+      "id": "National_Shaded-02",
+      "file": "/assets/cardpacks/National_Shaded-02.png",
+      "nation": "Britain",
+      "kind": "standard"
+    },
+    {
+      "id": "National_Shaded-02_officer_Britain",
+      "file": "/assets/cardpacks/National_Shaded-02_officer_Britain.png",
+      "nation": "Britain",
+      "kind": "officer"
+    },
+    {
+      "id": "National_Shaded-03",
+      "file": "/assets/cardpacks/National_Shaded-03.png",
+      "nation": "Soviet",
+      "kind": "standard"
+    },
+    {
+      "id": "National_Shaded-03_officier_Soviet",
+      "file": "/assets/cardpacks/National_Shaded-03_officier_Soviet.png",
+      "nation": "Soviet",
+      "kind": "officer"
+    },
+    {
+      "id": "National_Shaded-04",
+      "file": "/assets/cardpacks/National_Shaded-04.png",
+      "nation": "USA",
+      "kind": "standard"
+    },
+    {
+      "id": "National_Shaded-04_officer_US",
+      "file": "/assets/cardpacks/National_Shaded-04_officer_US.png",
+      "nation": "USA",
+      "kind": "officer"
+    },
+    {
+      "id": "National_Shaded-05",
+      "file": "/assets/cardpacks/National_Shaded-05.png",
+      "nation": "Germany",
+      "kind": "standard"
+    },
+    {
+      "id": "National_Shaded-05_officer_German",
+      "file": "/assets/cardpacks/National_Shaded-05_officer_German.png",
+      "nation": "Germany",
+      "kind": "officer"
+    },
+    {
+      "id": "Officer_Packs_Shaded-01",
+      "file": "/assets/cardpacks/Officer_Packs_Shaded-01.png",
+      "kind": "officer"
+    },
+    {
+      "id": "Officer_Packs_Shaded-02",
+      "file": "/assets/cardpacks/Officer_Packs_Shaded-02.png",
+      "kind": "officer"
+    },
+    {
+      "id": "Officer_Packs_Shaded-03",
+      "file": "/assets/cardpacks/Officer_Packs_Shaded-03.png",
+      "kind": "officer"
+    },
+    {
+      "id": "Packs_Breakthrough_shaded_color-01",
+      "file": "/assets/cardpacks/Packs_Breakthrough_shaded_color-01.png",
+      "kind": "standard"
+    },
+    {
+      "id": "Packs_Officer_WinterWar_WW_Tilted_Shadow",
+      "file": "/assets/cardpacks/Packs_Officer_WinterWar_WW_Tilted_Shadow.png",
+      "kind": "officer"
+    },
+    {
+      "id": "Packs_WinterWar_WW_Tilted_Shadow",
+      "file": "/assets/cardpacks/Packs_WinterWar_WW_Tilted_Shadow.png",
+      "kind": "standard"
+    },
+    {
+      "id": "Packs_shaded-01",
+      "file": "/assets/cardpacks/Packs_shaded-01.png",
+      "kind": "standard"
+    },
+    {
+      "id": "Packs_shaded-02",
+      "file": "/assets/cardpacks/Packs_shaded-02.png",
+      "kind": "standard"
+    },
+    {
+      "id": "t_pack_allynations_base",
+      "file": "/assets/cardpacks/t_pack_allynations_base.png",
+      "kind": "standard"
+    },
+    {
+      "id": "t_pack_allynations_officer",
+      "file": "/assets/cardpacks/t_pack_allynations_officer.png",
+      "kind": "officer"
+    },
+    {
+      "id": "t_pack_covert_1024_",
+      "file": "/assets/cardpacks/t_pack_covert_1024_.png",
+      "kind": "standard"
+    },
+    {
+      "id": "t_pack_covert_officer",
+      "file": "/assets/cardpacks/t_pack_covert_officer.png",
+      "kind": "officer"
+    }
+  ]
+}

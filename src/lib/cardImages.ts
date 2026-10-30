@@ -2,6 +2,7 @@ import localforage from 'localforage';
 import { useSyncExternalStore } from 'react';
 import { cardImageUrl, type CardImageKind, type KardsCardRecord } from '../types/card';
 import { downloadCardImage } from './cardImageDownload';
+import { weatherCardFamily } from './weatherCards';
 
 const inflight = new Map<string, Promise<string>>();
 const FAILURE_KEY = 'kards_card_image_failures_v1';
@@ -55,8 +56,11 @@ async function imageReference(card: KardsCardRecord, kind: CardImageKind) {
     } catch (error) { resolutionError = error; }
   }
   const url = cardImageUrl(imageCard, kind);
+  // Weather forms share the base thumbnail file and download, while keeping
+  // their own full artwork. Use a stable family ID even after local ID allocation.
+  const importId = kind === 'thumbnail' ? weatherCardFamily(card.cardId)?.thumbnailImportId || card.importId : card.importId;
   const key = imageCard.imageUrl || imageCard.thumbUrl || kind === 'thumbnail'
-    ? `kards_card_image_v2_${card.importId}_${encodeURIComponent(url || `missing-thumbnail:${card.cardId}:zh-Hans:current`)}`
+    ? `kards_card_image_v2_${importId}_${encodeURIComponent(url || `missing-thumbnail:${card.cardId}:zh-Hans:current`)}`
     : `kards_card_image_v1_54_zh-Hans_${card.importId}`;
   return { key, url, resolutionError };
 }

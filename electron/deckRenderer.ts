@@ -3,9 +3,10 @@ import sharp, { type OverlayOptions } from 'sharp';
 import fs from 'fs';
 import path from 'path';
 import type { DeckRenderRequest } from '../src/lib/deckRenderTypes';
-import { deckCounterNationIcon, deckRenderCounterSvg } from '../src/lib/deckRenderCounter';
+import { deckRenderCounterSvg } from '../src/lib/deckRenderCounter';
 import { BUNKER_HEADQUARTERS, DEFAULT_TABLECLOTH } from '../src/lib/cardAssets';
 import { deckQrSvg } from '../src/lib/deckImageCode';
+import { factionIcon, LOGOS, RARITY_ICONS } from '../src/lib/assetCatalog';
 
 const safe = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c]!);
 const svg = (width: number, height: number, body: string) => Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><style>text{font-family:Microsoft YaHei,Arial,sans-serif}</style>${body}</svg>`);
@@ -42,13 +43,13 @@ export async function renderDeckImage(request: DeckRenderRequest): Promise<strin
     ? await sharp(asset(BUNKER_HEADQUARTERS.image)).resize(thumbW, thumbH, { fit: 'cover' }).png().toBuffer()
     : svg(thumbW, thumbH, '<rect width="100%" height="100%" fill="#e6e1d4"/><text x="50%" y="50%" text-anchor="middle" font-size="24" fill="#333">地堡</text>'));
   composites.push({ input: bunker, left: 60 + position % cols * (thumbW + pad), top: gridStartY + Math.floor(position / cols) * (thumbH + pad) });
-  const logo = await sharp(asset('/assets/kards_logos/KardsLogoWhite.png')).trim().resize({ height: 130 }).png().toBuffer();
+  const logo = await sharp(asset(LOGOS.wordmark.white)).trim().resize({ height: 130 }).png().toBuffer();
   composites.push({ input: logo, left: 60, top: 24 });
   composites.push({ input: svg(1100, 85, `<text x="0" y="72" font-size="48" font-weight="700" fill="#f2ead6">${safe(request.title.slice(0, 24))}</text>`), left: 350, top: 15 });
-  const nationIcon = (nation: string) => `data:image/svg+xml;base64,${asset(`/assets/filters/${deckCounterNationIcon(nation)}.svg`).toString('base64')}`;
+  const nationIcon = (nation: string) => `data:image/svg+xml;base64,${asset(factionIcon(nation, 'white')).toString('base64')}`;
   const counter = deckRenderCounterSvg(request, {
     main: nationIcon(request.mainNation), ally: nationIcon(request.allyNation),
-    total: `data:image/png;base64,${asset('/assets/kards_logos/KardsLogoWhite_cards.png').toString('base64')}`,
+    total: `data:image/png;base64,${asset(LOGOS.cards.white).toString('base64')}`,
   });
   composites.push({ input: Buffer.from(counter), left: 350, top: 110 });
   const qr = await sharp(Buffer.from(deckQrSvg(request.code, request.headquartersId, request.title, request.cardBackId))).png().toBuffer();
@@ -57,7 +58,7 @@ export async function renderDeckImage(request: DeckRenderRequest): Promise<strin
   const rarities = ['Elite', 'Special', 'Limited', 'Standard'];
   for (let i = 0; i < rarities.length; i++) {
     const rarity = rarities[i], x = canvasW - 650 + i % 2 * 180, y = 27 + Math.floor(i / 2) * 72;
-    const icon = await sharp(asset(`/assets/filters/${rarity.toLowerCase()}.svg`)).resize(64, 64, { fit: 'contain', background: '#00000000' }).png().toBuffer();
+    const icon = await sharp(asset(RARITY_ICONS[rarity])).resize(64, 64, { fit: 'contain', background: '#00000000' }).png().toBuffer();
     const count = request.cards.filter(c => c.rarity === rarity).reduce((sum, c) => sum + c.count, 0);
     composites.push({ input: icon, left: x, top: y + 4 }, { input: svg(100, 72, `<text x="0" y="54" font-size="44" font-weight="700" fill="#e4d6b6">${count}</text>`), left: x + 72, top: y });
   }

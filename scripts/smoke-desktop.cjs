@@ -4,6 +4,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const assert = require('node:assert/strict');
 const sharp = require('sharp');
+const assetCatalogue = require('../src/data/assets.json');
 
 async function main() {
   const root = path.resolve(__dirname, '..');
@@ -95,11 +96,10 @@ async function main() {
     await expect(page.getByText(`本地目录 1,646 张 · 当前结果 ${count.toLocaleString()} 张`, { exact: true })).toBeVisible();
     await factions.press('Escape');
     await page.getByRole('button', { name: '重置筛选', exact: true }).click();
-    const iconsAvailable = await page.evaluate(async () => {
-      const sources = await (await fetch('./assets/filters/sources.json')).json();
-      const statuses = await Promise.all(Object.keys(sources).map(async name => (await fetch(`./assets/filters/${name}`)).ok));
-      return statuses.length === 36 && statuses.every(Boolean);
-    });
+    const iconsAvailable = await page.evaluate(async urls => (await Promise.all(urls.map(async url => (await fetch(url)).ok))).every(Boolean), [
+      ...Object.values(assetCatalogue.factions).map(asset => asset.white || asset.icon),
+      ...Object.values(assetCatalogue.types), ...Object.values(assetCatalogue.rarities), ...Object.values(assetCatalogue.sets),
+    ]);
     assert.ok(iconsAvailable, 'all offline filter resources are served by the production protocol');
     await page.getByRole('button', { name: '卡组', exact: true }).click();
     const mainWidth = (await page.getByRole('main').boundingBox()).width;
@@ -205,10 +205,10 @@ async function main() {
     await expect(details.getByLabel('管理卡组名称', { exact: true })).toHaveValue('守序中立');
     await expect(details.getByText('40 张（含总部）', { exact: true })).toBeVisible();
     await expect(details.getByLabel('主国总部 ALEXANDRIA', { exact: true })).toBeVisible();
-    assert.ok(await page.evaluate(async () => {
-      const response = await fetch('./assets/markers/reserved.svg');
-      return response.ok && response.headers.get('content-type').includes('image/svg+xml') && (await response.text()).includes('<svg');
-    }), 'official reserve symbol is served offline by the production protocol');
+    assert.ok(await page.evaluate(async url => {
+      const response = await fetch(url);
+      return response.ok && response.headers.get('content-type').includes('image/png') && (await response.arrayBuffer()).byteLength > 0;
+    }, assetCatalogue.reserve), 'reserve symbol is served offline by the production protocol');
     const rowAssets = await details.locator('.deck-card-nation').evaluateAll(async images => Promise.all(images.map(async image => {
       const response = await fetch(image.src);
       return {url: image.src, ok: response.ok, mime: response.headers.get('content-type')};

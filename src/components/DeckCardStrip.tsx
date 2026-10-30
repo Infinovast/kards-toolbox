@@ -7,6 +7,7 @@ import { cardDisplayTitle, factionLabel, type KardsCardRecord } from '../types/c
 import ReservedBadge from './ReservedBadge';
 import { RARITY_SLOTS } from './CardFace';
 import { captureCardDetailOrigin, type CardDetailOrigin } from '../lib/cardDetailOrigin';
+import { cardFactionIcon, FACTION_ASSETS } from '../lib/assetCatalog';
 
 let previewPointer: { x: number; y: number } | null = null;
 let dismissedPreviewPointer: { x: number; y: number } | null = null;
@@ -51,19 +52,9 @@ function usePreviewDismissal(open: boolean, hide: () => void) {
 
 // Median RGB of x=120..390, y=80..88 in the supplied 500px card headers.
 // Nation colors are shared by card rows and headquarters rows.
-export const CARD_STRIP_NATIONS: Record<string, { color: string; icon: string; darkText?: boolean }> = {
-  Germany: { color: '#5e6b66', icon: './assets/icons/German.png' },
-  Britain: { color: '#968c6f', icon: './assets/icons/Britain.png', darkText: true },
-  Japan: { color: '#9e8041', icon: './assets/icons/Japan.png', darkText: true },
-  Soviet: { color: '#655541', icon: './assets/icons/Soviet.png' },
-  USA: { color: '#656d4f', icon: './assets/icons/Usa.png' },
-  France: { color: '#515a78', icon: './assets/icons/France.png' },
-  Italy: { color: '#6a6969', icon: './assets/icons/Italy.png' },
-  Poland: { color: '#676452', icon: './assets/icons/Poland.jpg' },
-  Finland: { color: '#bbbaaa', icon: './assets/filters/finland.svg', darkText: true },
-  Neutral: { color: '#3c3d41', icon: './assets/filters/neutral.svg' },
-  Anzac: { color: '#9e6f34', icon: './assets/filters/anzac.svg', darkText: true },
-};
+export const CARD_STRIP_NATIONS = Object.fromEntries(Object.entries(FACTION_ASSETS).map(([nation, asset]) => [nation, {
+  color: asset.stripColor, icon: asset.icon, darkText: asset.darkText,
+}]));
 
 const HEADQUARTERS: Record<string, string> = {
   Britain: 'ALAM EL HALFA', Germany: 'DANZIG', Soviet: 'STALINGRAD', Japan: 'TRUK', USA: 'CHERBOURG',
@@ -174,7 +165,7 @@ export default function DeckCardStrip({ card, importId, count, enabled = true, c
         <span className="deck-card-deployment" style={(card?.json.kredits ?? 0) >= 10 ? { fontSize: 21 } : undefined}>{card?.json.kredits ?? '?'}</span><small>K</small>{isUnit && <span className="deck-card-operation">{card.json.operationCost ?? '?'}</span>}
       </span>
       <span className="deck-card-name">{title}</span>
-      <img className="deck-card-nation" src={appearance.icon} alt={factionLabel(card?.json.faction)} />
+      <img className="deck-card-nation" src={cardFactionIcon(nation, card?.json.type)} alt={factionLabel(card?.json.faction)} />
       <span className="deck-card-thumbnail" data-thumbnail="true" aria-label={`${title}卡图缩略图`}>
         {thumbnail ? <img src={thumbnail} alt="" onError={() => setThumbnail('')} /> : <ImageOff className="h-4 w-4 opacity-60" aria-hidden="true" />}
       </span>

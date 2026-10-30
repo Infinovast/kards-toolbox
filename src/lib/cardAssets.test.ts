@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { CARD_BACK_CATEGORIES, CARD_BACKS, DEFAULT_HEADQUARTERS_BY_NATION, DEFAULT_TABLECLOTH, HEADQUARTERS, HEADQUARTERS_STACKS, TABLECLOTHS, USER_TABLECLOTHS, cardBackIsAvailable, defaultCardBackForNation, defaultHeadquartersForNation, headquartersForDeck, headquartersOptions, resolveSelectedTablecloth, tableclothForHeadquarters } from './cardAssets';
+import { CARD_BACK_CATEGORIES, CARD_BACKS, DEFAULT_HEADQUARTERS_BY_NATION, DEFAULT_TABLECLOTH, HEADQUARTERS, HEADQUARTERS_STACKS, TABLECLOTHS, USER_TABLECLOTHS, cardBackForDeck, cardBackIsAvailable, defaultCardBackForNation, defaultHeadquartersForNation, headquartersForDeck, headquartersOptions, resolveSelectedTablecloth, tableclothForHeadquarters } from './cardAssets';
+import manifest from '../data/assets.json';
+import { CARD_PACKS, FACTION_ASSETS, WILDCARDS, cardFactionIcon, factionIcon } from './assetCatalog';
+import { factionLabel, typeLabel, type KardsCardRecord } from '../types/card';
 
 const assetPath = (url: string) => path.resolve('public', url.replace(/^\/assets\//, 'assets/'));
 assert.deepEqual(HEADQUARTERS_STACKS.map(stack => stack.id), ['USA', 'Soviet', 'Britain', 'Japan', 'Germany', 'Common']);
@@ -16,11 +19,19 @@ assert.ok(HEADQUARTERS.every(item => /^\/assets\/headquarters\/[A-Za-z]+_[A-Za-z
 assert.equal(HEADQUARTERS.find(item => item.groupId === 'Germany/danzig')?.englishName, 'Danzig');
 assert.equal(HEADQUARTERS.find(item => item.groupId === 'Britain/alam_el_halfa')?.englishName, 'Alam el Halfa');
 assert.ok(CARD_BACK_CATEGORIES.every(category => category.backs.length > 0));
-assert.equal(CARD_BACKS.length, 69);
+assert.equal(CARD_BACKS.length, 70);
 assert.ok(CARD_BACKS.every(back => /^[\w/-]+\.png$/i.test(back.file.replace(/^\/assets\//, ''))));
 assert.ok(CARD_BACKS.every(back => existsSync(assetPath(back.file))));
 assert.ok(HEADQUARTERS.every(item => existsSync(assetPath(item.image))));
 assert.ok(TABLECLOTHS.every(item => existsSync(assetPath(item.file))));
+const cards: KardsCardRecord[] = JSON.parse(readFileSync('public/data/cards.json', 'utf8')).cards;
+for (const cloth of TABLECLOTHS.filter(item => item.type === 'wallpaper' && item.nation)) {
+  const card = cards.find(card => card.cardId === cloth.cardId);
+  assert.ok(card || cloth.cardType === 'infantry', `wallpaper name has a source: ${cloth.file}`);
+  assert.equal(cloth.name, `${factionLabel(cloth.nation)}：${card?.json.title?.['zh-Hans'] || typeLabel(cloth.cardType)}`);
+  for (const previous of cloth.previousFiles || []) assert.equal(resolveSelectedTablecloth(previous), cloth.file);
+}
+assert.equal(TABLECLOTHS.find(item => item.cardId === 'escort_group')?.name, '英国：护航船队');
 
 const germanBack = CARD_BACKS.find(back => back.nation === 'Germany' && back.scope === 'main')!;
 const commonBack = CARD_BACKS.find(back => back.scope === 'common')!;
@@ -42,10 +53,40 @@ assert.equal(headquartersForDeck('default', 'Britain')?.name, '阿拉姆哈勒�
 assert.equal(DEFAULT_HEADQUARTERS_BY_NATION.Japan, 'Japan/truk');
 assert.deepEqual(['USA', 'Soviet', 'Britain', 'Japan', 'Germany'].map(nation => defaultHeadquartersForNation(nation)?.name), ['瑟堡', '斯大林格勒', '阿拉姆哈勒法', '特鲁克', '但泽']);
 assert.equal(defaultHeadquartersForNation('unknown')?.name, '地堡');
-assert.equal(DEFAULT_TABLECLOTH, '/assets/tablecloths/default/4.jpeg');
+assert.equal(DEFAULT_TABLECLOTH, '/assets/tablecloths/default/wood.jpeg');
 assert.equal(resolveSelectedTablecloth('', []), DEFAULT_TABLECLOTH);
 assert.equal(resolveSelectedTablecloth('/assets/tablecloths/default/removed.jpeg', []), DEFAULT_TABLECLOTH);
+assert.equal(resolveSelectedTablecloth('/assets/tablecloths/default/2.jpeg'), '/assets/tablecloths/default/kards.jpeg');
 assert.equal(resolveSelectedTablecloth('data:image/png;base64,custom', ['data:image/png;base64,custom']), 'data:image/png;base64,custom');
 assert.equal(tableclothForHeadquarters(hq.groupId), '/assets/tablecloths/headquarters/arracourt.jpg');
 assert.ok(USER_TABLECLOTHS.every(item => item.type === 'default' || item.type === 'wallpaper'));
-console.log('Card asset catalogue tests passed: filename mappings, deck restrictions, headquarters details and temporary tablecloth lookup');
+assert.equal(cardBackForDeck({ mainNation: 'USA', allyNation: 'Finland', cardBackUrl: '/assets/cardbacks/Allies/Finland/cardback-001.png' }), '/assets/cardbacks/Allies/finland.png');
+assert.equal(cardBackForDeck({ mainNation: 'USA', allyNation: 'France', cardBackUrl: '/assets/cardbacks/Allies/Finland/cardback-001.png' }), defaultCardBackForNation('USA'));
+const neutralBack = CARD_BACKS.find(item => item.id === 'cardback-neutral')!;
+assert.equal(cardBackIsAvailable(neutralBack, 'Germany', 'Japan'), true);
+
+for (const [nation, asset] of Object.entries(FACTION_ASSETS)) {
+  assert.equal(factionIcon(nation.toLowerCase(), 'white'), asset.white || asset.icon);
+  for (const type of ['fighter', 'BOMBER']) assert.equal(cardFactionIcon(nation, type), asset.air || asset.icon);
+  for (const type of ['infantry', 'tank', 'artillery', 'order', 'countermeasure', undefined]) assert.equal(cardFactionIcon(nation, type), asset.icon);
+}
+assert.equal(cardFactionIcon('unknown', 'fighter'), FACTION_ASSETS.Neutral.icon);
+assert.equal(cardFactionIcon('Germany', 'fighter'), FACTION_ASSETS.Germany.icon, 'a missing air variant uses the regular icon');
+assert.equal(CARD_PACKS.length, 28);
+assert.equal(new Set(CARD_PACKS.map(pack => pack.id)).size, CARD_PACKS.length);
+assert.equal(Object.keys(WILDCARDS).length, 6);
+assert.ok(Object.values(WILDCARDS).every(group => Object.keys(group).length === 4));
+
+// Check exact-case paths and coverage so moves/additions cannot silently leave broken URLs.
+function imagePaths(value: unknown): string[] {
+  if (typeof value === 'string') return value.startsWith('/assets/') ? [value] : [];
+  return value && typeof value === 'object' ? Object.values(value).flatMap(imagePaths) : [];
+}
+const catalogPaths = new Set([
+  ...imagePaths(manifest), ...CARD_BACKS.map(item => item.file),
+  ...HEADQUARTERS.map(item => item.image), ...TABLECLOTHS.map(item => item.file),
+]);
+const actualImages = new Set(readdirSync('public/assets', { recursive: true }).map(file => `/assets/${String(file).replaceAll('\\', '/')}`)
+  .filter(file => /\.(png|jpe?g|svg|webp)$/i.test(file) && !/_(reserved|reversed)_\d+\./.test(file)));
+assert.deepEqual([...catalogPaths].sort(), [...actualImages].sort(), 'all supported assets are registered exactly once per file; reserved faction variants stay unused');
+console.log(`Card asset catalogue tests passed: ${catalogPaths.size} files, faction variants, moved selections, deck restrictions and headquarters`);

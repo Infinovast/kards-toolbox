@@ -11,6 +11,7 @@ import ReservedBadge from './ReservedBadge';
 import { CardText } from './CardText';
 import type { HeadquartersAsset } from '../lib/cardAssets';
 import { captureCardDetailOrigin, type CardDetailOrigin } from '../lib/cardDetailOrigin';
+import { cardFactionIcon, TYPE_ICONS } from '../lib/assetCatalog';
 
 export default function CardDetailModal({ card: initialCard, headquarters, origin, cards, language = 'zh-Hans', onClose, onSourceDoubleClick }: {
   card?: KardsCardRecord;
@@ -143,8 +144,8 @@ export default function CardDetailModal({ card: initialCard, headquarters, origi
       <div className="card-detail-layout">
         <aside inert={!arrived || isClosing} className="card-detail-panel custom-scrollbar">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="flex shrink-0 items-center gap-3 text-lg font-bold"><span className="h-7 w-7">{card ? <FilterIcon name={type + '.svg'} /> : <Shield className="h-7 w-7" />}</span>{card ? typeLabel(type) : '总部'}</h2>
-            <div className="flex shrink-0 items-center gap-2 text-sm"><span className="h-6 w-6"><FilterIcon name={faction.toLowerCase() + '.svg'} fullColor={faction === 'Neutral'} /></span>{factionLabel(faction)}</div>
+            <h2 className="flex shrink-0 items-center gap-3 text-lg font-bold"><span className="h-7 w-7">{card ? <FilterIcon src={TYPE_ICONS[type]} /> : <Shield className="h-7 w-7" />}</span>{card ? typeLabel(type) : '总部'}</h2>
+            <div className="flex shrink-0 items-center gap-2 text-sm"><span className="h-6 w-6"><FilterIcon src={cardFactionIcon(faction, type)} fullColor /></span>{factionLabel(faction)}</div>
           </div>
           {keywords.length > 0 && <section className="card-detail-section">
             <h3 className="mb-3 font-bold">词条</h3>

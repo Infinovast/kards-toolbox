@@ -9,6 +9,7 @@ export interface CardBackAsset {
   scope: 'common' | 'main' | 'ally';
   nation?: string;
   isDefault?: boolean;
+  previousFiles?: string[];
 }
 
 export interface CardBackCategory {
@@ -39,6 +40,10 @@ export interface TableclothAsset {
   file: string;
   type: 'default' | 'wallpaper' | 'headquarters';
   headquartersId?: string;
+  cardId?: string;
+  cardType?: string;
+  nation?: string;
+  previousFiles?: string[];
 }
 
 const cardBackData = cardBackManifest as {
@@ -52,13 +57,13 @@ export const CARD_BACKS = CARD_BACK_CATEGORIES.flatMap(category => category.back
 export const HEADQUARTERS = (headquartersManifest as { headquarters: HeadquartersAsset[] }).headquarters;
 export const TABLECLOTHS = (tableclothManifest as { tablecloths: TableclothAsset[] }).tablecloths;
 export const USER_TABLECLOTHS = TABLECLOTHS.filter(item => item.type !== 'headquarters');
-export const DEFAULT_TABLECLOTH = TABLECLOTHS.find(item => item.id === 'default-4')?.file
+export const DEFAULT_TABLECLOTH = TABLECLOTHS.find(item => item.id === tableclothManifest.defaultTableclothId)?.file
   || TABLECLOTHS.find(item => item.type === 'default')?.file || '';
 
 export function resolveSelectedTablecloth(value: string | null | undefined, customTablecloths: string[] = []): string {
-  return value && (USER_TABLECLOTHS.some(item => item.file === value) || customTablecloths.includes(value))
-    ? value
-    : DEFAULT_TABLECLOTH;
+  if (!value) return DEFAULT_TABLECLOTH;
+  if (customTablecloths.includes(value)) return value;
+  return USER_TABLECLOTHS.find(item => item.file === value || item.previousFiles?.includes(value))?.file || DEFAULT_TABLECLOTH;
 }
 
 export const DEFAULT_CARD_BACK = CARD_BACKS.find(back => back.id === cardBackData.defaultBackId)?.file || '';
@@ -84,8 +89,8 @@ export function cardBackIsAvailable(back: CardBackAsset, mainNation: string, all
 
 export function cardBackForDeck(deck: { mainNation: string; allyNation?: string; cardBackUrl?: string }): string {
   if (!deck.cardBackUrl) return defaultCardBackForNation(deck.mainNation);
-  const catalogBack = CARD_BACKS.find(back => back.file === deck.cardBackUrl);
-  if (catalogBack) return cardBackIsAvailable(catalogBack, deck.mainNation, deck.allyNation) ? deck.cardBackUrl : defaultCardBackForNation(deck.mainNation);
+  const catalogBack = CARD_BACKS.find(back => back.file === deck.cardBackUrl || back.previousFiles?.includes(deck.cardBackUrl!));
+  if (catalogBack) return cardBackIsAvailable(catalogBack, deck.mainNation, deck.allyNation) ? catalogBack.file : defaultCardBackForNation(deck.mainNation);
   return deck.cardBackUrl.startsWith('/assets/cardbacks/') ? defaultCardBackForNation(deck.mainNation) : deck.cardBackUrl;
 }
 

@@ -377,10 +377,13 @@
         {
           "id": "cardback-001",
           "name": "芬兰基础",
-          "file": "/assets/cardbacks/Allies/Finland/cardback-001.png",
+          "file": "/assets/cardbacks/Allies/finland.png",
           "scope": "ally",
           "nation": "Finland",
-          "isDefault": true
+          "isDefault": true,
+          "previousFiles": [
+            "/assets/cardbacks/Allies/Finland/cardback-001.png"
+          ]
         }
       ]
     },
@@ -393,10 +396,13 @@
         {
           "id": "cardback-002",
           "name": "法国基础",
-          "file": "/assets/cardbacks/Allies/France/cardback-002.png",
+          "file": "/assets/cardbacks/Allies/france.png",
           "scope": "ally",
           "nation": "France",
-          "isDefault": true
+          "isDefault": true,
+          "previousFiles": [
+            "/assets/cardbacks/Allies/France/cardback-002.png"
+          ]
         }
       ]
     },
@@ -409,10 +415,13 @@
         {
           "id": "cardback-003",
           "name": "意大利基础",
-          "file": "/assets/cardbacks/Allies/Italy/cardback-003.png",
+          "file": "/assets/cardbacks/Allies/italy.png",
           "scope": "ally",
           "nation": "Italy",
-          "isDefault": true
+          "isDefault": true,
+          "previousFiles": [
+            "/assets/cardbacks/Allies/Italy/cardback-003.png"
+          ]
         }
       ]
     },
@@ -425,10 +434,13 @@
         {
           "id": "cardback-004",
           "name": "波兰基础",
-          "file": "/assets/cardbacks/Allies/Poland/cardback-004.png",
+          "file": "/assets/cardbacks/Allies/poland.png",
           "scope": "ally",
           "nation": "Poland",
-          "isDefault": true
+          "isDefault": true,
+          "previousFiles": [
+            "/assets/cardbacks/Allies/Poland/cardback-004.png"
+          ]
         }
       ]
     },
@@ -441,10 +453,13 @@
         {
           "id": "cardback-069",
           "name": "澳新军团",
-          "file": "/assets/cardbacks/Allies/Anzac/Anzac.png",
+          "file": "/assets/cardbacks/Allies/anzac.png",
           "scope": "ally",
           "nation": "Anzac",
-          "isDefault": true
+          "isDefault": true,
+          "previousFiles": [
+            "/assets/cardbacks/Allies/Anzac/Anzac.png"
+          ]
         }
       ]
     },
@@ -595,6 +610,12 @@
           "id": "cardback-026",
           "name": "精英",
           "file": "/assets/cardbacks/Common/cardback-026.png",
+          "scope": "common"
+        },
+        {
+          "id": "cardback-neutral",
+          "name": "中立",
+          "file": "/assets/cardbacks/Allies/neutral.png",
           "scope": "common"
         }
       ]

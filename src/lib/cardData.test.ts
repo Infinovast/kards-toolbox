@@ -10,6 +10,10 @@ const temporaryDeluge = mergedWeather.find(card => card.cardId === 'temp_deluge_
 assert.equal(temporaryDeluge.json.text?.['zh-Hans'], '抑制 1 个单位，抽 1 张牌。');
 assert.equal(temporaryDeluge.json.title?.['ja-JP'], mergedWeather.find(card => card.cardId === 'deluge')?.json.title?.['ja-JP'], 'variants inherit translated base-card names');
 assert.ok(temporaryDeluge.imageUrl?.includes('kards-assets.kardsdecker.com/CardImgs/temporary_weathers/'));
+for (const variant of mergedWeather.filter(card => card.cardId.startsWith('temp_'))) {
+  const base = mergedWeather.find(card => card.cardId === variant.cardId.replace(/^temp_/, '').replace(/_[12]$/, ''))!;
+  assert.equal(variant.thumbUrl, base.thumbUrl, `${variant.cardId} reuses the original weather thumbnail`);
+}
 const baseWeather = mergedWeather.filter(card => ['blue_sky', 'gale', 'mist', 'cyclone', 'deluge', 'heatwave', 'jungle_fever', 'monsoon_rain', 'scorching_sun', 'thunderstorm', 'torrential_rain', 'tropical_storm'].includes(card.cardId));
 assert.equal(baseWeather.length, 12);
 for (const card of baseWeather) {
@@ -27,6 +31,12 @@ const futureWeather = mergeWeatherCardRecords(mergedWeather.map(card => card.car
 assert.equal(futureWeather.imageUrl, updatedWeather.imageUrl);
 assert.equal(futureWeather.thumbUrl, updatedWeather.thumbUrl);
 assert.equal(futureWeather.json.kredits, 4, 'future source updates remain authoritative for base weather');
+const deluge = mergedWeather.find(card => card.cardId === 'deluge')!;
+const newThumbnail = deluge.thumbUrl!.replace('/v53/', '/v55/');
+const newWeather = mergeWeatherCardRecords(mergedWeather.map(card => card.cardId === 'deluge' ? { ...card, thumbUrl: newThumbnail } : card));
+for (const id of ['deluge', 'temp_deluge_1', 'temp_deluge_2']) assert.equal(newWeather.find(card => card.cardId === id)!.thumbUrl, newThumbnail, 'variant thumbnail follows updated base data');
+const legacyVariant = { ...temporaryDeluge, thumbUrl: temporaryDeluge.imageUrl };
+assert.equal(mergeWeatherCardRecords(mergedWeather.map(card => card.cardId === legacyVariant.cardId ? legacyVariant : card)).find(card => card.cardId === legacyVariant.cardId)!.thumbUrl, deluge.thumbUrl, 'existing variant thumbnails repair when loading a saved snapshot');
 const local = records.slice(0, 3);
 const remote = structuredClone(local);
 remote[0].json.kredits++;

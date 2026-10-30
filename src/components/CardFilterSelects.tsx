@@ -4,13 +4,13 @@ import CustomSelect, { type SelectOption } from './CustomSelect';
 import type { CardFilters } from '../lib/cardFilters';
 import { CARD_SUBTYPES } from '../lib/cardSubtypes';
 import { CARD_KEYWORDS } from '../lib/cardKeywords';
+import { factionIcon, RARITY_ICONS, SET_ICONS, TYPE_ICONS } from '../lib/assetCatalog';
 
-const ASSETS = './assets/filters/';
-export function FilterIcon({ name, fullColor = false }: { name: string; fullColor?: boolean }) {
+export function FilterIcon({ src, fullColor = false }: { src: string; fullColor?: boolean }) {
   // CSS custom-property URLs resolve against the stylesheet when mask-image is
   // applied. Resolve against the document first, including in packaged kards://.
-  const maskUrl = new URL(`${ASSETS}${name}`, document.baseURI).href;
-  return fullColor ? <img className="filter-symbol-image" src={`${ASSETS}${name}`} alt="" />
+  const maskUrl = new URL(src, document.baseURI).href;
+  return fullColor ? <img className="filter-symbol-image" src={src} alt="" />
     : <span className="filter-symbol" style={{ '--filter-icon': `url("${maskUrl}")` } as CSSProperties} />;
 }
 
@@ -27,16 +27,16 @@ const setDefinitions = [
 const chinese = (language: CardLanguage) => language.startsWith('zh');
 
 export function nationOptions(language: CardLanguage = 'zh-Hans'): SelectOption[] {
-  return CARD_FACTIONS.map(item => ({ value: item.id, label: chinese(language) ? item.label : englishNations[item.id] || item.id, icon: <FilterIcon name={`${item.id.toLowerCase()}.svg`} fullColor={item.id === 'Neutral'} /> }));
+  return CARD_FACTIONS.map(item => ({ value: item.id, label: chinese(language) ? item.label : englishNations[item.id] || item.id, icon: <FilterIcon src={factionIcon(item.id, 'white')} fullColor={item.id === 'Neutral'} /> }));
 }
 
 export function expansionOptions(available: string[], language: CardLanguage): SelectOption[] {
   const sets = available.filter(id => !['OnlySpawnable', 'Special'].includes(id));
   const known = setDefinitions.filter(([id]) => sets.includes(id));
   const extra = sets.filter(id => !setDefinitions.some(([key]) => key === id)).map(id => [id, id, id]);
-  return [{ value: 'All', label: chinese(language) ? '全部扩展包' : 'All sets', icon: <FilterIcon name="set-all.svg" /> }, ...[...known, ...extra].map(([id, zh, en]) => ({
+  return [{ value: 'All', label: chinese(language) ? '全部扩展包' : 'All sets', icon: <FilterIcon src={SET_ICONS.All} /> }, ...[...known, ...extra].map(([id, zh, en]) => ({
     value: id, label: chinese(language) ? zh : en,
-    icon: <FilterIcon name={setDefinitions.slice(0, 13).some(([key]) => key === id) ? `set-${id}.${['BrothersInArms', 'WorldAtWar'].includes(id) ? 'png' : 'svg'}` : 'set-all.svg'} />,
+    icon: <FilterIcon src={SET_ICONS[id] || SET_ICONS.All} />,
   }))];
 }
 
@@ -54,7 +54,8 @@ export function CardStatusSelect({ value, onChange }: { value: string[]; onChang
     { value: 'other', label: '其他' },
   ];
   const current = value[0] || 'All';
-  const generated = current === 'generated' || categories.some(item => item.value === current);
+  const allGenerated = value.includes('generated') || categories.every(item => value.includes(item.value));
+  const selectedCategories = allGenerated ? categories.map(item => item.value) : value.filter(item => categories.some(category => category.value === item));
   return <div role="group" aria-label="卡牌状态筛选" className="card-status-buttons">
     {[
       { value: 'All', label: '全部' },
@@ -63,10 +64,10 @@ export function CardStatusSelect({ value, onChange }: { value: string[]; onChang
       { value: 'permanent', label: '常备' },
     ].map(item => <button key={item.value} type="button" aria-pressed={current === item.value}
       onClick={() => onChange(item.value === 'All' ? [] : [item.value])}>{item.label}</button>)}
-    <div className="card-status-generated" data-selected={generated}>
-      <button type="button" aria-pressed={generated} onClick={() => onChange(['generated'])}>衍生</button>
-      <CustomSelect label="衍生分类筛选" className="card-status-expand" value={generated ? current : ''}
-        onChange={category => onChange([category])} options={categories} />
+    <div className="card-status-generated">
+      <button type="button" aria-pressed={allGenerated} onClick={() => onChange(['generated'])}>衍生</button>
+      <CustomSelect label="衍生分类筛选" className="card-status-expand" multiple value={selectedCategories}
+        onChange={selected => onChange(selected.length === categories.length ? ['generated'] : selected)} options={categories} />
     </div>
   </div>;
 }
@@ -99,13 +100,15 @@ export default function CardFilterSelects({ filters, onChange, expansions, langu
   const zh = chinese(language);
   return <>
     {!builder && <CustomSelect label="阵营筛选" placeholder="阵营" multiple value={filters.factions} onChange={factions => onChange({ ...filters, factions })} options={nationOptions(language)} layout="grid" />}
-    <CustomSelect label={`${prefix}类型筛选`} placeholder="类型" multiple value={filters.cardType} onChange={cardType => onChange({ ...filters, cardType })} layout="grid" options={CARD_TYPES.map(item => ({ value: item.id, label: zh ? item.label : englishTypes[item.id], icon: <FilterIcon name={`${item.id}.svg`} /> }))} />
+    <CustomSelect label={`${prefix}类型筛选`} placeholder="类型" multiple value={filters.cardType} onChange={cardType => onChange({ ...filters, cardType })} layout="grid" options={CARD_TYPES.map(item => ({ value: item.id, label: zh ? item.label : englishTypes[item.id], icon: <FilterIcon src={TYPE_ICONS[item.id]} /> }))} />
     <CustomSelect label={`${prefix}子类筛选`} placeholder="子类" multiple value={filters.subtypes} onChange={subtypes => onChange({ ...filters, subtypes })} layout="grid" options={CARD_SUBTYPES.map(item => ({ value: item.id, label: item.name[zh ? 'zh-Hans' : 'en-EN'] }))} />
-    {!builder && <CustomSelect label="词条筛选" placeholder="词条" multiple value={filters.keywords} onChange={keywords => onChange({ ...filters, keywords })} layout="grid" options={[
-      { value: 'none', label: zh ? '无词条' : 'No keywords' },
+    {!builder && <div role="group" aria-label="词条匹配筛选" className="library-sort-controls keyword-filter-controls"><CustomSelect label="词条筛选" placeholder="词条" multiple value={filters.keywords} onChange={keywords => onChange({ ...filters, keywords })} layout="grid" options={[
       ...CARD_KEYWORDS.map(item => ({ value: item.id, label: zh ? item.label : item.english, labelClassName: item.highlighted ? 'font-bold text-kards-status' : undefined })),
-    ]} />}
-    <CustomSelect label={`${prefix}稀有度筛选`} placeholder="稀有度" multiple value={filters.rarity} onChange={rarity => onChange({ ...filters, rarity })} layout="grid" options={CARD_RARITIES.map(value => ({ value, label: zh ? rarityLabels[value] : value, iconOnly: true, icon: <FilterIcon name={`${value.toLowerCase()}.svg`} /> }))} />
+      { value: 'none', label: zh ? '无词条' : 'No keywords' },
+    ]} /><button type="button" className="library-sort-direction" aria-label={`词条匹配：${filters.keywordMode === 'and' ? '和' : '或'}`} aria-pressed={filters.keywordMode === 'and'}
+      title={filters.keywordMode === 'and' ? '满足全部词条，点击切换为或' : '满足任一词条，点击切换为和'}
+      onClick={() => onChange({ ...filters, keywordMode: filters.keywordMode === 'and' ? 'or' : 'and' })}>{filters.keywordMode === 'and' ? '和' : '或'}</button></div>}
+    <CustomSelect label={`${prefix}稀有度筛选`} placeholder="稀有度" multiple value={filters.rarity} onChange={rarity => onChange({ ...filters, rarity })} layout="grid" options={CARD_RARITIES.map(value => ({ value, label: zh ? rarityLabels[value] : value, iconOnly: true, icon: <FilterIcon src={RARITY_ICONS[value]} /> }))} />
     <CustomSelect className="filter-expansion-select" label={`${prefix}扩展包筛选`} value={filters.expansion} onChange={expansion => onChange({ ...filters, expansion })} options={expansionOptions(expansions, language)} />
   </>;
 }

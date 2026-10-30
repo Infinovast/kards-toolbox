@@ -488,7 +488,7 @@
     "importId": "aa",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E6%97%8B%E9%A3%8E.png",
-    "thumbUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E6%97%8B%E9%A3%8E.png",
+    "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/cyclone.avif",
     "json": {
       "id": "temp_cyclone_1",
       "import_id": "aa",
@@ -527,7 +527,7 @@
     "importId": "ab",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E6%97%8B%E9%A3%8E2.png",
-    "thumbUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E6%97%8B%E9%A3%8E2.png",
+    "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/cyclone.avif",
     "json": {
       "id": "temp_cyclone_2",
       "import_id": "ab",
@@ -566,7 +566,7 @@
     "importId": "ac",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E6%9A%B4%E9%9B%A8.png",
-    "thumbUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E6%9A%B4%E9%9B%A8.png",
+    "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/deluge.avif",
     "json": {
       "id": "temp_deluge_1",
       "import_id": "ac",
@@ -605,7 +605,7 @@
     "importId": "ad",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E6%9A%B4%E9%9B%A82.png",
-    "thumbUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E6%9A%B4%E9%9B%A82.png",
+    "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/deluge.avif",
     "json": {
       "id": "temp_deluge_2",
       "import_id": "ad",
@@ -644,7 +644,7 @@
     "importId": "ae",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E7%83%AD%E6%B5%AA.png",
-    "thumbUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E7%83%AD%E6%B5%AA.png",
+    "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/heatwave.avif",
     "json": {
       "id": "temp_heatwave_1",
       "import_id": "ae",
@@ -683,7 +683,7 @@
     "importId": "af",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E7%83%AD%E6%B5%AA2.png",
-    "thumbUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E7%83%AD%E6%B5%AA2.png",
+    "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/heatwave.avif",
     "json": {
       "id": "temp_heatwave_2",
       "import_id": "af",
@@ -722,7 +722,7 @@
     "importId": "ag",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E4%B8%9B%E6%9E%97%E7%83%AD.png",
-    "thumbUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E4%B8%9B%E6%9E%97%E7%83%AD.png",
+    "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/jungle_fever.avif",
     "json": {
       "id": "temp_jungle_fever_1",
       "import_id": "ag",
@@ -761,7 +761,7 @@
     "importId": "ah",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E4%B8%9B%E6%9E%97%E7%83%AD2.png",
-    "thumbUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E4%B8%9B%E6%9E%97%E7%83%AD2.png",
+    "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/jungle_fever.avif",
     "json": {
       "id": "temp_jungle_fever_2",
       "import_id": "ah",
@@ -800,7 +800,7 @@
     "importId": "ai",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E5%AD%A3%E9%A3%8E%E9%9B%A8.png",
-    "thumbUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E5%AD%A3%E9%A3%8E%E9%9B%A8.png",
+    "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/monsoon_rain.avif",
     "json": {
       "id": "temp_monsoon_rain_1",
       "import_id": "ai",
@@ -839,7 +839,7 @@
     "importId": "aj",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E5%AD%A3%E9%A3%8E%E9%9B%A82.png",
-    "thumbUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E5%AD%A3%E9%A3%8E%E9%9B%A82.png",
+    "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/monsoon_rain.avif",
     "json": {
       "id": "temp_monsoon_rain_2",
       "import_id": "aj",
@@ -878,7 +878,7 @@
     "importId": "ak",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E9%AA%84%E9%98%B3.png",
-    "thumbUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E9%AA%84%E9%98%B3.png",
+    "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/scorching_sun.avif",
     "json": {
       "id": "temp_scorching_sun_1",
       "import_id": "ak",
@@ -917,7 +917,7 @@
     "importId": "al",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E9%AA%84%E9%98%B32.png",
-    "thumbUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E9%AA%84%E9%98%B32.png",
+    "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/scorching_sun.avif",
     "json": {
       "id": "temp_scorching_sun_2",
       "import_id": "al",
@@ -956,7 +956,7 @@
     "importId": "am",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E9%9B%B7%E6%9A%B4.png",
-    "thumbUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E9%9B%B7%E6%9A%B4.png",
+    "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/thunderstorm.avif",
     "json": {
       "id": "temp_thunderstorm_1",
       "import_id": "am",
@@ -995,7 +995,7 @@
     "importId": "an",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E9%9B%B7%E6%9A%B42.png",
-    "thumbUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E9%9B%B7%E6%9A%B42.png",
+    "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/thunderstorm.avif",
     "json": {
       "id": "temp_thunderstorm_2",
       "import_id": "an",
@@ -1034,7 +1034,7 @@
     "importId": "ao",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E9%AA%A4%E9%9B%A8.png",
-    "thumbUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E9%AA%A4%E9%9B%A8.png",
+    "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/torrential_rain.avif",
     "json": {
       "id": "temp_torrential_rain_1",
       "import_id": "ao",
@@ -1073,7 +1073,7 @@
     "importId": "ap",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E9%AA%A4%E9%9B%A82.png",
-    "thumbUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E9%AA%A4%E9%9B%A82.png",
+    "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/torrential_rain.avif",
     "json": {
       "id": "temp_torrential_rain_2",
       "import_id": "ap",
@@ -1112,7 +1112,7 @@
     "importId": "aq",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E7%83%AD%E5%B8%A6%E9%A3%8E%E6%9A%B4.png",
-    "thumbUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E7%83%AD%E5%B8%A6%E9%A3%8E%E6%9A%B4.png",
+    "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/tropical_storm.avif",
     "json": {
       "id": "temp_tropical_storm_1",
       "import_id": "aq",
@@ -1151,7 +1151,7 @@
     "importId": "ar",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E7%83%AD%E5%B8%A6%E9%A3%8E%E6%9A%B42.png",
-    "thumbUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E7%83%AD%E5%B8%A6%E9%A3%8E%E6%9A%B42.png",
+    "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/tropical_storm.avif",
     "json": {
       "id": "temp_tropical_storm_2",
       "import_id": "ar",

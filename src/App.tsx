@@ -44,6 +44,7 @@ import DeckBuilder, { type BuilderDeck } from './components/DeckBuilder';
 import DeckCardStrip, { DeckHeadquartersStrip } from './components/DeckCardStrip';
 import DeckCountIndicator from './components/DeckCountIndicator';
 import ReservedBadge from './components/ReservedBadge';
+import SearchClearButton from './components/SearchClearButton';
 import NewDeckDialog from './components/NewDeckDialog';
 import DeckImageImport from './components/DeckImageImport';
 import DeckFolders from './components/DeckFolders';
@@ -54,6 +55,7 @@ import CustomSelect from './components/CustomSelect';
 import { nationOptions } from './components/CardFilterSelects';
 import { loadCardDatabase, type KardsCardRecord } from './types/card';
 import { CARD_BACK_CATEGORIES, CARD_BACKS, DEFAULT_CARD_BACK, DEFAULT_TABLECLOTH, TABLECLOTHS, USER_TABLECLOTHS, cardBackForDeck, cardBackIsAvailable, defaultCardBackForNation, headquartersForDeck, headquartersOptions, resolveSelectedTablecloth, tableclothForHeadquarters, type HeadquartersAsset } from './lib/cardAssets';
+import { factionAsset, factionIcon, LOGOS } from './lib/assetCatalog';
 
 // --- Types ---
 type Nation = 'Germany' | 'Soviet' | 'USA' | 'Japan' | 'Britain' | 'Finland' | 'Italy' | 'France' | 'Poland' | 'Anzac';
@@ -167,43 +169,32 @@ const ERROR_LOCALE: Record<string, string> = {
 const NATION_DATA: Record<Nation, { label: string, color: string, flag: string, isMainAllowed: boolean, icon: string }> = {
   Germany: { 
     label: '德', color: '#3d3d3d', flag: 'de', isMainAllowed: true,
-    icon: '/assets/icons/German.png'
+    icon: factionIcon('Germany')
   },
   Britain: { 
     label: '英', color: '#002366', flag: 'gb', isMainAllowed: true,
-    icon: '/assets/icons/Britain.png'
+    icon: factionIcon('Britain')
   },
   Japan: { 
     label: '日', color: '#bc002d', flag: 'jp', isMainAllowed: true,
-    icon: '/assets/icons/Japan.png'
+    icon: factionIcon('Japan')
   },
   Soviet: { 
     label: '苏', color: '#cc0000', flag: 'su', isMainAllowed: true,
-    icon: '/assets/icons/Soviet.png'
+    icon: factionIcon('Soviet')
   },
   USA: { 
     label: '美', color: '#3c3b6e', flag: 'us', isMainAllowed: true,
-    icon: '/assets/icons/Usa.png'
+    icon: factionIcon('USA')
   },
-  France: { label: '法', color: '#0055A4', flag: 'fr', isMainAllowed: false, icon: '/assets/icons/France.png' },
-  Italy: { label: '意', color: '#008C45', flag: 'it', isMainAllowed: false, icon: '/assets/icons/Italy.png' },
-  Poland: { label: '波', color: '#DC143C', flag: 'pl', isMainAllowed: false, icon: '/assets/icons/Poland.jpg' },
-  Finland: { label: '芬', color: '#003580', flag: 'fi', isMainAllowed: false, icon: '/assets/icons/Finland.png' },
-  Anzac: { label: '澳', color: '#9E6F34', flag: 'an', isMainAllowed: false, icon: '/assets/icons/anzac.svg' },
+  France: { label: '法', color: '#0055A4', flag: 'fr', isMainAllowed: false, icon: factionIcon('France') },
+  Italy: { label: '意', color: '#008C45', flag: 'it', isMainAllowed: false, icon: factionIcon('Italy') },
+  Poland: { label: '波', color: '#DC143C', flag: 'pl', isMainAllowed: false, icon: factionIcon('Poland') },
+  Finland: { label: '芬', color: '#003580', flag: 'fi', isMainAllowed: false, icon: factionIcon('Finland') },
+  Anzac: { label: '澳', color: '#9E6F34', flag: 'an', isMainAllowed: false, icon: factionIcon('Anzac') },
 };
 
-const NATION_FLAG_ASSETS: Record<string, string> = {
-  de: '/assets/flags/Germany.svg',
-  gb: '/assets/flags/Britain.svg',
-  jp: '/assets/flags/Japan.svg',
-  su: '/assets/flags/Soviet.svg',
-  us: '/assets/flags/USA.svg',
-  fr: '/assets/flags/France.svg',
-  it: '/assets/flags/Italy.svg',
-  pl: '/assets/flags/Poland.svg',
-  fi: '/assets/flags/Finland.svg',
-  an: '/assets/flags/au.svg',
-};
+const NATION_FLAG_ASSETS = Object.fromEntries(Object.entries(NATION_DATA).map(([nation, data]) => [data.flag, factionAsset(nation).flag!]));
 
 const getFlagUrl = (nationCode: string) => {
   return NATION_FLAG_ASSETS[nationCode] || NATION_FLAG_ASSETS.de;
@@ -477,7 +468,7 @@ export default function App() {
 
   useEffect(() => {
     const icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
-    if (icon) icon.href = new URL('./assets/kards_logos/' + (effectiveIsDarkMode ? 'KardsLogoWhite_cards_new.png' : 'KardsLogoBlack_cards_new.png'), document.baseURI).href;
+    if (icon) icon.href = new URL(effectiveIsDarkMode ? LOGOS.app.white : LOGOS.app.black, document.baseURI).href;
   }, [effectiveIsDarkMode]);
 
   useEffect(() => {
@@ -1246,7 +1237,7 @@ export default function App() {
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-3">
             <img 
-              src={effectiveIsDarkMode ? "/assets/kards_logos/KardsLogoWhite_icon_new.png" : "/assets/kards_logos/KardsLogoBlack_icon_new.png"}
+              src={effectiveIsDarkMode ? LOGOS.brand.white : LOGOS.brand.black}
               alt="KARDS Logo" 
               className="h-16 w-auto transition-opacity"
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
@@ -1259,13 +1250,14 @@ export default function App() {
             </h1>
             <div className="flex items-center gap-3">
               {activeMenu === 'decks' && <>
-              <input 
+              <div className="relative"><input
                 type="text" 
+                aria-label="搜索卡组"
                 placeholder="搜索卡组..."
                 value={searchQuery || ''}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="bg-kards-gray-alt border border-kards-border text-kards-text text-sm px-3 py-1.5 focus:outline-none focus:border-kards-gold min-w-[200px] rounded transition-colors"
-              />
+                className="bg-kards-gray-alt border border-kards-border text-kards-text text-sm pl-3 pr-9 py-1.5 focus:outline-none focus:border-kards-gold min-w-[200px] rounded transition-colors"
+              /><SearchClearButton label="清除卡组搜索" value={searchQuery || ''} onClear={() => setSearchQuery('')} /></div>
               <button type="button" aria-pressed={settings.showDeckFolders} onClick={() => setSettings(current => ({ ...current, showDeckFolders: !current.showDeckFolders }))} className="builder-reserved-toggle">显示收藏夹</button>
                 <>
                   <CustomSelect label="卡组主国筛选" value={filterMainNation || 'All'} onChange={value => setFilterMainNation(value as Nation | 'All')} options={[{ value: 'All', label: '主国：全部' }, ...nationOptions().filter(option => NATION_DATA[option.value as Nation]?.isMainAllowed)]} />
@@ -1303,7 +1295,7 @@ export default function App() {
         {/* Left Sidebar */}
         {activeMenu !== 'builder' && <aside aria-label="主导航" className="glass-panel w-24 shrink-0 flex flex-col gap-1 p-1 z-10 border-r border-kards-border transition-colors duration-300">
           <SidebarButton active={activeMenu === 'decks'} onClick={() => setActiveMenu('decks')} icon={<Library className="w-8 h-8" />} label="卡组" />
-          <SidebarButton active={activeMenu === 'cards'} onClick={() => setActiveMenu('cards')} icon={<img src={effectiveIsDarkMode ? "/assets/kards_logos/KardsLogoBeige_cards.png" : "/assets/kards_logos/KardsLogoBlack_cards.png"} alt="" className="h-8 w-8 object-contain" />} label="卡牌" />
+          <SidebarButton active={activeMenu === 'cards'} onClick={() => setActiveMenu('cards')} icon={<img src={effectiveIsDarkMode ? LOGOS.cards.beige : LOGOS.cards.black} alt="" className="h-8 w-8 object-contain" />} label="卡牌" />
           <div aria-label="应用工具" className="mt-auto flex flex-col gap-1 border-t border-kards-border pt-1">
             <SidebarButton active={showTableclothModal} onClick={() => openTableclothPicker()} icon={<Palette className="w-6 h-6" />} label="桌布" />
             <SidebarButton active={activeMenu === 'settings'} onClick={() => { if (activeMenu !== 'settings') setSettingsReturnMenu(activeMenu); setActiveMenu('settings'); }} icon={<Settings className="w-6 h-6" />} label="设置" />

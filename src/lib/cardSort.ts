@@ -1,4 +1,5 @@
 import type { KardsCardRecord } from '../types/card';
+import { weatherCardFamily } from './weatherCards';
 
 export const CARD_SORT_OPTIONS = [
   { value: 'kredits', label: '费用' },
@@ -16,6 +17,16 @@ const chineseNames = new Intl.Collator('zh-Hans-u-co-pinyin', { sensitivity: 'ba
 const englishNames = new Intl.Collator('en', { sensitivity: 'base' });
 
 export function sortCards(cards: KardsCardRecord[], key: CardSortKey = 'kredits', direction: CardSortDirection = 'asc') {
+  const positions = new Map(cards.map((card, index) => [card.cardId, index]));
+  const familyPositions = new Map<string, number>();
+  for (const [index, card] of cards.entries()) {
+    const family = weatherCardFamily(card.cardId);
+    if (family && !familyPositions.has(family.baseId)) familyPositions.set(family.baseId, positions.get(family.baseId) ?? index);
+  }
+  const position = (card: KardsCardRecord) => {
+    const family = weatherCardFamily(card.cardId);
+    return family ? familyPositions.get(family.baseId)! : positions.get(card.cardId)!;
+  };
   return [...cards].sort((a, b) => {
     let primary: number;
     if (key === 'nameZh' || key === 'nameEn') {
@@ -35,6 +46,8 @@ export function sortCards(cards: KardsCardRecord[], key: CardSortKey = 'kredits'
     };
     return primary * (direction === 'asc' ? 1 : -1)
       || (a.json.kredits ?? 0) - (b.json.kredits ?? 0)
-      || rank(a) - rank(b);
+      || rank(a) - rank(b)
+      || position(a) - position(b)
+      || (weatherCardFamily(a.cardId)?.variant ?? 0) - (weatherCardFamily(b.cardId)?.variant ?? 0);
   });
 }

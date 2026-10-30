@@ -1,189 +1,290 @@
 {
+  "defaultTableclothId": "default-4",
   "tablecloths": [
     {
       "id": "default-1",
-      "name": "默认 1",
-      "file": "/assets/tablecloths/default/1.jpeg",
-      "type": "default"
+      "name": "桌面",
+      "file": "/assets/tablecloths/default/tabletop.jpeg",
+      "type": "default",
+      "previousFiles": [
+        "/assets/tablecloths/default/1.jpeg"
+      ]
     },
     {
       "id": "default-2",
-      "name": "默认 2",
-      "file": "/assets/tablecloths/default/2.jpeg",
-      "type": "default"
-    },
-    {
-      "id": "default-3",
-      "name": "默认 3",
-      "file": "/assets/tablecloths/default/3.jpeg",
-      "type": "default"
+      "name": "KARDS",
+      "file": "/assets/tablecloths/default/kards.jpeg",
+      "type": "default",
+      "previousFiles": [
+        "/assets/tablecloths/default/2.jpeg"
+      ]
     },
     {
       "id": "default-4",
-      "name": "默认 4",
-      "file": "/assets/tablecloths/default/4.jpeg",
-      "type": "default"
+      "name": "木纹",
+      "file": "/assets/tablecloths/default/wood.jpeg",
+      "type": "default",
+      "previousFiles": [
+        "/assets/tablecloths/default/4.jpeg"
+      ]
     },
     {
       "id": "default-5",
-      "name": "默认 5",
-      "file": "/assets/tablecloths/default/5.jpeg",
+      "name": "落叶",
+      "file": "/assets/tablecloths/default/leaves.jpeg",
+      "type": "default",
+      "previousFiles": [
+        "/assets/tablecloths/default/5.jpeg"
+      ]
+    },
+    {
+      "id": "default-starter-campaigns",
+      "name": "新兵战役",
+      "file": "/assets/tablecloths/default/starter_campaigns.png",
       "type": "default"
     },
     {
-      "id": "wallpaper-1",
-      "name": "Wallpaper10_QHD",
-      "file": "/assets/tablecloths/wallpapers/Wallpaper10_QHD.jpg",
+      "id": "wallpaper-britain-britain_deck_po2",
+      "name": "英国：物资短缺",
+      "file": "/assets/tablecloths/wallpaper/Britain/britain_supply_shortage.png",
+      "type": "wallpaper",
+      "nation": "Britain",
+      "previousFiles": [
+        "/assets/tablecloths/wallpaper/Britain/britain_deck_po2.png"
+      ],
+      "cardId": "supply_shortage"
+    },
+    {
+      "id": "wallpaper-britain-t_loading_britain_05",
+      "name": "英国：皇家西肯特郡团",
+      "file": "/assets/tablecloths/wallpaper/Britain/britain_royal_west_kents.png",
+      "type": "wallpaper",
+      "nation": "Britain",
+      "previousFiles": [
+        "/assets/tablecloths/wallpaper/Britain/t_loading_britain_05.png"
+      ],
+      "cardId": "royal_west_kents"
+    },
+    {
+      "id": "wallpaper-britain-t_loading_britain_07",
+      "name": "英国：喷火 Mk Ia",
+      "file": "/assets/tablecloths/wallpaper/Britain/britain_spitfire_mk_ia.png",
+      "type": "wallpaper",
+      "nation": "Britain",
+      "previousFiles": [
+        "/assets/tablecloths/wallpaper/Britain/t_loading_britain_07.png"
+      ],
+      "cardId": "spitfire_mk_ia"
+    },
+    {
+      "id": "wallpaper-britain-t_loading_britain_c",
+      "name": "英国：护航船队",
+      "file": "/assets/tablecloths/wallpaper/Britain/britain_escort_group.png",
+      "type": "wallpaper",
+      "nation": "Britain",
+      "previousFiles": [
+        "/assets/tablecloths/wallpaper/Britain/t_loading_britain_c.png"
+      ],
+      "cardId": "escort_group"
+    },
+    {
+      "id": "wallpaper-germany-german_campaign",
+      "name": "德国：虎式坦克 H 型",
+      "file": "/assets/tablecloths/wallpaper/Germany/german_tiger_ih.png",
+      "type": "wallpaper",
+      "nation": "Germany",
+      "previousFiles": [
+        "/assets/tablecloths/wallpaper/Germany/german_campaign.png"
+      ],
+      "cardId": "tiger_ih"
+    },
+    {
+      "id": "wallpaper-germany-t_loading_germany_05",
+      "name": "德国：Bf 109 E",
+      "file": "/assets/tablecloths/wallpaper/Germany/germany_me_bf_109_e.png",
+      "type": "wallpaper",
+      "nation": "Germany",
+      "previousFiles": [
+        "/assets/tablecloths/wallpaper/Germany/t_loading_germany_05.png"
+      ],
+      "cardId": "me_bf_109_e"
+    },
+    {
+      "id": "wallpaper-germany-t_loading_germany_07",
+      "name": "德国：来自深处",
+      "file": "/assets/tablecloths/wallpaper/Germany/germany_from_the_deep.png",
+      "type": "wallpaper",
+      "nation": "Germany",
+      "previousFiles": [
+        "/assets/tablecloths/wallpaper/Germany/t_loading_germany_07.png"
+      ],
+      "cardId": "from_the_deep"
+    },
+    {
+      "id": "wallpaper-germany-t_loading_germany_c",
+      "name": "德国：步兵",
+      "file": "/assets/tablecloths/wallpaper/Germany/germany_infantry.png",
+      "type": "wallpaper",
+      "nation": "Germany",
+      "previousFiles": [
+        "/assets/tablecloths/wallpaper/Germany/t_loading_germany_c.png"
+      ],
+      "cardType": "infantry"
+    },
+    {
+      "id": "wallpaper-japan-japan_campaign_po2",
+      "name": "日本：秋田联队",
+      "file": "/assets/tablecloths/wallpaper/Japan/japan_akita_regiment.png",
+      "type": "wallpaper",
+      "nation": "Japan",
+      "previousFiles": [
+        "/assets/tablecloths/wallpaper/Japan/japan_campaign_po2.png"
+      ],
+      "cardId": "akita_regiment"
+    },
+    {
+      "id": "wallpaper-japan-t_loading_Japan_05",
+      "name": "日本：IJN 信浓号",
+      "file": "/assets/tablecloths/wallpaper/Japan/Japan_ijn_shinano.png",
+      "type": "wallpaper",
+      "nation": "Japan",
+      "previousFiles": [
+        "/assets/tablecloths/wallpaper/Japan/t_loading_Japan_05.png"
+      ],
+      "cardId": "ijn_shinano"
+    },
+    {
+      "id": "wallpaper-japan-t_loading_Japan_06",
+      "name": "日本：拂晓行动",
+      "file": "/assets/tablecloths/wallpaper/Japan/Japan_dawn_operations.png",
+      "type": "wallpaper",
+      "nation": "Japan",
+      "previousFiles": [
+        "/assets/tablecloths/wallpaper/Japan/t_loading_Japan_06.png"
+      ],
+      "cardId": "dawn_operations"
+    },
+    {
+      "id": "wallpaper-japan-t_loading_Japan_08",
+      "name": "日本：Ki-44 二式战 钟馗",
+      "file": "/assets/tablecloths/wallpaper/Japan/Japan_ki44_tojo.png",
+      "type": "wallpaper",
+      "nation": "Japan",
+      "previousFiles": [
+        "/assets/tablecloths/wallpaper/Japan/t_loading_Japan_08.png"
+      ],
+      "cardId": "ki44_tojo"
+    },
+    {
+      "id": "wallpaper-soviet-soviet_deck_po2",
+      "name": "苏联：OT-34",
+      "file": "/assets/tablecloths/wallpaper/Soviet/soviet_ot34.png",
+      "type": "wallpaper",
+      "nation": "Soviet",
+      "previousFiles": [
+        "/assets/tablecloths/wallpaper/Soviet/soviet_deck_po2.png"
+      ],
+      "cardId": "ot34"
+    },
+    {
+      "id": "wallpaper-soviet-t_loading_soviet_07",
+      "name": "苏联：P-39 小蛇",
+      "file": "/assets/tablecloths/wallpaper/Soviet/soviet_little_cobra.png",
+      "type": "wallpaper",
+      "nation": "Soviet",
+      "previousFiles": [
+        "/assets/tablecloths/wallpaper/Soviet/t_loading_soviet_07.png"
+      ],
+      "cardId": "little_cobra"
+    },
+    {
+      "id": "wallpaper-soviet-t_loading_soviet_08",
+      "name": "苏联：佩-2",
+      "file": "/assets/tablecloths/wallpaper/Soviet/soviet_petlyakov_pe2.png",
+      "type": "wallpaper",
+      "nation": "Soviet",
+      "previousFiles": [
+        "/assets/tablecloths/wallpaper/Soviet/t_loading_soviet_08.png"
+      ],
+      "cardId": "petlyakov_pe2"
+    },
+    {
+      "id": "wallpaper-soviet-t_loading_soviet_a",
+      "name": "苏联：别-4",
+      "file": "/assets/tablecloths/wallpaper/Soviet/soviet_beriev_be4.png",
+      "type": "wallpaper",
+      "nation": "Soviet",
+      "previousFiles": [
+        "/assets/tablecloths/wallpaper/Soviet/t_loading_soviet_a.png"
+      ],
+      "cardId": "beriev_be4"
+    },
+    {
+      "id": "wallpaper-usa-t_loading_usa_05",
+      "name": "美国：大规模部署",
+      "file": "/assets/tablecloths/wallpaper/USA/usa_mass_deployment.png",
+      "type": "wallpaper",
+      "nation": "USA",
+      "previousFiles": [
+        "/assets/tablecloths/wallpaper/USA/t_loading_usa_05.png"
+      ],
+      "cardId": "mass_deployment"
+    },
+    {
+      "id": "wallpaper-usa-t_loading_usa_06",
+      "name": "美国：战略规划",
+      "file": "/assets/tablecloths/wallpaper/USA/usa_strategic_planning.png",
+      "type": "wallpaper",
+      "nation": "USA",
+      "previousFiles": [
+        "/assets/tablecloths/wallpaper/USA/t_loading_usa_06.png"
+      ],
+      "cardId": "strategic_planning"
+    },
+    {
+      "id": "wallpaper-usa-t_loading_usa_08",
+      "name": "美国：P-51 野马",
+      "file": "/assets/tablecloths/wallpaper/USA/usa_p51_mustang.png",
+      "type": "wallpaper",
+      "nation": "USA",
+      "previousFiles": [
+        "/assets/tablecloths/wallpaper/USA/t_loading_usa_08.png"
+      ],
+      "cardId": "p51_mustang"
+    },
+    {
+      "id": "wallpaper-usa-t_loading_usa_c",
+      "name": "美国：第 101 空降师",
+      "file": "/assets/tablecloths/wallpaper/USA/usa_101st_airborne.png",
+      "type": "wallpaper",
+      "nation": "USA",
+      "previousFiles": [
+        "/assets/tablecloths/wallpaper/USA/t_loading_usa_c.png"
+      ],
+      "cardId": "101st_airborne"
+    },
+    {
+      "id": "wallpaper-common-NavalWarfare_keyart_still_noLogo",
+      "name": "海战",
+      "file": "/assets/tablecloths/wallpaper/Common/NavalWarfare_keyart_still_noLogo.png",
       "type": "wallpaper"
     },
     {
-      "id": "wallpaper-2",
-      "name": "Wallpaper11_QHD",
-      "file": "/assets/tablecloths/wallpapers/Wallpaper11_QHD.jpg",
+      "id": "wallpaper-common-WinterKeyart2021_still",
+      "name": "冬季战争",
+      "file": "/assets/tablecloths/wallpaper/Common/WinterKeyart2021_still.png",
       "type": "wallpaper"
     },
     {
-      "id": "wallpaper-3",
-      "name": "Wallpaper12_QHD",
-      "file": "/assets/tablecloths/wallpapers/Wallpaper12_QHD.jpg",
+      "id": "wallpaper-common-bloodAndIron_keyart_still_noLogo",
+      "name": "血与铁",
+      "file": "/assets/tablecloths/wallpaper/Common/bloodAndIron_keyart_still_noLogo.png",
       "type": "wallpaper"
     },
     {
-      "id": "wallpaper-4",
-      "name": "Wallpaper13_QHD",
-      "file": "/assets/tablecloths/wallpapers/Wallpaper13_QHD.jpg",
-      "type": "wallpaper"
-    },
-    {
-      "id": "wallpaper-5",
-      "name": "Wallpaper14_QHD",
-      "file": "/assets/tablecloths/wallpapers/Wallpaper14_QHD.jpg",
-      "type": "wallpaper"
-    },
-    {
-      "id": "wallpaper-6",
-      "name": "Wallpaper15_QHD",
-      "file": "/assets/tablecloths/wallpapers/Wallpaper15_QHD.jpg",
-      "type": "wallpaper"
-    },
-    {
-      "id": "wallpaper-7",
-      "name": "Wallpaper16_QHD",
-      "file": "/assets/tablecloths/wallpapers/Wallpaper16_QHD.jpg",
-      "type": "wallpaper"
-    },
-    {
-      "id": "wallpaper-8",
-      "name": "Wallpaper17_QHD",
-      "file": "/assets/tablecloths/wallpapers/Wallpaper17_QHD.jpg",
-      "type": "wallpaper"
-    },
-    {
-      "id": "wallpaper-9",
-      "name": "Wallpaper18_QHD",
-      "file": "/assets/tablecloths/wallpapers/Wallpaper18_QHD.jpg",
-      "type": "wallpaper"
-    },
-    {
-      "id": "wallpaper-10",
-      "name": "Wallpaper1_QHD",
-      "file": "/assets/tablecloths/wallpapers/Wallpaper1_QHD.jpg",
-      "type": "wallpaper"
-    },
-    {
-      "id": "wallpaper-11",
-      "name": "Wallpaper20_QHD",
-      "file": "/assets/tablecloths/wallpapers/Wallpaper20_QHD.jpg",
-      "type": "wallpaper"
-    },
-    {
-      "id": "wallpaper-12",
-      "name": "Wallpaper21_QHD",
-      "file": "/assets/tablecloths/wallpapers/Wallpaper21_QHD.jpg",
-      "type": "wallpaper"
-    },
-    {
-      "id": "wallpaper-13",
-      "name": "Wallpaper2_QHD",
-      "file": "/assets/tablecloths/wallpapers/Wallpaper2_QHD.jpg",
-      "type": "wallpaper"
-    },
-    {
-      "id": "wallpaper-14",
-      "name": "Wallpaper3_QHD",
-      "file": "/assets/tablecloths/wallpapers/Wallpaper3_QHD.jpg",
-      "type": "wallpaper"
-    },
-    {
-      "id": "wallpaper-15",
-      "name": "Wallpaper4_QHD",
-      "file": "/assets/tablecloths/wallpapers/Wallpaper4_QHD.jpg",
-      "type": "wallpaper"
-    },
-    {
-      "id": "wallpaper-16",
-      "name": "Wallpaper5_QHD",
-      "file": "/assets/tablecloths/wallpapers/Wallpaper5_QHD.jpg",
-      "type": "wallpaper"
-    },
-    {
-      "id": "wallpaper-17",
-      "name": "Wallpaper6_QHD",
-      "file": "/assets/tablecloths/wallpapers/Wallpaper6_QHD.jpg",
-      "type": "wallpaper"
-    },
-    {
-      "id": "wallpaper-18",
-      "name": "Wallpaper7_QHD",
-      "file": "/assets/tablecloths/wallpapers/Wallpaper7_QHD.jpg",
-      "type": "wallpaper"
-    },
-    {
-      "id": "wallpaper-19",
-      "name": "Wallpaper8_QHD",
-      "file": "/assets/tablecloths/wallpapers/Wallpaper8_QHD.jpg",
-      "type": "wallpaper"
-    },
-    {
-      "id": "wallpaper-20",
-      "name": "Wallpaper9_QHD",
-      "file": "/assets/tablecloths/wallpapers/Wallpaper9_QHD.jpg",
-      "type": "wallpaper"
-    },
-    {
-      "id": "wallpaper-21",
-      "name": "Wallpaper_FR_01",
-      "file": "/assets/tablecloths/wallpapers/Wallpaper_FR_01.jpg",
-      "type": "wallpaper"
-    },
-    {
-      "id": "wallpaper-22",
-      "name": "Wallpaper_FR_02",
-      "file": "/assets/tablecloths/wallpapers/Wallpaper_FR_02.jpg",
-      "type": "wallpaper"
-    },
-    {
-      "id": "wallpaper-23",
-      "name": "Wallpaper_RU_01",
-      "file": "/assets/tablecloths/wallpapers/Wallpaper_RU_01.jpg",
-      "type": "wallpaper"
-    },
-    {
-      "id": "wallpaper-24",
-      "name": "Wallpaper_RU_02",
-      "file": "/assets/tablecloths/wallpapers/Wallpaper_RU_02.jpg",
-      "type": "wallpaper"
-    },
-    {
-      "id": "wallpaper-25",
-      "name": "Wallpaper_USA_01",
-      "file": "/assets/tablecloths/wallpapers/Wallpaper_USA_01.jpg",
-      "type": "wallpaper"
-    },
-    {
-      "id": "wallpaper-26",
-      "name": "Wallpaper_USA_02",
-      "file": "/assets/tablecloths/wallpapers/Wallpaper_USA_02.jpg",
+      "id": "wallpaper-common-t_allegiance",
+      "name": "忠诚",
+      "file": "/assets/tablecloths/wallpaper/Common/t_allegiance.png",
       "type": "wallpaper"
     },
     {

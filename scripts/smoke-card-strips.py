@@ -84,7 +84,7 @@ with sync_playwright() as playwright:
         expect(badge).to_be_visible()
         assert badge.bounding_box()['x']<r.locator('.deck-card-cost').bounding_box()['x']
     expect(row('零行动步兵').get_by_alt_text('预备卡',exact=True)).to_have_count(0)
-    expect(row('澳新步兵').locator('.deck-card-nation')).to_have_attribute('src','./assets/filters/anzac.svg')
+    expect(row('澳新步兵').locator('.deck-card-nation')).to_have_attribute('src','/assets/faction_icons/Anzac/anzac.png')
 
     def check_hover(target):
         target.scroll_into_view_if_needed()

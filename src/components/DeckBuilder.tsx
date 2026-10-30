@@ -16,6 +16,7 @@ import { DEFAULT_DECK_RULES, validateDeck, type DeckRuleSet, type DeckRules } fr
 import { defaultHeadquartersForNation, type HeadquartersAsset } from '../lib/cardAssets';
 import { CardFace, RaritySlots } from './CardFace';
 import ReservedBadge from './ReservedBadge';
+import SearchClearButton from './SearchClearButton';
 import DeckCountIndicator from './DeckCountIndicator';
 import DeckCardMotion, { useDeckCardMotion } from './DeckCardMotion';
 import { EMPTY_CARD_FILTERS, isGeneratedCard, isInBuilderPool, matchesCardFilters, type CardFilters } from '../lib/cardFilters';
@@ -258,7 +259,7 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
   }} className="flex h-full min-h-0 flex-col gap-3 p-4 outline-none">
       <div aria-label="构筑卡牌筛选" className="builder-filter-bar glass-panel custom-scrollbar">
         <div className="builder-filter-leading">
-          <div className="builder-search relative"><Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-kards-text-muted" /><input aria-label="构筑搜索卡牌" value={filters.query} onChange={(e) => setFilter('query', e.target.value)} onKeyDown={event => { if (event.key === 'Escape' && filters.query && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); setFilter('query', ''); } }} placeholder="搜索" className={`${inputClass} w-full !pl-7`} /></div>
+          <div className="builder-search relative"><Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-kards-text-muted" /><input aria-label="构筑搜索卡牌" value={filters.query} onChange={(e) => setFilter('query', e.target.value)} onKeyDown={event => { if (event.key === 'Escape' && filters.query && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); setFilter('query', ''); } }} placeholder="搜索" className={`${inputClass} w-full !pl-7 !pr-9`} /><SearchClearButton label="清除构筑搜索" value={filters.query} onClear={() => setFilter('query', '')} /></div>
           <button type="button" aria-pressed={!filters.status.includes('active')} className="builder-reserved-toggle" onClick={() => setFilter('status', filters.status.includes('active') ? [] : ['active'])}>显示预备卡</button>
         </div>
         <div className="builder-filter-costs"><CostFilterButtons value={filters.cost} onChange={cost => setFilter('cost', cost)} label="构筑费用筛选" /></div>
