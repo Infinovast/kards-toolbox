@@ -30,13 +30,15 @@ import Cropper from 'react-easy-crop';
 import getCroppedImg from './lib/cropImage';
 import { createBackup, parseBackup, restoreBackup } from './lib/backup';
 import { generateLightModeColors } from './lib/colorUtils';
-import { renderDeckImage, downloadDeckImage } from './lib/deckRenderer';
+import { renderDeckImage, renderDeckMiniImage, downloadDeckImage } from './lib/deckRenderer';
 import { decodeDeckCode, findCardsByImportId } from './lib/deckCode';
 import { DEFAULT_DECK_RULES, validateDeck, type DeckRuleSet, type DeckRules } from './lib/deckRules';
 import { extractDeckCodeFromText, inferDeckTitleFromText } from './lib/deckImport';
 import ImageDownloadProgress from './components/ImageDownloadProgress';
 import { handleDialogKeys, useDismissiblePanel, useModalFocus } from './lib/dialogKeyboard';
 import CardLibrary from './components/CardLibrary';
+import CardPacks from './components/CardPacks';
+import { resetUsageTips } from './lib/usageTips';
 import TableclothBackground from './components/TableclothBackground';
 import CardDetailModal from './components/CardDetailModal';
 import type { CardDetailOrigin } from './lib/cardDetailOrigin';
@@ -254,9 +256,9 @@ export default function App() {
   const [clipboardDeckCandidate, setClipboardDeckCandidate] = useState<ClipboardDeckCandidate | null>(null);
   const lastClipboardPromptRef = useRef<string | null>(null);
   const [backupStatus, setBackupStatus] = useState<string | null>(null);
-  const [activeMenu, setActiveMenu] = useState<'decks' | 'cards' | 'builder' | 'about' | 'settings'>('decks');
-  const [aboutReturnMenu, setAboutReturnMenu] = useState<'decks' | 'cards' | 'builder' | 'settings'>('decks');
-  const [settingsReturnMenu, setSettingsReturnMenu] = useState<'decks' | 'cards' | 'builder' | 'about'>('decks');
+  const [activeMenu, setActiveMenu] = useState<'decks' | 'cards' | 'packs' | 'builder' | 'about' | 'settings'>('decks');
+  const [aboutReturnMenu, setAboutReturnMenu] = useState<'decks' | 'cards' | 'packs' | 'builder' | 'settings'>('decks');
+  const [settingsReturnMenu, setSettingsReturnMenu] = useState<'decks' | 'cards' | 'packs' | 'builder' | 'about'>('decks');
   const settingsPageRef = useRef<HTMLElement>(null);
   useEffect(() => { if (activeMenu === 'settings') settingsPageRef.current?.focus(); }, [activeMenu]);
   const [builderDeck, setBuilderDeck] = useState<BuilderDeck | null>(null);
@@ -571,7 +573,7 @@ export default function App() {
   const [collectionToDelete, setCollectionToDelete] = useState<Collection | null>(null);
   const [collectionToRename, setCollectionToRename] = useState<Collection | null>(null);
   const [renameCollectionName, setRenameCollectionName] = useState('');
-  const [deckImageModal, setDeckImageModal] = useState<{show: boolean, deck: Pick<Deck, 'name' | 'code' | 'headquartersId' | 'ruleSet' | 'customRules' | 'cardBackUrl' | 'allyNation'> | null, loading: boolean, imageUrl: string | null, error: string | null, tablecloth: string}>({show: false, deck: null, loading: false, imageUrl: null, error: null, tablecloth: DEFAULT_TABLECLOTH});
+  const [deckImageModal, setDeckImageModal] = useState<{show: boolean, deck: Pick<Deck, 'name' | 'code' | 'headquartersId' | 'ruleSet' | 'customRules' | 'cardBackUrl' | 'allyNation'> | null, loading: boolean, miniLoading: boolean, imageUrl: string | null, miniImageUrl: string | null, view: 'full' | 'mini', error: string | null, tablecloth: string}>({show: false, deck: null, loading: false, miniLoading: false, imageUrl: null, miniImageUrl: null, view: 'full', error: null, tablecloth: DEFAULT_TABLECLOTH});
   const [tableclothPickerForImage, setTableclothPickerForImage] = useState(false);
   const deckImageRequest = useRef(0);
   const closeDeckImage = () => { deckImageRequest.current++; setTableclothPickerForImage(false); setDeckImageModal(current => ({ ...current, show: false })); };
@@ -598,11 +600,11 @@ export default function App() {
     const request = ++deckImageRequest.current;
     const mainNation = deck.mainNation || decodeDeckCode(deck.code).mainNation;
     const background = tableclothForHeadquarters(headquartersForDeck(deck.headquartersId, mainNation)?.groupId) || selectedTablecloth;
-    setDeckImageModal({ show: true, deck, loading: true, imageUrl: null, error: null, tablecloth: background });
+    setDeckImageModal({ show: true, deck, loading: true, miniLoading: false, imageUrl: null, miniImageUrl: null, view: 'full', error: null, tablecloth: background });
     try {
       const imageData = await getOrGenerateDeckImage(deck, background);
       if (request !== deckImageRequest.current) return;
-      setDeckImageModal(current => ({ ...current, show: true, deck, loading: false, imageUrl: imageData, error: null }));
+      setDeckImageModal(current => ({ ...current, show: true, deck, loading: false, miniImageUrl: null, view: 'full', imageUrl: imageData, error: null }));
     } catch (err: any) {
       if (request !== deckImageRequest.current) return;
       setDeckImageModal(current => ({ ...current, show: true, deck, loading: false, imageUrl: null, error: err.message }));
@@ -615,14 +617,33 @@ export default function App() {
     const deck = deckImageModal.deck;
     if (!deck) return;
     const request = ++deckImageRequest.current;
-    setDeckImageModal(current => ({ ...current, loading: true, imageUrl: null, error: null, tablecloth }));
+    setDeckImageModal(current => ({ ...current, loading: true, miniImageUrl: null, view: 'full', imageUrl: null, error: null, tablecloth }));
     try {
       const imageData = await getOrGenerateDeckImage(deck, tablecloth);
       if (request !== deckImageRequest.current) return;
-      setDeckImageModal(current => ({ ...current, loading: false, imageUrl: imageData, tablecloth }));
+      setDeckImageModal(current => ({ ...current, loading: false, miniImageUrl: null, view: 'full', imageUrl: imageData, tablecloth }));
     } catch (err: any) {
       if (request !== deckImageRequest.current) return;
       setDeckImageModal(current => ({ ...current, loading: false, imageUrl: null, error: err.message, tablecloth }));
+    }
+  };
+  const generateMiniDeckImage = async () => {
+    const deck = deckImageModal.deck; if (!deck || deckImageModal.miniLoading) return;
+    if (deckImageModal.view === 'mini') { setDeckImageModal(current => ({ ...current, view: 'full' })); return; }
+    if (deckImageModal.miniImageUrl) { setDeckImageModal(current => ({ ...current, view: 'mini' })); return; }
+    const request = ++deckImageRequest.current;
+    setDeckImageModal(current => ({ ...current, miniLoading: true }));
+    try {
+      const mainNation = decodeDeckCode(deck.code).mainNation;
+      const cardBackUrl = cardBackForDeck({ ...deck, mainNation });
+      const customBack = customCategories.flatMap(category => category.backs).find(back => back.url === cardBackUrl);
+      const cardBackId = CARD_BACKS.find(back => back.file === cardBackUrl)?.id || (customBack ? `custom:${customBack.id}` : undefined);
+      const mini = await renderDeckMiniImage(deck.code, cardDatabase, deck.name, deckImageModal.tablecloth, deck.headquartersId, cardBackUrl, cardBackId);
+      if (request !== deckImageRequest.current) return;
+      setDeckImageModal(current => ({ ...current, miniLoading: false, miniImageUrl: mini, view: 'mini' }));
+    } catch (error: any) {
+      if (request !== deckImageRequest.current) return;
+      setDeckImageModal(current => ({ ...current, miniLoading: false })); setErrorStatus(error.message || '无法生成迷你分享图');
     }
   };
   const openTableclothPicker = (forDeckImage = false) => {
@@ -1207,8 +1228,9 @@ export default function App() {
                 </div>
 
                 <div className="space-y-3 pt-2 border-t border-kards-border">
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
                     <span className="text-sm font-bold text-kards-text tracking-wider">数据备份</span>
+                    <button type="button" onClick={() => { resetUsageTips(); setBackupStatus('已恢复所有使用 Tips'); }} className="rounded border border-kards-border px-2 py-1 text-xs text-kards-text-muted hover:border-kards-gold hover:text-kards-text">重新显示所有使用Tips</button>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <button
@@ -1252,7 +1274,7 @@ export default function App() {
           </div>
           <nav className="flex items-center gap-6">
             <h1 className="text-kards-text font-bold border-l border-kards-border pl-6 cursor-default tracking-widest">
-              {activeMenu === 'cards' ? '卡牌' : activeMenu === 'builder' ? '卡组构筑' : activeMenu === 'about' ? '关于' : activeMenu === 'settings' ? '设置' : '卡组'}
+              {activeMenu === 'cards' ? '卡牌' : activeMenu === 'packs' ? '卡包' : activeMenu === 'builder' ? '卡组构筑' : activeMenu === 'about' ? '关于' : activeMenu === 'settings' ? '设置' : '卡组'}
             </h1>
             <div className="flex items-center gap-3">
               {activeMenu === 'decks' && <>
@@ -1302,6 +1324,7 @@ export default function App() {
         {activeMenu !== 'builder' && <aside aria-label="主导航" className="glass-panel w-[72px] shrink-0 flex flex-col gap-1 p-1 z-10 border-r border-kards-border transition-colors duration-300">
           <SidebarButton active={activeMenu === 'decks'} onClick={() => setActiveMenu('decks')} icon={<Library className="w-8 h-8" />} label="卡组" />
           <SidebarButton active={activeMenu === 'cards'} onClick={() => setActiveMenu('cards')} icon={<img src={effectiveIsDarkMode ? LOGOS.cards.beige : LOGOS.cards.black} alt="" className="h-8 w-8 object-contain" />} label="卡牌" />
+          <SidebarButton active={activeMenu === 'packs'} onClick={() => setActiveMenu('packs')} icon={<img src={LOGOS.pack} alt="" className="pack-navigation-icon h-8 w-8 object-contain" />} label="卡包" />
           <div aria-label="应用工具" className="mt-auto flex flex-col gap-1 border-t border-kards-border pt-1">
             <SidebarButton active={showTableclothModal} onClick={() => openTableclothPicker()} icon={<Palette className="w-6 h-6" />} label="桌布" />
             <SidebarButton active={activeMenu === 'settings'} onClick={() => { if (activeMenu !== 'settings') setSettingsReturnMenu(activeMenu); setActiveMenu('settings'); }} icon={<Settings className="w-6 h-6" />} label="设置" />
@@ -1356,13 +1379,16 @@ export default function App() {
           </div>
 
           {/* Scrollable Content Container */}
-          <div className={`h-full w-full overflow-y-auto no-scrollbar relative z-10 flex flex-col items-center ${activeMenu === 'cards' || activeMenu === 'builder' || activeMenu === 'settings' ? '' : 'p-12'}`}>
+          <div className={`h-full w-full ${activeMenu === 'packs' ? 'overflow-hidden' : 'overflow-y-auto'} no-scrollbar relative z-10 flex flex-col items-center ${activeMenu === 'cards' || activeMenu === 'packs' || activeMenu === 'builder' || activeMenu === 'settings' ? '' : 'p-12'}`}>
             {activeMenu === 'cards' && (
               cardDatabaseLoading ? <div className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</div>
                 : cardDatabaseError ? <div className="max-w-xl rounded border border-red-500/40 bg-red-500/10 p-6 text-red-300">{cardDatabaseError}</div>
                   : <div className="h-full w-full max-w-[1800px]"><CardLibrary cards={cardDatabase} detailMode={settings.cardDetailMode} onDetailModeChange={cardDetailMode => setSettings(current => ({ ...current, cardDetailMode }))} /></div>
             )}
             {activeMenu === 'builder' && cardDatabaseLoading && <p className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</p>}
+            {activeMenu === 'packs' && (cardDatabaseLoading ? <p className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</p>
+              : cardDatabaseError ? <p role="alert" className="p-6 text-red-400">{cardDatabaseError}</p>
+                : <CardPacks cards={cardDatabase} />)}
             {activeMenu === 'builder' && cardDatabaseError && <p className="p-6 text-red-400">{cardDatabaseError}</p>}
             {!cardDatabaseLoading && !cardDatabaseError && builderDeck && <div className={`h-full w-full max-w-[1800px] shrink-0 ${activeMenu === 'builder' ? '' : 'hidden'}`}><DeckBuilder active={activeMenu === 'builder'} key={builderRevision} cards={cardDatabase} initialDeck={builderDeck} exitRequestRef={builderExitRequest} onSave={handleSaveBuiltDeck} onBack={() => { setBuilderDeck(null); setActiveMenu('decks'); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('[aria-label="主导航"] button')?.focus()); }} /></div>}
             {activeMenu === 'settings' && settingsPage}
@@ -2551,9 +2577,10 @@ export default function App() {
                   <X className="w-6 h-6" />
                 </button>
               </div>
-              <div className="m-3 flex items-center justify-end gap-2">
-                <button disabled={deckImageModal.loading || !deckImageModal.deck} onClick={() => openTableclothPicker(true)} className="flex items-center gap-2 rounded border border-kards-border px-4 py-2 text-sm font-bold disabled:opacity-40"><Palette className="h-4 w-4" />更换桌布</button>
-                {deckImageModal.imageUrl && <button data-dialog-confirm onClick={() => downloadDeckImage(deckImageModal.imageUrl!, deckImageModal.deck?.name || 'kards-deck')} className="rounded bg-kards-accent px-4 py-2 text-sm font-bold text-white">下载 PNG 图片</button>}
+              <div className="m-3 flex flex-wrap items-center justify-end gap-2">
+                <button disabled={deckImageModal.loading || deckImageModal.miniLoading || !deckImageModal.imageUrl} onClick={generateMiniDeckImage} className="mr-auto rounded border border-kards-border px-4 py-2 text-sm font-bold disabled:opacity-40">{deckImageModal.miniLoading ? '正在生成迷你分享图…' : deckImageModal.view === 'mini' ? '切换到完整卡组图' : '切换到迷你分享图'}</button>
+                <button disabled={deckImageModal.loading || deckImageModal.miniLoading || !deckImageModal.deck} onClick={() => openTableclothPicker(true)} className="flex items-center gap-2 rounded border border-kards-border px-4 py-2 text-sm font-bold disabled:opacity-40"><Palette className="h-4 w-4" />更换桌布</button>
+                {deckImageModal.imageUrl && <button data-dialog-confirm disabled={deckImageModal.miniLoading} onClick={() => downloadDeckImage((deckImageModal.view === 'mini' ? deckImageModal.miniImageUrl : deckImageModal.imageUrl)!, (deckImageModal.deck?.name || 'kards-deck') + (deckImageModal.view === 'mini' ? '-mini' : ''))} className="rounded bg-kards-accent px-4 py-2 text-sm font-bold text-white disabled:opacity-40">下载 PNG 图片</button>}
               </div>
               <div className="flex-1 overflow-auto p-6 flex flex-col items-center justify-center bg-kards-bg">
                 {deckImageModal.loading ? (
@@ -2570,9 +2597,10 @@ export default function App() {
                   </div>
                 ) : deckImageModal.imageUrl ? (
                   <img 
-                    src={deckImageModal.imageUrl} 
-                    alt="本地卡组图片" 
+                    src={(deckImageModal.view === 'mini' ? deckImageModal.miniImageUrl : deckImageModal.imageUrl)!}
+                    alt={deckImageModal.view === 'mini' ? '迷你分享图' : '本地卡组图片'}
                     className="max-w-full max-h-[70vh] object-contain shadow-2xl"
+                    style={deckImageModal.view === 'mini' ? { width: 342, height: 'auto', flexShrink: 0 } : undefined}
                   />
                 ) : null}
               </div>

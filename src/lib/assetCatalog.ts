@@ -14,6 +14,18 @@ export interface WildcardAsset {
   crop: { x: number; y: number; width: number; height: number };
 }
 
+export type CardPackKind = 'standard' | 'officer';
+export interface CardPackAsset {
+  id: string;
+  source: string;
+  name: string;
+  category: 'nation' | 'expansion';
+  kind: CardPackKind;
+  file: string;
+  nations?: string[];
+  set?: string;
+}
+
 export const FACTION_ASSETS: Record<string, FactionAsset> = manifest.factions;
 export const LOGOS = manifest.logos;
 export const RESERVE_ICON = manifest.reserve;
@@ -22,7 +34,7 @@ export const SUBCLASS_ICONS: Record<string, string> = manifest.subclasses;
 export const RARITY_ICONS: Record<string, string> = manifest.rarities;
 export const SET_ICONS: Record<string, string> = manifest.sets;
 export const WILDCARDS: Record<string, Record<string, WildcardAsset>> = manifest.wildcards;
-export const CARD_PACKS = manifest.cardpacks;
+export const CARD_PACKS: CardPackAsset[] = manifest.cardpacks as CardPackAsset[];
 
 export function wildcardAsset(nation?: string, rarity?: string): WildcardAsset | undefined {
   if (rarity === 'Standard') return WILDCARDS.Common.Standard;

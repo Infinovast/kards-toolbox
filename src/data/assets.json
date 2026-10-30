@@ -22,7 +22,8 @@
     "brand": {
       "black": "/assets/kards_logos/KardsLogoBlack_icon_new.png",
       "white": "/assets/kards_logos/KardsLogoWhite_icon_new.png"
-    }
+    },
+    "pack": "/assets/kards_logos/cards_pack.png"
   },
   "reserve": "/assets/reserve.png",
   "factions": {
@@ -374,158 +375,291 @@
   },
   "cardpacks": [
     {
-      "id": "BIA_Officer_Shaded_01_1024px",
-      "file": "/assets/cardpacks/BIA_Officer_Shaded_01_1024px.png",
-      "kind": "officer"
+      "id": "USA_standard",
+      "source": "USA",
+      "name": "美国",
+      "category": "nation",
+      "kind": "standard",
+      "file": "/assets/cardpacks/USA_pack.png",
+      "nations": [
+        "USA"
+      ]
     },
     {
-      "id": "BIA_pack_Shaded_01_1024px",
-      "file": "/assets/cardpacks/BIA_pack_Shaded_01_1024px.png",
-      "kind": "standard"
+      "id": "USA_officer",
+      "source": "USA",
+      "name": "美国",
+      "category": "nation",
+      "kind": "officer",
+      "file": "/assets/cardpacks/USA_officer.png",
+      "nations": [
+        "USA"
+      ]
     },
     {
-      "id": "Kards_Officer_Packs_BloodAndIron_tilted",
-      "file": "/assets/cardpacks/Kards_Officer_Packs_BloodAndIron_tilted.png",
-      "kind": "officer"
+      "id": "Soviet_standard",
+      "source": "Soviet",
+      "name": "苏联",
+      "category": "nation",
+      "kind": "standard",
+      "file": "/assets/cardpacks/Soviet_pack.png",
+      "nations": [
+        "Soviet"
+      ]
     },
     {
-      "id": "Kards_Packs_BloodAndIron_tilted",
-      "file": "/assets/cardpacks/Kards_Packs_BloodAndIron_tilted.png",
-      "kind": "standard"
+      "id": "Soviet_officer",
+      "source": "Soviet",
+      "name": "苏联",
+      "category": "nation",
+      "kind": "officer",
+      "file": "/assets/cardpacks/Soviet_officer.png",
+      "nations": [
+        "Soviet"
+      ]
     },
     {
-      "id": "Legions_pack_shaded",
-      "file": "/assets/cardpacks/Legions_pack_shaded.png",
-      "kind": "standard"
+      "id": "Britain_standard",
+      "source": "Britain",
+      "name": "英国",
+      "category": "nation",
+      "kind": "standard",
+      "file": "/assets/cardpacks/Britain_pack.png",
+      "nations": [
+        "Britain"
+      ]
     },
     {
-      "id": "Legions_shaded",
-      "file": "/assets/cardpacks/Legions_shaded.png",
-      "kind": "officer"
+      "id": "Britain_officer",
+      "source": "Britain",
+      "name": "英国",
+      "category": "nation",
+      "kind": "officer",
+      "file": "/assets/cardpacks/Britain_officer.png",
+      "nations": [
+        "Britain"
+      ]
     },
     {
-      "id": "National_Shaded-01",
-      "file": "/assets/cardpacks/National_Shaded-01.png",
-      "nation": "Japan",
-      "kind": "standard"
+      "id": "Japan_standard",
+      "source": "Japan",
+      "name": "日本",
+      "category": "nation",
+      "kind": "standard",
+      "file": "/assets/cardpacks/Japan_pack.png",
+      "nations": [
+        "Japan"
+      ]
     },
     {
-      "id": "National_Shaded-01_officer_Japan",
-      "file": "/assets/cardpacks/National_Shaded-01_officer_Japan.png",
-      "nation": "Japan",
-      "kind": "officer"
+      "id": "Japan_officer",
+      "source": "Japan",
+      "name": "日本",
+      "category": "nation",
+      "kind": "officer",
+      "file": "/assets/cardpacks/Japan_officer.png",
+      "nations": [
+        "Japan"
+      ]
     },
     {
-      "id": "National_Shaded-02",
-      "file": "/assets/cardpacks/National_Shaded-02.png",
-      "nation": "Britain",
-      "kind": "standard"
+      "id": "Germany_standard",
+      "source": "Germany",
+      "name": "德国",
+      "category": "nation",
+      "kind": "standard",
+      "file": "/assets/cardpacks/Germany_pack.png",
+      "nations": [
+        "Germany"
+      ]
     },
     {
-      "id": "National_Shaded-02_officer_Britain",
-      "file": "/assets/cardpacks/National_Shaded-02_officer_Britain.png",
-      "nation": "Britain",
-      "kind": "officer"
+      "id": "Germany_officer",
+      "source": "Germany",
+      "name": "德国",
+      "category": "nation",
+      "kind": "officer",
+      "file": "/assets/cardpacks/Germany_officer.png",
+      "nations": [
+        "Germany"
+      ]
     },
     {
-      "id": "National_Shaded-03",
-      "file": "/assets/cardpacks/National_Shaded-03.png",
-      "nation": "Soviet",
-      "kind": "standard"
+      "id": "Ally_standard",
+      "source": "Ally",
+      "name": "盟国",
+      "category": "nation",
+      "kind": "standard",
+      "file": "/assets/cardpacks/Ally_pack.png",
+      "nations": [
+        "France",
+        "Italy",
+        "Poland",
+        "Finland",
+        "Anzac"
+      ]
     },
     {
-      "id": "National_Shaded-03_officier_Soviet",
-      "file": "/assets/cardpacks/National_Shaded-03_officier_Soviet.png",
-      "nation": "Soviet",
-      "kind": "officer"
+      "id": "Ally_officer",
+      "source": "Ally",
+      "name": "盟国",
+      "category": "nation",
+      "kind": "officer",
+      "file": "/assets/cardpacks/Ally_officer.png",
+      "nations": [
+        "France",
+        "Italy",
+        "Poland",
+        "Finland",
+        "Anzac"
+      ]
     },
     {
-      "id": "National_Shaded-04",
-      "file": "/assets/cardpacks/National_Shaded-04.png",
-      "nation": "USA",
-      "kind": "standard"
+      "id": "Core_standard",
+      "source": "Core",
+      "name": "核心",
+      "category": "expansion",
+      "kind": "standard",
+      "file": "/assets/cardpacks/Core_pack.png",
+      "set": "Base"
     },
     {
-      "id": "National_Shaded-04_officer_US",
-      "file": "/assets/cardpacks/National_Shaded-04_officer_US.png",
-      "nation": "USA",
-      "kind": "officer"
+      "id": "Core_officer",
+      "source": "Core",
+      "name": "核心",
+      "category": "expansion",
+      "kind": "officer",
+      "file": "/assets/cardpacks/Core_officer.png",
+      "set": "Base"
     },
     {
-      "id": "National_Shaded-05",
-      "file": "/assets/cardpacks/National_Shaded-05.png",
-      "nation": "Germany",
-      "kind": "standard"
+      "id": "BIA_standard",
+      "source": "BIA",
+      "name": "战友",
+      "category": "expansion",
+      "kind": "standard",
+      "file": "/assets/cardpacks/BIA_pack.png",
+      "set": "BrothersInArms"
     },
     {
-      "id": "National_Shaded-05_officer_German",
-      "file": "/assets/cardpacks/National_Shaded-05_officer_German.png",
-      "nation": "Germany",
-      "kind": "officer"
+      "id": "BIA_officer",
+      "source": "BIA",
+      "name": "战友",
+      "category": "expansion",
+      "kind": "officer",
+      "file": "/assets/cardpacks/BIA_officer.png",
+      "set": "BrothersInArms"
     },
     {
-      "id": "Officer_Packs_Shaded-01",
-      "file": "/assets/cardpacks/Officer_Packs_Shaded-01.png",
-      "kind": "officer"
+      "id": "BloodAndIron_standard",
+      "source": "BloodAndIron",
+      "name": "血与铁",
+      "category": "expansion",
+      "kind": "standard",
+      "file": "/assets/cardpacks/BloodAndIron_pack.png",
+      "set": "BloodAndIron"
     },
     {
-      "id": "Officer_Packs_Shaded-02",
-      "file": "/assets/cardpacks/Officer_Packs_Shaded-02.png",
-      "kind": "officer"
+      "id": "BloodAndIron_officer",
+      "source": "BloodAndIron",
+      "name": "血与铁",
+      "category": "expansion",
+      "kind": "officer",
+      "file": "/assets/cardpacks/BloodAndIron_officer.png",
+      "set": "BloodAndIron"
     },
     {
-      "id": "Officer_Packs_Shaded-03",
-      "file": "/assets/cardpacks/Officer_Packs_Shaded-03.png",
-      "kind": "officer"
+      "id": "Breakthrough_standard",
+      "source": "Breakthrough",
+      "name": "突破",
+      "category": "expansion",
+      "kind": "standard",
+      "file": "/assets/cardpacks/Breakthrough_pack.png",
+      "set": "Breakthrough"
     },
     {
-      "id": "Packs_Breakthrough_shaded_color-01",
-      "file": "/assets/cardpacks/Packs_Breakthrough_shaded_color-01.png",
-      "kind": "standard"
+      "id": "Breakthrough_officer",
+      "source": "Breakthrough",
+      "name": "突破",
+      "category": "expansion",
+      "kind": "officer",
+      "file": "/assets/cardpacks/Breakthrough_officer.png",
+      "set": "Breakthrough"
     },
     {
-      "id": "Packs_Officer_WinterWar_WW_Tilted_Shadow",
-      "file": "/assets/cardpacks/Packs_Officer_WinterWar_WW_Tilted_Shadow.png",
-      "kind": "officer"
+      "id": "Covert_standard",
+      "source": "Covert",
+      "name": "秘密行动",
+      "category": "expansion",
+      "kind": "standard",
+      "file": "/assets/cardpacks/Covert_pack.png",
+      "set": "CovertOps"
     },
     {
-      "id": "Packs_WinterWar_WW_Tilted_Shadow",
-      "file": "/assets/cardpacks/Packs_WinterWar_WW_Tilted_Shadow.png",
-      "kind": "standard"
+      "id": "Covert_officer",
+      "source": "Covert",
+      "name": "秘密行动",
+      "category": "expansion",
+      "kind": "officer",
+      "file": "/assets/cardpacks/Covert_officer.png",
+      "set": "CovertOps"
     },
     {
-      "id": "Packs_shaded-01",
-      "file": "/assets/cardpacks/Packs_shaded-01.png",
-      "kind": "standard"
+      "id": "Legions_standard",
+      "source": "Legions",
+      "name": "军团",
+      "category": "expansion",
+      "kind": "standard",
+      "file": "/assets/cardpacks/Legions_pack.png",
+      "set": "Legions"
     },
     {
-      "id": "Packs_shaded-02",
-      "file": "/assets/cardpacks/Packs_shaded-02.png",
-      "kind": "standard"
+      "id": "Legions_officer",
+      "source": "Legions",
+      "name": "军团",
+      "category": "expansion",
+      "kind": "officer",
+      "file": "/assets/cardpacks/Legions_officer.png",
+      "set": "Legions"
     },
     {
-      "id": "t_pack_allynations_base",
-      "file": "/assets/cardpacks/t_pack_allynations_base.png",
-      "kind": "standard"
+      "id": "WinterWar_standard",
+      "source": "WinterWar",
+      "name": "冬季战争",
+      "category": "expansion",
+      "kind": "standard",
+      "file": "/assets/cardpacks/WinterWar_pack.png",
+      "set": "WinterWar"
     },
     {
-      "id": "t_pack_allynations_officer",
-      "file": "/assets/cardpacks/t_pack_allynations_officer.png",
-      "kind": "officer"
+      "id": "WinterWar_officer",
+      "source": "WinterWar",
+      "name": "冬季战争",
+      "category": "expansion",
+      "kind": "officer",
+      "file": "/assets/cardpacks/WinterWar_officer.png",
+      "set": "WinterWar"
     },
     {
-      "id": "t_pack_covert_1024_",
-      "file": "/assets/cardpacks/t_pack_covert_1024_.png",
-      "kind": "standard"
+      "id": "Allegiance_standard",
+      "source": "Allegiance",
+      "name": "忠诚",
+      "category": "expansion",
+      "kind": "standard",
+      "file": "/assets/cardpacks/Allegiance_pack.png",
+      "set": "Allegiance"
     },
     {
-      "id": "t_pack_covert_officer",
-      "file": "/assets/cardpacks/t_pack_covert_officer.png",
-      "kind": "officer"
+      "id": "Allegiance_officer",
+      "source": "Allegiance",
+      "name": "忠诚",
+      "category": "expansion",
+      "kind": "officer",
+      "file": "/assets/cardpacks/Allegiance_officer.png",
+      "set": "Allegiance"
     }
   ],
   "unusedKeywordIcons": [
-    "/assets/keywords/BecomesVeteran.png",
     "/assets/keywords/passive_effect.png",
     "/assets/keywords/trigger.png"
   ]

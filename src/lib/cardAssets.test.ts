@@ -48,6 +48,9 @@ assert.equal(cardBackIsAvailable(frenchAllyBack, 'USA', 'Finland'), false);
 assert.equal(cardBackIsAvailable(anzacBack, 'USA', 'Anzac'), true);
 assert.equal(cardBackIsAvailable(anzacBack, 'USA', 'France'), false);
 assert.ok(defaultCardBackForNation('Germany'));
+for (const nation of ['Finland', 'France', 'Italy', 'Poland', 'Anzac']) {
+  assert.equal(defaultCardBackForNation(nation.toLowerCase()), CARD_BACKS.find(back => back.nation === nation && back.isDefault)!.file);
+}
 
 const hq = headquartersOptions('USA').find(item => item.groupId === 'USA/arracourt')!;
 assert.equal(headquartersForDeck(hq.groupId, 'USA')?.name, hq.name);

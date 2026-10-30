@@ -16,6 +16,8 @@ import { cardRelations, cardStatusLabel } from '../lib/cardDetails';
 import CardKeywordList from './CardKeywordList';
 import CardRarity from './CardRarity';
 import CardSubtypeInfo from './CardSubtypeInfo';
+import CardBrowsingTip from './CardBrowsingTip';
+import HeadquartersGallery, { type HeadquartersOrigins } from './HeadquartersGallery';
 import { HEADQUARTERS_STACKS, type HeadquartersAsset } from '../lib/cardAssets';
 import ReservedBadge from './ReservedBadge';
 import CustomSelect from './CustomSelect';
@@ -47,7 +49,9 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
   const [selectedHeadquarters, setSelectedHeadquarters] = useState<HeadquartersAsset | null>(null);
   const [detailOrigin, setDetailOrigin] = useState<CardDetailOrigin | undefined>();
   const [expandedHeadquarters, setExpandedHeadquarters] = useState<string | null>(null);
+  const [headquartersClosing, setHeadquartersClosing] = useState(false);
   const headquartersDialogRef = useRef<HTMLElement>(null);
+  const [headquartersOrigins, setHeadquartersOrigins] = useState<HeadquartersOrigins>(new Map());
   const download = useImageDownload();
   const closeDetails = () => { setSelectedCard(null); setSelectedHeadquarters(null); };
   const detailRef = useDismissiblePanel(detailMode === 'sidebar' && (!!selectedCard || !!selectedHeadquarters), closeDetails);
@@ -103,7 +107,7 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
       if (event.defaultPrevented || event.isComposing || event.key !== 'Escape'
         || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
       event.preventDefault(); event.stopPropagation();
-      setExpandedHeadquarters(null);
+      setHeadquartersClosing(true);
     };
     document.addEventListener('keydown', keydown);
     return () => {
@@ -133,7 +137,7 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
     <div onKeyDown={event => {
       if (event.defaultPrevented || event.nativeEvent.isComposing || event.key !== 'Escape' || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
       if (selectedCard || selectedHeadquarters) { event.preventDefault(); closeDetails(); }
-      else if (expandedStack) { event.preventDefault(); setExpandedHeadquarters(null); }
+      else if (expandedStack) { event.preventDefault(); setHeadquartersClosing(true); }
       else if ((event.target as HTMLElement).tagName !== 'SELECT') { event.preventDefault(); resetFilters(); }
     }} className="relative flex h-full min-h-0 gap-4 p-5">
       <section className="flex min-w-0 flex-1 flex-col gap-4 overflow-hidden">
@@ -171,10 +175,17 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
 
         <div ref={pool.ref} style={pool.style} data-testid="library-grid" data-capacity={pool.capacity} className="card-gallery card-gallery-library relative min-h-0 flex-1">
           {pageItems.map(item => {
-            if (item.kind === 'headquarters') return <button key={item.stack.id} type="button" aria-haspopup="dialog" aria-expanded={expandedHeadquarters === item.stack.id} aria-label={`展开${item.stack.label}总部`} onClick={() => setExpandedHeadquarters(item.stack.id)} className="card-tile hq-stack-tile card-action group">
+            if (item.kind === 'headquarters') return <button key={item.stack.id} type="button" aria-haspopup="dialog" aria-expanded={expandedHeadquarters === item.stack.id} aria-label={`展开${item.stack.label}总部`} onClick={event => {
+              const images = event.currentTarget.querySelectorAll<HTMLImageElement>('img');
+              setHeadquartersOrigins(new Map(item.stack.cards.map((hq, index) => {
+                const rect = images[index].getBoundingClientRect();
+                return [hq.id, { kind: 'pool' as const, left: rect.left, top: rect.top, width: rect.width, height: rect.height, image: hq.image }];
+              })));
+              setHeadquartersClosing(false); setExpandedHeadquarters(item.stack.id);
+            }} className="card-tile hq-stack-tile card-action group">
               <span className="hq-stack-art" aria-hidden="true">{item.stack.cards.map((headquarters, index) => {
                 const offset = index - (item.stack.cards.length - 1) / 2;
-                return <img key={headquarters.id} data-detail-source={`hq:${headquarters.id}`} src={headquarters.image} alt="" style={{ transform: `translateX(${offset * 3}px) rotate(${offset * 1.4}deg)`, zIndex: index + 1 }} />;
+                return <img key={headquarters.id} data-detail-source={`hq:${headquarters.id}`} src={headquarters.image} alt="" style={{ transform: `translateX(${offset * 1.2}px) rotate(${offset * 0.4}deg)`, zIndex: index + 1 }} />;
               })}</span>
             </button>;
             const { card } = item;
@@ -190,23 +201,9 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
         <PageIndicator page={pool.page} pageCount={pool.pageCount} onChange={setPage} />
       </section>
 
-      {expandedStack && <div className="absolute inset-0 z-20 flex items-center justify-center p-5">
-        <div onClick={() => setExpandedHeadquarters(null)} className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm" />
-        <section ref={headquartersDialogRef} role="dialog" aria-modal="false" aria-label={expandedStack.label + '总部卡牌'} tabIndex={-1}
-          className="headquarters-gallery-dialog glass-panel relative flex w-full max-w-4xl flex-col rounded-lg border border-kards-border p-5 shadow-2xl">
-          <div className="mb-4 flex shrink-0 items-center justify-between gap-3 border-b border-kards-border pb-3">
-            <h2 className="text-lg font-bold text-kards-text">{expandedStack.label}总部</h2>
-            <button onClick={() => setExpandedHeadquarters(null)} aria-label="关闭总部卡牌" className="rounded p-1 text-kards-text-muted hover:text-kards-text"><X className="h-5 w-5" /></button>
-          </div>
-          <div className="custom-scrollbar grid min-h-0 grid-cols-[repeat(auto-fill,minmax(112px,1fr))] gap-3 overflow-y-auto">
-            {expandedStack.cards.map(headquarters => <button key={headquarters.id} data-detail-source={`hq:${headquarters.id}`} type="button" title={headquarters.name}
-              onClick={event => { setDetailOrigin(captureCardDetailOrigin(event.currentTarget, 'pool')); setSelectedCard(null); setSelectedHeadquarters(headquarters); }}
-              aria-label={'查看总部卡牌：' + headquarters.name} className="hq-expanded-card card-action min-w-0">
-              <img src={headquarters.image} alt="" className="card-face hq-expanded-card-art" />
-            </button>)}
-          </div>
-        </section>
-      </div>}
+      {expandedStack && <HeadquartersGallery key={expandedStack.id} cards={expandedStack.cards} label={expandedStack.label} origins={headquartersOrigins}
+        dialogRef={headquartersDialogRef} closing={headquartersClosing} onRequestClose={() => setHeadquartersClosing(true)} onClose={() => setExpandedHeadquarters(null)}
+        onSelect={(headquarters, origin) => { setDetailOrigin(origin); setSelectedCard(null); setSelectedHeadquarters(headquarters); }} />}
 
       {detailMode === 'sidebar' && (selectedCard || selectedHeadquarters) && (
         <aside ref={detailRef} role="dialog" aria-modal="false" aria-label={selectedCard ? '卡牌详情' : '总部详情'} tabIndex={-1} className="glass-panel custom-scrollbar absolute bottom-5 right-5 top-5 z-30 flex w-[300px] max-w-[calc(100%-40px)] flex-col overflow-y-auto rounded-lg border border-kards-border p-4 shadow-xl">
@@ -241,10 +238,11 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
               <img src={selectedHeadquarters.image} alt={selectedHeadquarters.name} className="mx-auto mb-4 max-h-[55vh] w-full object-contain" />
               <h2 className="text-lg font-bold text-kards-text">{selectedHeadquarters.name}</h2>
               <p className="mt-1 text-xs text-kards-text-muted" lang="en">{selectedHeadquarters.englishName}</p>
-              <dl className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-kards-border pt-3 text-sm text-kards-text"><dt>阵营</dt><dd>{factionLabel(selectedHeadquarters.sourceFaction)}</dd><dt>总部图</dt><dd>{factionLabel(selectedHeadquarters.nation)}</dd><dt>稀有度</dt><dd><CardRarity rarity={selectedHeadquarters.rarity === '普通' ? 'Standard' : selectedHeadquarters.rarity} faction={selectedHeadquarters.nation} /></dd></dl>
+              <dl className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-kards-border pt-3 text-sm text-kards-text"><dt>阵营</dt><dd>{factionLabel(selectedHeadquarters.sourceFaction)}</dd><dt>总部图</dt><dd>{factionLabel(selectedHeadquarters.nation)}</dd><dt>稀有度</dt><dd>{selectedHeadquarters.rarity}</dd></dl>
               {selectedHeadquarters.brief && <p className="mt-3 text-sm leading-relaxed text-kards-text">{selectedHeadquarters.brief}</p>}
               {selectedHeadquarters.history && <section className="mt-4 border-t border-kards-border pt-3"><h3 className="text-sm font-bold text-kards-text">历史背景</h3><p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-kards-text-muted">{selectedHeadquarters.history}</p></section>}
             </>}
+            <CardBrowsingTip className="mt-4" />
           </div>
         </aside>)}
       {detailMode === 'modal' && (selectedCard || selectedHeadquarters) && <CardDetailModal card={selectedCard || undefined} headquarters={selectedHeadquarters || undefined} origin={detailOrigin} cards={cards} sequence={detailSequence} onNavigate={revealSource} language={language} onClose={closeDetails} />}

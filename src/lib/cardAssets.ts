@@ -79,7 +79,8 @@ export function defaultHeadquartersForNation(nation: string): HeadquartersAsset 
 }
 
 export function defaultCardBackForNation(nation: string): string {
-  const id = cardBackData.defaultBackByNation[nation];
+  const canonical = Object.keys(cardBackData.defaultBackByNation).find(key => key.toLowerCase() === nation.toLowerCase());
+  const id = cardBackData.defaultBackByNation[canonical || nation];
   return CARD_BACKS.find(back => back.id === id)?.file || DEFAULT_CARD_BACK;
 }
 

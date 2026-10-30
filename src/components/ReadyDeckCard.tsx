@@ -3,10 +3,9 @@ import { Check } from 'lucide-react';
 import type { ReadyDeck } from '../data/readyDecks';
 import { CARD_BACKS, defaultHeadquartersForNation } from '../lib/cardAssets';
 import { cacheCardImage } from '../lib/cardImages';
-import { decodeDeckCode } from '../lib/deckCode';
+import { summarizeDeckCover } from '../lib/deckCover';
 import { cardDisplayTitle, factionLabel, type KardsCardRecord } from '../types/card';
 import { CARD_STRIP_NATIONS } from './DeckCardStrip';
-import { RARITY_SLOTS } from './CardFace';
 import { FilterIcon } from './CardFilterSelects';
 import { factionIcon, WILDCARDS } from '../lib/assetCatalog';
 
@@ -21,26 +20,7 @@ export default function ReadyDeckCard({ deck, cardsById, selected, onSelect }: {
   selected: boolean;
   onSelect: () => void;
 }) {
-  const summary = useMemo(() => {
-    const decoded = decodeDeckCode(deck.code);
-    const curve = Array<number>(8).fill(0);
-    const rarities: Record<string, number> = {};
-    let mainCount = 1, allyCount = 0;
-    let featured: KardsCardRecord | undefined;
-    for (const [id, count] of decoded.counts) {
-      const card = cardsById.get(id);
-      if (!card) continue;
-      const faction = card.json.faction?.toLowerCase();
-      if (faction === decoded.mainNation.toLowerCase()) mainCount += count;
-      else if (faction === decoded.allyNation.toLowerCase()) allyCount += count;
-      curve[Math.min(7, Math.max(0, card.json.kredits || 0))] += count;
-      const rarity = card.json.rarity || 'Standard';
-      rarities[rarity] = (rarities[rarity] || 0) + count;
-      if (faction === decoded.mainNation.toLowerCase() && (!featured
-        || (RARITY_SLOTS[rarity]?.max || 4) < (RARITY_SLOTS[featured.json.rarity || 'Standard']?.max || 4))) featured = card;
-    }
-    return { ...decoded, curve, rarities, mainCount, allyCount, featured };
-  }, [deck.code, cardsById]);
+  const summary = useMemo(() => summarizeDeckCover(deck.code, cardsById), [deck.code, cardsById]);
   const [art, setArt] = useState('');
   useEffect(() => {
     let active = true;

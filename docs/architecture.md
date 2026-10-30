@@ -20,6 +20,11 @@ Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴
 | --- | --- |
 | `src/App.tsx` | 应用导航、卡组列表与详情、主题、设置及备份入口 |
 | `src/components/CardLibrary.tsx` | 卡牌筛选、分页、总部堆叠与资料详情 |
+| `src/lib/deckCover.ts` / `src/lib/deckMiniRenderer.ts` | 战备封面与迷你分享图共用统计及代表卡选择；本地 Canvas 导出带元数据二维码的 PNG |
+| `src/components/HeadquartersGallery.tsx` | 无底板的总部散开与反向收回，支持中途关闭，到位后显示国家标题 |
+| `src/components/CardPacks.tsx`、`cardPacks.css` | 国家/扩展包选择、标准/军官包切换、发牌与翻牌、本次结果和详情 |
+| `src/lib/cardPacks.ts` | 非衍生来源卡池、两种规格的基础概率、保底补足与翻卡时序 |
+| `src/lib/usageTips.ts`、`src/components/CardBrowsingTip.tsx` | 使用提示的 localStorage 持久关闭及跨组件恢复 |
 | `src/components/DeckBuilder.tsx` | 构筑会话、增减牌、规则、历史记录及保存 |
 | `src/components/DeckCardStrip.tsx` | 国家底色卡牌条、费用、缩略图、数量及悬浮预览 |
 | `src/components/CardDetailModal.tsx` | 卡牌详情、来源位置动画；`useCardDetailPaging.ts` 管理滚轮切卡与首尾回弹，`cardDetailPaging.ts` 同步来源定位 |
@@ -105,7 +110,7 @@ Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴
 
 卡背、总部及桌布由 JSON 清单管理适用国家、名称、图片及关联关系。选中卡组可临时切换总部桌布，退出后恢复用户设置；生图中的桌布选择仅影响本次导出。生图读取本地缓存，缺图显示占位，不依赖在线出图服务。
 
-资源路径集中维护于 `src/data/assets.json`（阵营、类型、稀有度、扩展包、预备标志、品牌图标、万能卡、卡包）及 `cardbacks.json`、`headquarters.json`、`tablecloths.json`，界面与生图共用清单。`assetCatalog.ts` 负责按用途选择图标：筛选和计数器使用阵营白色图标；战斗机、轰炸机的详情及卡牌条使用空军图标，缺失时回退普通图标；其余使用普通图标。reserved/reversed 阵营变体不加入清单。万能卡按通用及五主国、稀有度登记，战备卡组只使用通用组；卡包记录文件、国家（如有）和普通/军官类别，供开包功能使用。
+资源路径集中维护于 `src/data/assets.json`（阵营、类型、稀有度、扩展包、预备标志、品牌图标、万能卡、卡包）及 `cardbacks.json`、`headquarters.json`、`tablecloths.json`，界面与生图共用清单。`assetCatalog.ts` 负责按用途选择图标：筛选和计数器使用阵营白色图标；战斗机、轰炸机的详情及卡牌条使用空军图标，缺失时回退普通图标；其余使用普通图标。reserved/reversed 阵营变体不加入清单。万能卡按通用及五主国、稀有度登记，战备卡组只使用通用组；卡包记录文件、显示名称、来源分类、国家列表或扩展包 ID，以及标准/军官规格，选包界面与卡池计算共用清单。
 
 桌布清单维护默认项、显示名称、壁纸国家和总部关联；壁纸国家用于分类，不限制用户选择。壁纸通过 cardId 关联卡牌中文名，通用步兵画面使用已有类型名；已改名的卡背、默认桌布和壁纸保留旧地址映射，已删除的桌布回退到木纹默认项。
 
@@ -113,4 +118,12 @@ Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴
 
 界面颜色、间距、浮层与动画约定见 [界面规范](../DESIGN.md)。包依赖仍由 npm 管理，依赖自带许可证与 Electron 运行时许可证随各自组件保留；游戏素材的权属说明位于关于页。
 
-词条唯一清单位于 `src/data/cardKeywords.json`：`label` / `english` 管理中英对照，`icon` 指向可选词条图标（老兵固定使用 `VeteranOf.png`）；PNG 保留真实透明空白与抗锯齿边缘，避免半透明底层形成灰色矩形，`attribute` 标识属性词条，`highlighted` 标识战斗词条；战斗词条属于属性词条，属性词条属于完整词条表。`numbered` 声明重甲/情报的数值后缀，`attributeAliases` 管理属性别名及详情可见性，`excludeFollowing` 避免“战斗”命中“战斗机”。`filterGroup` 管理三列筛选分类及排列顺序，`descriptionPrefix` 匹配描述中的“词条：”形式，`cardIds` 维护倒计时卡名单，`textMatch: false` 排除纯筛选项目的正文匹配。筛选菜单、详情属性与中英文规则文字加粗均由该清单派生；战斗强调色只用于筛选项与详情的词条信息，规则正文仅加粗。
+词条唯一清单位于 `src/data/cardKeywords.json`：`label` / `english` 管理中英对照，`icon` 指向可选词条图标（动员使用 `mobilize.png`，老兵使用 `veteran.png`）；PNG 保留真实透明空白与抗锯齿边缘，避免半透明底层形成灰色矩形，`attribute` 标识属性词条，`highlighted` 标识战斗词条；战斗词条属于属性词条，属性词条属于完整词条表。`numbered` 声明重甲/情报的数值后缀，`attributeAliases` 管理属性别名及详情可见性，`excludeFollowing` 避免“战斗”命中“战斗机”。`filterGroup` 管理三列筛选分类及排列顺序，`descriptionPrefix` 匹配描述中的“词条：”形式，`cardIds` 维护倒计时卡名单，`textMatch: false` 排除纯筛选项目的正文匹配。筛选菜单、详情属性与中英文规则文字加粗均由该清单派生；战斗强调色只用于筛选项与详情的词条信息，规则正文仅加粗。
+
+## 模拟开包
+
+`assets.json.cardpacks` 登记 14 种来源、每种 2 种规格，共 28 张资源图。国家包按 `nations` 匹配（盟国包为五盟国合集），扩展包按 `set` 匹配；排除衍生、老兵及无标准稀有度记录，允许一包内重复卡。
+
+`PACK_RULES` 按普通/限定/特殊/精英记录单卡基础概率：标准包 73.9/19.3/5.1/1.7，军官包 50.6/32/12.4/5。抽取后，标准包补足至少 1 张限定或以上，军官包补足至少 2 张限定或以上和至少 1 张特殊或以上；替换较低稀有度槽位，始终保留 5/7 张。缺失稀有度时只在可用稀有度间归一化，无法满足保底时停止并提示更新数据。
+
+翻卡由原生 Web Animations API 控制，依次抬升、翻转、落下，稀有度决定持续时间和局部冲击反馈；退回、离页和重新开包会清理旧动画。缩减动态效果模式保留短促状态切换。结果仅保存在当前开包会话；完整卡图沿用共享缓存及配套缩略图下载。

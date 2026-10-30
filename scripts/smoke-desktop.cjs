@@ -35,7 +35,7 @@ async function main() {
     assert.equal(path.resolve(info.userDataPath), profile, 'explicit test profile remains authoritative');
     await expect(page).toHaveTitle('KARDS 工具箱');
     assert.equal(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getTitle()), 'KARDS 工具箱');
-    await expect(page.getByRole('complementary', { name: '主导航' }).getByRole('button')).toHaveCount(4);
+    await expect(page.getByRole('complementary', { name: '主导航' }).getByRole('button')).toHaveCount(5);
     await expect(page.getByRole('button', { name: '显示收藏夹' })).toHaveAttribute('aria-pressed', 'false');
     await page.getByRole('button', { name: '关于', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'KARDS Toolbox', exact: true })).toBeVisible();

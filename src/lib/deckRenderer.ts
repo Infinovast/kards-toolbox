@@ -79,3 +79,5 @@ export function downloadDeckImage(data: string, name: string) {
   const link = document.createElement('a'); link.href = data;
   link.download = `${name.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_') || 'kards-deck'}.png`; link.click();
 }
+
+export { renderDeckMiniImage } from './deckMiniRenderer';

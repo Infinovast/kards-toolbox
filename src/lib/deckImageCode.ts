@@ -34,7 +34,7 @@ export function readImageDeckCode(text: string): ImageDeckCode | null {
   } catch { return null; }
 }
 
-export function deckQrSvg(code: string, headquartersId?: string, name?: string, cardBackId?: string) {
+export function deckQrSvg(code: string, headquartersId?: string, name?: string, cardBackId?: string, pixelsPerModule?: number) {
   const deck = decodeDeckCode(code);
   const headquarters = headquartersForDeck(headquartersId, deck.mainNation);
   const backId = imageCardBackId(cardBackId, deck.mainNation, deck.allyNation)
@@ -42,7 +42,7 @@ export function deckQrSvg(code: string, headquartersId?: string, name?: string, 
   const payload = JSON.stringify({ version: 1, headquartersId: headquarters?.groupId || '', cardBackId: backId, code, ...(name?.trim() ? { name: name.trim().slice(0, 100) } : {}) });
   const { modules } = QRCode.create(payload, { errorCorrectionLevel: 'M' });
   const side = modules.size;
-  const pixels = Math.round(side * Math.max(1, Math.floor(176 / side)) * 0.9);
+  const pixels = pixelsPerModule ? side * pixelsPerModule : Math.round(side * Math.max(1, Math.floor(176 / side)) * 0.9);
   let path = '';
   for (let y = 0; y < modules.size; y++) for (let x = 0; x < modules.size; x++) {
     if (modules.get(y, x)) path += `M${x} ${y}h1v1h-1z`;

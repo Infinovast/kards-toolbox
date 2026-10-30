@@ -14,6 +14,7 @@ import { cardFactionIcon, SET_ICONS, TYPE_ICONS } from '../lib/assetCatalog';
 import CardKeywordList from './CardKeywordList';
 import CardRarity from './CardRarity';
 import CardSubtypeInfo from './CardSubtypeInfo';
+import CardBrowsingTip from './CardBrowsingTip';
 import { cardKeywordItems } from '../lib/cardKeywords';
 import { isGeneratedCard } from '../lib/cardFilters';
 import type { CardDetailItem } from '../lib/cardDetailPaging';
@@ -157,7 +158,7 @@ export default function CardDetailModal({ card: initialCard, headquarters: initi
           panel.current?.focus({ preventScroll: true });
         } else handleDialogKeys(event);
       }} onClick={event => {
-        if (!(event.target as HTMLElement).closest('.card-detail-panel, .card-detail-art, .card-detail-close')) requestClose();
+        if (!(event.target as HTMLElement).closest('.card-detail-panel, .card-detail-art, .card-detail-close, .card-browsing-tip')) requestClose();
       }} className="card-detail-dialog custom-scrollbar">
       <button data-dialog-cancel aria-label="关闭卡牌详情" disabled={!arrived || isClosing} onClick={requestClose} className="card-detail-close"><X className="h-5 w-5" /></button>
       <div className="card-detail-layout">
@@ -175,9 +176,11 @@ export default function CardDetailModal({ card: initialCard, headquarters: initi
             {!isGeneratedCard(card) && <><dt>稀有度</dt><dd><CardRarity rarity={card.json.rarity} faction={faction} previewEnabled={arrived && !isClosing} /></dd></>}
             <dt>状态</dt><dd className="flex items-center gap-2">{card.reserved && <ReservedBadge />}{cardStatusLabel(card)}</dd>
             <dt>卡池</dt><dd>{card.json.permanent_pool ? '常备卡池' : '轮换卡池'}</dd>
-          </dl> : <dl className="card-detail-section grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 text-sm"><dt>稀有度</dt><dd><CardRarity rarity={headquarters?.rarity === '普通' ? 'Standard' : headquarters?.rarity} faction={faction} previewEnabled={arrived && !isClosing} /></dd></dl>}
+          </dl> : <dl className="card-detail-section grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 text-sm"><dt>稀有度</dt><dd>{headquarters?.rarity || '普通'}</dd></dl>}
         </aside>
-        <div ref={art} className="card-detail-art">{card ? <CardFace card={card} initialSource={card === initialCard ? origin?.image : undefined} /> : <img src={headquarters!.image} alt={title} className="card-face" />}</div>
+        <div ref={art} className="card-detail-art">{card ? <CardFace card={card} initialSource={card === initialCard ? origin?.image : undefined} /> : <img src={headquarters!.image} alt={title} className="card-face" />}
+          <CardBrowsingTip className="card-detail-tip" />
+        </div>
         <div inert={!arrived || isClosing} className="card-detail-panel custom-scrollbar">
           <h1 className="text-2xl font-bold">{title}</h1>
           {englishName && <p className="mt-1 text-xs text-kards-text-muted" lang="en">{englishName}</p>}

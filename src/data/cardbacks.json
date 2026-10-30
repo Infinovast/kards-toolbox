@@ -5,7 +5,12 @@
     "Germany": "cardback-037",
     "Japan": "cardback-048",
     "Soviet": "cardback-055",
-    "USA": "cardback-063"
+    "USA": "cardback-063",
+    "Finland": "cardback-001",
+    "France": "cardback-002",
+    "Italy": "cardback-003",
+    "Poland": "cardback-004",
+    "Anzac": "cardback-069"
   },
   "categories": [
     {
