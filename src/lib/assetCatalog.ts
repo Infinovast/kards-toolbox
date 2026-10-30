@@ -25,6 +25,7 @@ export const WILDCARDS: Record<string, Record<string, WildcardAsset>> = manifest
 export const CARD_PACKS = manifest.cardpacks;
 
 export function wildcardAsset(nation?: string, rarity?: string): WildcardAsset | undefined {
+  if (rarity === 'Standard') return WILDCARDS.Common.Standard;
   const key = Object.keys(WILDCARDS).find(id => id.toLowerCase() === nation?.toLowerCase());
   return (WILDCARDS[key || 'Common'] || WILDCARDS.Common)[rarity || ''];
 }

@@ -17,19 +17,39 @@ export interface CardFilters {
 }
 
 export const EMPTY_CARD_FILTERS: CardFilters = { query: '', factions: [], cardType: [], subtypes: [], keywords: [], keywordMode: 'or', cost: [], rarity: [], expansion: 'All', status: [] };
-export const CARD_SEARCH_HINT = '支持用“.”匹配 1 个任意字符';
+export const CARD_SEARCH_HINT = '中文名忽略空格和符号；“.”匹配 1 个任意字符；x1404：部署/行动/攻击/防御，x104：部署/攻击/防御';
 
 let lastSearchTerm = '';
 let searchPattern: RegExp | null = null;
+let nameSearchTerm = '';
+let nameSearchPattern: RegExp | null = null;
+const searchPatternFor = (term: string) => term.includes('.')
+  ? new RegExp(term.split('.').map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[\\s\\S]'), 'u') : null;
+const normalizeChineseName = (text: string) => text.replace(/[\s\p{P}\p{S}]/gu, '');
+
 function matchesCardSearch(card: KardsCardRecord, query: string) {
   const term = query.trim().toLocaleLowerCase();
   if (!term) return true;
+  const statsQuery = /^x(\d{3,4})$/.exec(term);
+  if (statsQuery) {
+    if (!['infantry', 'artillery', 'tank', 'bomber', 'fighter'].includes(card.json.type || '')) return false;
+    const stats = [card.json.kredits, ...(statsQuery[1].length === 4 ? [card.json.operationCost] : []), card.json.attack, card.json.defense];
+    return stats.every(value => Number.isInteger(value) && value >= 0 && value <= 9) && stats.join('') === statsQuery[1];
+  }
   if (term !== lastSearchTerm) {
     lastSearchTerm = term;
-    searchPattern = term.includes('.') ? new RegExp(term.split('.').map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[\\s\\S]'), 'u') : null;
+    searchPattern = searchPatternFor(term);
+    // Keep dot wildcards while ignoring punctuation in Chinese localized names.
+    nameSearchTerm = term.split('.').map(normalizeChineseName).join('.');
+    nameSearchPattern = searchPatternFor(nameSearchTerm);
   }
   return [card.cardId, card.importId, ...Object.values(card.json.title || {}), ...Object.values(card.json.text || {}), ...Object.values(card.json.description || {})]
-    .some(value => searchPattern ? searchPattern.test(value.toLocaleLowerCase()) : value.toLocaleLowerCase().includes(term));
+    .some(value => searchPattern ? searchPattern.test(value.toLocaleLowerCase()) : value.toLocaleLowerCase().includes(term))
+    || !!nameSearchTerm && Object.entries(card.json.title || {}).some(([language, title]) => {
+      if (!language.startsWith('zh')) return false;
+      const normalized = normalizeChineseName(title.toLocaleLowerCase());
+      return nameSearchPattern ? nameSearchPattern.test(normalized) : normalized.includes(nameSearchTerm);
+    });
 }
 
 export function hasCardFilterConditions(filters: CardFilters) {

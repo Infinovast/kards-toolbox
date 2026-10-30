@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { wildcardAsset } from '../lib/assetCatalog';
 
-const labels: Record<string, string> = { Standard: '普通', Limited: '稀有', Special: '罕见', Elite: '精英' };
+const labels: Record<string, string> = { Standard: '普通', Limited: '稀有', Special: '特殊', Elite: '精英' };
 
 export default function CardRarity({ rarity, faction, previewEnabled = true }: { rarity?: string; faction?: string; previewEnabled?: boolean }) {
   const asset = wildcardAsset(faction, rarity);

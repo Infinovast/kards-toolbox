@@ -21,13 +21,29 @@ assert.ok(!matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, query: 'not found' 
 for (const query of ['测.步兵', 'Te.t In.antry', 'card.a', 'fall.ack', '测..兵']) {
   assert.ok(matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, query }), `single-character wildcard: ${query}`);
 }
-for (const query of ['测.兵', '测试.步兵', 'Test.*Infantry', '[测试]', '测试|步兵']) {
+for (const query of ['测.兵', '测试.步兵', 'Test.*Infantry']) {
   assert.ok(!matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, query }), `only dot is a wildcard: ${query}`);
 }
 const punctuation = changed({ title: { 'zh-Hans': '甲[乙](丙)+丁?戊\\己^庚$辛|壬{癸}😀尾' } });
 for (const query of ['甲.乙](丙)+丁?戊\\己^庚$辛|壬{癸}.尾', '}[.尾']) {
-  assert.equal(matchesCardFilters(punctuation, { ...EMPTY_CARD_FILTERS, query }), query.startsWith('甲'), `literal punctuation and Unicode: ${query}`);
+  assert.ok(matchesCardFilters(punctuation, { ...EMPTY_CARD_FILTERS, query }), `literal text or normalized Chinese name with dot: ${query}`);
 }
+const formattedName = changed({ title: { 'zh-Hans': '第 13 龙骑兵团 / OT-34（改）', 'zh-Hant': '第 13 龍騎兵團 / OT-34（改）', 'en-EN': '13th Dragoons / OT-34' } });
+for (const query of ['第13', '第 13', '第-13', '第/13', '第—13', '龙骑兵团OT34', '龙骑兵团/OT-34', 'OT34改', '第13龙.兵团', '龍騎兵團OT34']) {
+  assert.ok(matchesCardFilters(formattedName, { ...EMPTY_CARD_FILTERS, query }), `Chinese names ignore separators: ${query}`);
+}
+for (const query of ['第13.龙骑', '13thDragoons', 'not found', '---']) assert.ok(!matchesCardFilters(formattedName, { ...EMPTY_CARD_FILTERS, query }), `normalization stays within Chinese names: ${query}`);
+const literalRules = changed({ title: { 'en-EN': 'Test Infantry' }, text: { 'zh-Hans': '测试步兵' } });
+for (const query of ['[测试]', '测试|步兵', '测试-步兵', 'Test.*Infantry']) assert.ok(!matchesCardFilters(literalRules, { ...EMPTY_CARD_FILTERS, query }), 'rules and other languages keep literal punctuation');
+const numericUnit = changed({ kredits: 1, operationCost: 4, attack: 0, defense: 4 });
+for (const query of ['x1404', 'x104', ' X104 ']) assert.ok(matchesCardFilters(numericUnit, { ...EMPTY_CARD_FILTERS, query }), `unit stat search: ${query}`);
+for (const query of ['x1044', 'x114', 'x140', 'x14040', 'x14', 'x1-4-0-4']) assert.ok(!matchesCardFilters(numericUnit, { ...EMPTY_CARD_FILTERS, query }), `stat fields keep exact positions: ${query}`);
+assert.ok(matchesCardFilters(changed({ kredits: 1, operationCost: 9, attack: 0, defense: 4 }), { ...EMPTY_CARD_FILTERS, query: 'x104' }), 'three digits ignore operation cost');
+for (const type of ['infantry', 'artillery', 'tank', 'bomber', 'fighter']) assert.ok(matchesCardFilters({ ...numericUnit, json: { ...numericUnit.json, type } }, { ...EMPTY_CARD_FILTERS, query: 'x1404' }));
+for (const type of ['order', 'countermeasure', undefined]) assert.ok(!matchesCardFilters({ ...numericUnit, json: { ...numericUnit.json, type } }, { ...EMPTY_CARD_FILTERS, query: 'x1404' }), 'stat search only returns units');
+for (const value of [10, -1, 1.5, undefined]) assert.ok(!matchesCardFilters(changed({ kredits: value, operationCost: 4, attack: 0, defense: 4 }), { ...EMPTY_CARD_FILTERS, query: 'x1404' }), 'each queried field must be a single digit');
+assert.ok(!matchesCardFilters(numericUnit, { ...EMPTY_CARD_FILTERS, query: 'x104', factions: ['Japan'] }), 'stat searches compose with existing filters');
+assert.ok(matchesCardFilters(changed({ kredits: 0, operationCost: 0, attack: 0, defense: 0 }), { ...EMPTY_CARD_FILTERS, query: 'x0000' }), 'zero stats are retained');
 assert.ok(matchesCardFilters(changed({ text: { 'zh-Hans': '首\n尾' } }), { ...EMPTY_CARD_FILTERS, query: '首.尾' }), 'dot also matches a newline');
 assert.ok(matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, query: 'test' }), 'plain search works after wildcard queries');
 const translated = changed({ title: { ...base.json.title, 'ja-JP': '歩兵部隊', 'de-DE': 'Testeinheit' }, text: { 'zh-Hans': '部署：抽取一张牌' } });
@@ -71,6 +87,12 @@ assert.ok(isInBuilderPool(changed({ rarity: 'Special', set: 'Base' }), 'Germany'
 for (const set of ['OnlySpawnable', 'Special']) assert.ok(!isInBuilderPool(changed({ set }), 'Germany', 'Soviet'));
 
 const cards: KardsCardRecord[] = JSON.parse(readFileSync('public/data/cards.json', 'utf8')).cards;
+for (const id of ['1st_signal_regiment', '158_nachschub']) {
+  const card = cards.find(card => card.cardId === id)!;
+  assert.ok(card, `${id} exists in bundled data`);
+  for (const query of ['x104', 'x1404']) assert.ok(matchesCardFilters(card, { ...EMPTY_CARD_FILTERS, query }), `${query} finds ${id}`);
+}
+assert.ok(matchesCardFilters(cards.find(card => card.cardId === '13e_dragons')!, { ...EMPTY_CARD_FILTERS, query: '第13' }));
 const weatherCards: KardsCardRecord[] = JSON.parse(readFileSync('src/data/weatherCards.json', 'utf8'));
 assert.equal(weatherCards.length, 30);
 assert.ok(weatherCards.every(card => matchesCardFilters(card, { ...EMPTY_CARD_FILTERS, status: ['weather'] })));

@@ -11,7 +11,7 @@ import { FilterIcon } from './CardFilterSelects';
 import { factionIcon, WILDCARDS } from '../lib/assetCatalog';
 
 const RARITIES = [
-  { id: 'Elite', label: '精英' }, { id: 'Special', label: '罕见' },
+  { id: 'Elite', label: '精英' }, { id: 'Special', label: '特殊' },
   { id: 'Limited', label: '稀有' }, { id: 'Standard', label: '普通' },
 ];
 
@@ -47,7 +47,7 @@ export default function ReadyDeckCard({ deck, cardsById, selected, onSelect }: {
     setArt('');
     if (summary.featured) void cacheCardImage(summary.featured).then(source => {
       if (active) setArt(source);
-    }).catch(() => {});
+    }).catch(() => { });
     return () => { active = false; };
   }, [summary.featured]);
   const headquarters = defaultHeadquartersForNation(summary.mainNation);

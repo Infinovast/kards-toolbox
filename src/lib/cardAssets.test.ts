@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import sharp from 'sharp';
 import { CARD_BACK_CATEGORIES, CARD_BACKS, DEFAULT_HEADQUARTERS_BY_NATION, DEFAULT_TABLECLOTH, HEADQUARTERS, HEADQUARTERS_STACKS, TABLECLOTHS, USER_TABLECLOTHS, cardBackForDeck, cardBackIsAvailable, defaultCardBackForNation, defaultHeadquartersForNation, headquartersForDeck, headquartersOptions, resolveSelectedTablecloth, tableclothForHeadquarters } from './cardAssets';
 import manifest from '../data/assets.json';
 import { CARD_PACKS, FACTION_ASSETS, SUBCLASS_ICONS, WILDCARDS, cardFactionIcon, factionIcon, wildcardAsset } from './assetCatalog';
@@ -84,7 +85,8 @@ assert.equal(new Set(CARD_PACKS.map(pack => pack.id)).size, CARD_PACKS.length);
 assert.equal(Object.keys(WILDCARDS).length, 6);
 assert.ok(Object.values(WILDCARDS).every(group => Object.keys(group).length === 4));
 for (const nation of ['USA', 'Britain', 'Germany', 'Japan', 'Soviet']) {
-  for (const rarity of ['Elite', 'Special', 'Limited', 'Standard']) assert.equal(wildcardAsset(nation.toLowerCase(), rarity), WILDCARDS[nation][rarity]);
+  for (const rarity of ['Elite', 'Special', 'Limited']) assert.equal(wildcardAsset(nation.toLowerCase(), rarity), WILDCARDS[nation][rarity]);
+  assert.equal(wildcardAsset(nation, 'Standard'), WILDCARDS.Common.Standard, 'ordinary rarity always uses the common wildcard');
 }
 for (const nation of ['France', 'Italy', 'Finland', 'Poland', 'Anzac', 'Neutral', undefined]) assert.equal(wildcardAsset(nation, 'Standard'), WILDCARDS.Common.Standard);
 assert.equal(wildcardAsset('USA', 'unknown'), undefined);
@@ -101,4 +103,17 @@ const catalogPaths = new Set([
 const actualImages = new Set(readdirSync('public/assets', { recursive: true }).map(file => `/assets/${String(file).replaceAll('\\', '/')}`)
   .filter(file => /\.(png|jpe?g|svg|webp)$/i.test(file) && !/_(reserved|reversed)_\d+\./.test(file)));
 assert.deepEqual([...catalogPaths].sort(), [...actualImages].sort(), 'all supported assets are registered exactly once per file; reserved faction variants stay unused');
+for (const file of readdirSync('public/assets/keywords')) {
+  if (!file.endsWith('.png')) continue;
+  const { data, info } = await sharp(path.join('public/assets/keywords', file)).raw().toBuffer({ resolveWithObject: true });
+  assert.equal(info.channels, 4, `${file} retains RGBA transparency`);
+  let solid = 0, antialiased = 0;
+  for (let y = 0; y < info.height; y++) for (let x = 0; x < info.width; x++) {
+    const alpha = data[(y * info.width + x) * 4 + 3];
+    if (x < 3 || y < 3 || x >= info.width - 3 || y >= info.height - 3) assert.equal(alpha, 0, `${file} has no rectangular alpha matte`);
+    if (alpha === 255) solid++;
+    if (alpha > 0 && alpha < 255) antialiased++;
+  }
+  assert.ok(solid > 100 && antialiased > 0, `${file} preserves the glyph and smooth edges`);
+}
 console.log(`Card asset catalogue tests passed: ${catalogPaths.size} files, faction variants, moved selections, deck restrictions and headquarters`);

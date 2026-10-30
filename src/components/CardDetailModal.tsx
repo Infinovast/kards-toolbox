@@ -15,6 +15,7 @@ import CardKeywordList from './CardKeywordList';
 import CardRarity from './CardRarity';
 import CardSubtypeInfo from './CardSubtypeInfo';
 import { cardKeywordItems } from '../lib/cardKeywords';
+import { isGeneratedCard } from '../lib/cardFilters';
 import type { CardDetailItem } from '../lib/cardDetailPaging';
 import useCardDetailPaging from '../lib/useCardDetailPaging';
 
@@ -171,7 +172,7 @@ export default function CardDetailModal({ card: initialCard, headquarters: initi
           </section>}
           {card ? <dl className="card-detail-section grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-3 text-sm">
             <CardSubtypeInfo cardId={card.cardId} language={language} />
-            <dt>稀有度</dt><dd><CardRarity rarity={card.json.rarity} faction={faction} previewEnabled={arrived && !isClosing} /></dd>
+            {!isGeneratedCard(card) && <><dt>稀有度</dt><dd><CardRarity rarity={card.json.rarity} faction={faction} previewEnabled={arrived && !isClosing} /></dd></>}
             <dt>状态</dt><dd className="flex items-center gap-2">{card.reserved && <ReservedBadge />}{cardStatusLabel(card)}</dd>
             <dt>卡池</dt><dd>{card.json.permanent_pool ? '常备卡池' : '轮换卡池'}</dd>
           </dl> : <dl className="card-detail-section grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 text-sm"><dt>稀有度</dt><dd><CardRarity rarity={headquarters?.rarity === '普通' ? 'Standard' : headquarters?.rarity} faction={faction} previewEnabled={arrived && !isClosing} /></dd></dl>}

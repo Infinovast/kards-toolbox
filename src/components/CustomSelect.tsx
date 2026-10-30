@@ -7,6 +7,7 @@ export interface SelectOption {
   label: string;
   labelClassName?: string;
   icon?: ReactNode;
+  iconPosition?: 'start' | 'end';
   iconOnly?: boolean;
   group?: string;
   disabled?: boolean;
@@ -222,8 +223,9 @@ export default function CustomSelect(props: Props) {
                 <div id={`${id}-${index}`} role="option" aria-label={item.label} aria-selected={chosen} aria-disabled={item.disabled || undefined} data-value={item.value}
                   className={`custom-select-option ${index === active ? 'is-active' : ''} ${item.iconOnly ? 'is-icon-only' : ''} ${hasChildren ? 'custom-select-option-parent' : ''} ${parentValue ? 'custom-select-option-child' : ''}`} title={item.label}
                   onPointerMove={() => { if (!item.disabled) setActive(index); }} onMouseDown={event => event.preventDefault()} onClick={() => { choose(item); if (props.multiple) list.current?.focus(); }}>
-                  {item.icon && <span className="custom-select-icon" aria-hidden="true">{item.icon}</span>}
+                  {item.icon && item.iconPosition !== 'end' && <span className="custom-select-icon" aria-hidden="true">{item.icon}</span>}
                   <span className={item.iconOnly ? 'sr-only' : `min-w-0 flex-1 truncate ${item.labelClassName || ''}`}>{item.label}</span>
+                  {item.icon && item.iconPosition === 'end' && <span className="custom-select-icon" aria-hidden="true">{item.icon}</span>}
                   {!item.iconOnly && <Check aria-hidden="true" className={`custom-select-check h-3.5 w-3.5 shrink-0 ${chosen ? '' : 'invisible'}`} />}
                 </div>
                 {hasChildren && <button type="button" className="custom-select-expand" aria-label={`${expanded ? '收起' : '展开'}${item.label}`} aria-expanded={expanded}

@@ -4,7 +4,7 @@ import { CardFace } from './CardFace';
 import { cardFactionIcon, SET_ICONS } from '../lib/assetCatalog';
 import { startImageDownload, useImageDownload } from '../lib/imageDownloads';
 import { useDismissiblePanel } from '../lib/dialogKeyboard';
-import { CARD_SEARCH_HINT, EMPTY_CARD_FILTERS, hasCardFilterConditions, matchesCardFilters, type CardFilters } from '../lib/cardFilters';
+import { CARD_SEARCH_HINT, EMPTY_CARD_FILTERS, hasCardFilterConditions, isGeneratedCard, matchesCardFilters, type CardFilters } from '../lib/cardFilters';
 import { CARD_SORT_OPTIONS, sortCards, type CardSortDirection, type CardSortKey } from '../lib/cardSort';
 import PageIndicator from './PageIndicator';
 import CardDetailModal from './CardDetailModal';
@@ -223,7 +223,7 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
                 <CardSubtypeInfo cardId={selectedCard.cardId} language={language} />
                 <dt>部署费用</dt><dd>{selectedCard.json.kredits ?? '—'} K</dd>
                 {!['order', 'countermeasure'].includes(selectedCard.json.type || '') && <><dt>行动费用</dt><dd>{selectedCard.json.operationCost ?? '—'} K</dd><dt>攻击 / 生命</dt><dd>{selectedCard.json.attack ?? '—'} / {selectedCard.json.defense ?? '—'}</dd></>}
-                <dt>稀有度</dt><dd><CardRarity rarity={selectedCard.json.rarity} faction={selectedCard.json.faction} /></dd>
+                {!isGeneratedCard(selectedCard) && <><dt>稀有度</dt><dd><CardRarity rarity={selectedCard.json.rarity} faction={selectedCard.json.faction} /></dd></>}
                 <dt>状态</dt><dd>{cardStatusLabel(selectedCard)}</dd>
                 {selectedCard.json.set && selectedCard.json.set !== 'OnlySpawnable' && <><dt>扩展包</dt><dd className="flex items-center gap-1"><span className="h-5 w-5 shrink-0"><FilterIcon src={SET_ICONS[selectedCard.json.set] || SET_ICONS.All} /></span>{expansionLabel(selectedCard.json.set, language)}</dd></>}
                 <dt>常备卡池</dt><dd>{selectedCard.json.permanent_pool ? '是' : '否'}</dd><dt>卡组码 ID</dt><dd>{selectedCard.importId}</dd>

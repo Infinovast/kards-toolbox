@@ -16,7 +16,7 @@ export function FilterIcon({ src, fullColor = false }: { src: string; fullColor?
 
 const englishNations: Record<string, string> = { Soviet: 'Soviet Union', USA: 'United States', Anzac: 'ANZAC' };
 const englishTypes: Record<string, string> = { infantry: 'Infantry', tank: 'Tank', fighter: 'Fighter', bomber: 'Bomber', artillery: 'Artillery', order: 'Order', countermeasure: 'Countermeasure' };
-const rarityLabels = { Standard: '普通', Limited: '稀有', Special: '罕见', Elite: '精英' };
+const rarityLabels = { Standard: '普通', Limited: '稀有', Special: '特殊', Elite: '精英' };
 const setDefinitions = [
   ['Base', '基础', 'Base'], ['OceaniaStorm', '澳新风暴', 'Oceania Storm'], ['Homefront', '国土阵线', 'Homefront'],
   ['NavalWarfare', '海战', 'Naval Warfare'], ['BloodAndIron', '血与铁', 'Blood and Iron'], ['CovertOps', '秘密行动', 'Covert Ops'],
@@ -103,8 +103,9 @@ export default function CardFilterSelects({ filters, onChange, expansions, langu
     <CustomSelect label={`${prefix}类型筛选`} placeholder="类型" multiple value={filters.cardType} onChange={cardType => onChange({ ...filters, cardType })} layout="grid" options={CARD_TYPES.map(item => ({ value: item.id, label: zh ? item.label : englishTypes[item.id], icon: <FilterIcon src={TYPE_ICONS[item.id]} /> }))} />
     <CustomSelect label={`${prefix}子类筛选`} placeholder="子类" multiple value={filters.subtypes} onChange={subtypes => onChange({ ...filters, subtypes })} layout="grid" options={CARD_SUBTYPES.map(item => ({ value: item.id, label: item.name[zh ? 'zh-Hans' : 'en-EN'], icon: <FilterIcon src={SUBCLASS_ICONS[item.id]} /> }))} />
     {!builder && <div role="group" aria-label="词条匹配筛选" className="library-sort-controls keyword-filter-controls"><CustomSelect label="词条筛选" placeholder="词条" multiple value={filters.keywords} onChange={keywords => onChange({ ...filters, keywords })} layout="columns" options={KEYWORD_FILTER_GROUPS.flatMap(group => group.keywords.map(item => ({
-      value: item.id, group: zh ? group.label : group.english, label: (zh ? item.label : item.english) + (item.descriptionPrefix ? '－' : ''), labelClassName: item.highlighted ? 'font-bold text-kards-status' : undefined,
+      value: item.id, group: zh ? group.label : group.english, label: zh ? item.label : item.english, labelClassName: item.highlighted ? 'font-bold text-kards-status' : undefined,
       icon: item.icon ? <img src={item.icon} alt="" className="keyword-symbol" /> : undefined,
+      iconPosition: 'end',
     })))} /><button type="button" className="library-sort-direction" aria-label={`词条匹配：${filters.keywordMode === 'and' ? '和' : '或'}`} aria-pressed={filters.keywordMode === 'and'}
       title={filters.keywordMode === 'and' ? '满足全部词条，点击切换为或' : '满足任一词条，点击切换为和'}
       onClick={() => onChange({ ...filters, keywordMode: filters.keywordMode === 'and' ? 'or' : 'and' })}>{filters.keywordMode === 'and' ? '和' : '或'}</button></div>}
