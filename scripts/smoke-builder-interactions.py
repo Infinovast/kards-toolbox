@@ -199,7 +199,7 @@ with sync_playwright() as p:
     expect(library_search).to_have_value("主国步兵")
     library_search.press("Escape")
     expect(library_search).to_have_value("")
-    hover_button(page.get_by_role("button", name="缓存筛选结果（12）", exact=True))
+    hover_button(page.get_by_role("button", name="缓存卡牌图片（12）", exact=True))
     page.get_by_role("button", name="设置", exact=True).click()
     hover_button(page.get_by_role("button", name="获取最新卡牌数据", exact=True))
     page.get_by_role("button", name="关于", exact=True).click()

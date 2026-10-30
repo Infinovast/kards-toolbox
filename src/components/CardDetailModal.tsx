@@ -149,7 +149,7 @@ export default function CardDetailModal({ card: initialCard, headquarters, origi
           </div>
           {keywords.length > 0 && <section className="card-detail-section">
             <h3 className="mb-3 font-bold">词条</h3>
-            <p aria-label="卡牌词条" className="text-sm leading-7 text-kards-text">{keywords.join('，')}</p>
+            <p aria-label="卡牌词条" className="text-sm leading-7 text-kards-text"><CardText text={keywords.join('，')} /></p>
           </section>}
           {card ? <dl className="card-detail-section grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-3 text-sm">
             {subtypes.length > 0 && <><dt>子类</dt><dd>{subtypes.join(' · ')}</dd></>}

@@ -53,10 +53,14 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
   const selectedSubtypes = selectedCard ? cardSubtypeLabels(selectedCard.cardId, language) : [];
 
   const filteredCards = useMemo(() => sortCards(cards.filter(card => matchesCardFilters(card, filters)), sortKey, sortDirection), [cards, filters, sortKey, sortDirection]);
-  const globalSearchCount = useMemo(() => {
-    if (filteredCards.length || !filters.query.trim() || !hasCardFilterConditions(filters)) return 0;
+  const searchAlternatives = useMemo(() => {
+    if (filteredCards.length || !filters.query.trim()) return { queryOnly: 0, filtersOnly: 0 };
     const queryOnly = { ...EMPTY_CARD_FILTERS, query: filters.query };
-    return cards.filter(card => matchesCardFilters(card, queryOnly)).length;
+    const filtersOnly = { ...filters, query: '' };
+    return {
+      queryOnly: hasCardFilterConditions(filters) ? cards.filter(card => matchesCardFilters(card, queryOnly)).length : 0,
+      filtersOnly: cards.filter(card => matchesCardFilters(card, filtersOnly)).length,
+    };
   }, [cards, filteredCards.length, filters]);
   const visibleHeadquartersStacks = useMemo(() => {
     if (filters.query.trim() || filters.cardType.length || filters.subtypes.length || filters.keywords.length || filters.cost.length || filters.rarity.length
@@ -129,11 +133,11 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
           </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-          <span className="library-result-count">筛选结果 <strong>{filteredCards.length.toLocaleString()}</strong> 张</span>
+          <span className="library-result-count">找到 <strong>{filteredCards.length.toLocaleString()}</strong> 张</span>
           <button disabled={!filteredCards.length || download.status === 'running' || download.status === 'paused'} onClick={() => {
-            if (filteredCards.length > 100 && !window.confirm(`缓存当前筛选的 ${filteredCards.length.toLocaleString()} 张卡牌大图和缩略图？`)) return;
+            if (filteredCards.length > 100 && !window.confirm(`缓存当前筛选的 ${filteredCards.length.toLocaleString()} 张卡牌大图+缩略图？`)) return;
             startImageDownload(filteredCards);
-          }} className="flex h-9 items-center gap-1 rounded border border-kards-border glass-panel px-3 py-2 text-kards-text disabled:opacity-40"><Download className="h-3.5 w-3.5" />缓存筛选结果（{filteredCards.length.toLocaleString()}）</button>
+          }} className="flex h-9 items-center gap-1 rounded border border-kards-border glass-panel px-3 py-2 text-kards-text disabled:opacity-40"><Download className="h-3.5 w-3.5" />缓存卡牌图片（{filteredCards.length.toLocaleString()}）</button>
           <CustomSelect label="卡牌文字语言" value={language} onChange={value => setLanguage(value as CardLanguage)} options={CARD_LANGUAGES.map(item => ({ value: item.id, label: item.label }))} />
           <button type="button" aria-pressed={detailMode === 'modal'} onClick={() => onDetailModeChange(detailMode === 'modal' ? 'sidebar' : 'modal')} className="builder-reserved-toggle">卡牌详情：{detailMode === 'modal' ? '浮窗' : '侧栏'}</button>
           </div>
@@ -153,9 +157,15 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
             </button>;
           })}
           {!poolItems.length && <div role="status" className="library-empty-results text-kards-text-muted">
-            {globalSearchCount ? <button type="button" className="library-global-search glass-panel" onClick={() => selectFilter({ ...EMPTY_CARD_FILTERS, query: filters.query })}>
-              当前条件下无结果，但在全局搜索找到了 <strong>{globalSearchCount.toLocaleString()}</strong> 个结果，<span className="underline underline-offset-4">点击查看</span>
-            </button> : '没有找到匹配的卡牌'}
+            <div className="library-empty-content glass-panel">
+              <h2 className="library-empty-title">当前条件下搜索无结果</h2>
+              {searchAlternatives.queryOnly > 0 && <button type="button" className="library-global-search" onClick={() => selectFilter({ ...EMPTY_CARD_FILTERS, query: filters.query })}>
+                全局搜索找到了 <strong>{searchAlternatives.queryOnly.toLocaleString()}</strong> 个结果，<span className="underline underline-offset-4">点击查看</span>
+              </button>}
+              {searchAlternatives.filtersOnly > 0 && <button type="button" className="library-global-search" onClick={() => selectFilter({ ...filters, query: '' })}>
+                全局筛选找到了 <strong>{searchAlternatives.filtersOnly.toLocaleString()}</strong> 个结果，<span className="underline underline-offset-4">点击查看</span>
+              </button>}
+            </div>
           </div>}
         </div>
 
@@ -186,7 +196,7 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
           <CardFace card={selectedCard} className="mx-auto mb-4 max-h-[55vh] w-full object-contain" />
           <h2 className="text-lg font-bold text-kards-text">{cardDisplayTitle(selectedCard, language)}</h2>
           {language.startsWith('zh') && selectedCard.json.title?.['en-EN'] && <p className="mt-1 text-xs text-kards-text-muted" lang="en">{selectedCard.json.title['en-EN']}</p>}
-          {keywords.length > 0 && <p aria-label="卡牌词条" className="mt-2 text-sm text-kards-status">{keywords.join('，')}</p>}
+          {keywords.length > 0 && <p aria-label="卡牌词条" className="mt-2 text-sm text-kards-text"><CardText text={keywords.join('，')} /></p>}
           {cardText(selectedCard, language) && <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-kards-text-muted"><CardText text={cardText(selectedCard, language)} /></p>}
           <dl className="mt-4 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-kards-border pt-4 text-sm text-kards-text">
             <dt>阵营</dt><dd className="flex items-center gap-2"><img src={cardFactionIcon(selectedCard.json.faction, selectedCard.json.type)} alt="" className="h-5 w-5 object-contain" />{factionLabel(selectedCard.json.faction)}</dd><dt>类型</dt><dd>{typeLabel(selectedCard.json.type)}</dd>

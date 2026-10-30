@@ -31,7 +31,7 @@ Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴
 | `src/lib/cardImages.ts`、`cardImageDownload.ts`、`imageDownloads.ts` | 图片缓存、下载校验及后台队列 |
 | `src/lib/deckCode.ts`、`deckImport.ts`、`deckRules.ts` | 卡组码、导入和构筑规则 |
 | `src/lib/cardFilters.ts`、`cardPoolLayout.ts` | 共享筛选语义与自适应分页布局 |
-| `src/lib/cardKeywords.ts`、`cardSort.ts` | 统一词条翻译、属性识别与文字强调；牌库主排序及费用、类型次级排序 |
+| `src/lib/cardKeywords.ts`、`cardSort.ts` | 词条读取 `src/data/cardKeywords.json` 统一清单，派生 16 个属性词条、7 个战斗词条及全部文字强调；牌库主排序及费用、类型次级排序 |
 | `src/components/PageIndicator.tsx`、`src/lib/pagination.ts` | 共用首尾页、邻近页及省略号导航，支持点击与键盘；滚轮翻页由卡池区域负责 |
 | `src/data/cardSubtypes.json`、`src/lib/cardSubtypes.ts` | 本地子类定义、卡牌映射及详情展示 |
 | `src/lib/deckRenderer.ts`、`deckRenderCounter.ts` | Canvas 生图及共享计数器绘制 |
@@ -97,7 +97,7 @@ Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴
 
 卡组码使用共享编解码模块；总部由显示层补入总数，不占用可用牌记录。规则校验与卡池筛选分开：主国和盟国卡池限制决定候选，规则决定提示；已有或未知卡不因筛选被删除。
 
-卡池按可见宽高在预设尺寸范围内选择完整行列，不纵向滚动；容器变化时重新计算，滚轮驱动分页。资料库与构筑共用类型、子类、费用等筛选语义；词条可按“和/或”匹配，资料库筛选搜索无结果时只计算一次无条件文字搜索的数量，用户点击提示后再清除筛选并显示结果；子类映射与官方卡牌数据分开维护。
+卡池按可见宽高在预设尺寸范围内选择完整行列，不纵向滚动；容器变化时重新计算，滚轮驱动分页。资料库与构筑共用类型、子类、费用等筛选语义；词条可按“和/或”匹配，资料库搜索无结果时分别计算只保留文字、只保留筛选的结果数量，有结果才提供对应入口，由用户点击后应用；子类映射与官方卡牌数据分开维护。
 
 牌库主排序相同时，依次按费用、类型（步兵、炮兵、坦克、轰炸机、战斗机、指令、反制指令）升序排列，最后保留原数据顺序。末级排序以天气原体的位置作为该组位置，并按原体、变体 1、变体 2 排列；不修改其费用、类型或战斗属性。筛选隐藏原体时仍保持变体顺序。
 
@@ -112,3 +112,5 @@ Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴
 总部名称、英文名、简介与历史集中维护在 `src/data/headquarters.json`，图片扁平存放于 `public/assets/headquarters/`，使用“阵营_总部英文名.png”命名。清单的 `id` 和 `groupId` 保持稳定，以兼容已保存卡组及专属桌布关联。
 
 界面颜色、间距、浮层与动画约定见 [界面规范](../DESIGN.md)。包依赖仍由 npm 管理，依赖自带许可证与 Electron 运行时许可证随各自组件保留；游戏素材的权属说明位于关于页。
+
+词条唯一清单位于 `src/data/cardKeywords.json`：`label` / `english` 管理中英对照，`attribute` 标识属性词条，`highlighted` 标识战斗词条；战斗词条属于属性词条，属性词条属于完整词条表。`numbered` 声明重甲/情报的数值后缀，`attributeAliases` 管理属性别名及详情可见性，`excludeFollowing` 避免“战斗”命中“战斗机”。筛选菜单、详情属性与中英文规则文字加粗均由该清单派生；战斗词条加粗并使用强调色，其余词条只加粗。
