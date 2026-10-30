@@ -5,6 +5,7 @@ import path from 'path';
 import { renderDeckImage } from './deckRenderer';
 import { recognizeDeckImage } from './windowsOcr';
 import { resolveUserDataPath } from './userDataPath';
+import { CacheBundleInstaller } from './cacheBundle';
 import { fetchCardDataPage, type CardDataSource } from '../src/lib/cardData';
 import { downloadCardImage } from '../src/lib/cardImageDownload';
 import type { DeckRenderRequest } from '../src/lib/deckRenderTypes';
@@ -27,6 +28,7 @@ const isDev = !app.isPackaged && process.env.KARDS_USE_DIST !== '1';
 const rendererUrl = process.env.ELECTRON_RENDERER_URL || 'http://127.0.0.1:5173';
 const appName = 'KARDS Toolbox';
 let mainWindow: BrowserWindow | null = null;
+let cacheBundle: CacheBundleInstaller;
 
 type BackupPayload = {
   schemaVersion: number;
@@ -122,6 +124,9 @@ function registerAppProtocol() {
 }
 
 function registerIpcHandlers() {
+  ipcMain.handle('cache-bundle:prepare', () => cacheBundle.prepare());
+  ipcMain.handle('cache-bundle:read-image', (_event, index: number) => cacheBundle.readImage(index));
+  ipcMain.handle('cache-bundle:finish', () => cacheBundle.finish());
   ipcMain.handle('cards:fetch-page', (_event, offset: number, source: CardDataSource) => fetchCardDataPage(offset, source, net.fetch as typeof fetch));
   ipcMain.handle('cards:fetch-image', (_event, url: string) => downloadCardImage(url, net.fetch as typeof fetch));
   ipcMain.handle('app:get-info', () => ({
@@ -190,17 +195,26 @@ function registerIpcHandlers() {
 
 nativeTheme.on('updated', () => mainWindow?.setIcon(getIconPath()));
 app.setName(appName);
-// Reuse an existing profile after the rename; never move or overwrite user data.
-// Explicit test/portable profile overrides keep their original behavior.
+// An explicit profile remains available for isolated runs and development.
 if (!app.commandLine.hasSwitch('user-data-dir')) {
   const profilePath = resolveUserDataPath(app.getPath('appData'));
   mkdirSync(profilePath, { recursive: true });
   app.setPath('userData', profilePath);
   app.setPath('sessionData', profilePath);
 }
-registerIpcHandlers();
+cacheBundle = new CacheBundleInstaller(app.getPath('userData'), process.env.PORTABLE_EXECUTABLE_DIR || path.dirname(process.execPath));
+// Also prevents a build-time cache snapshot from racing a running application.
+const primaryInstance = app.requestSingleInstanceLock();
+if (!primaryInstance) app.quit();
+app.on('second-instance', (_event, _argv, _directory, data: { cacheExport?: boolean }) => {
+  if (data?.cacheExport) return;
+  if (mainWindow?.isMinimized()) mainWindow.restore();
+  mainWindow?.show();
+  mainWindow?.focus();
+});
 
-app.whenReady().then(async () => {
+if (primaryInstance) app.whenReady().then(async () => {
+  registerIpcHandlers();
   registerAppProtocol();
   await createMainWindow();
 

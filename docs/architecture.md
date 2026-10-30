@@ -41,6 +41,7 @@ Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴
 | `src/lib/backup.ts` | 用户备份的校验、导出和恢复 |
 | `src/types/` | 卡牌模型、桌面接口及类型定义 |
 | `electron/main.ts`、`preload.ts` | 窗口、受限 IPC、本地协议及桌面能力 |
+| `electron/cacheBundle.ts`、`src/lib/cacheBundle.ts` | 完整包流式解压、启动前缓存导入、一次性标记及清理 |
 | `electron/deckRenderer.ts` | 使用本地资源和已缓存卡图生成 PNG |
 | `public/data/cards.json` | 安装时提供的只读卡牌快照 |
 | `public/assets/` | 随应用分发的卡背、总部、桌布、标志及筛选图标 |
@@ -85,7 +86,11 @@ Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴
 | 下载失败与最近批次 | `kards_card_image_failures_v1`、`kards_card_image_batch_v1` | 不包含 |
 | 卡组生图缓存 | `deck_img_local_v1_` 前缀 | 包含 |
 
-保留已有备份格式、历史缓存及数据目录的读取兼容，文档清理不改变用户数据。用户备份不能覆盖独立管理的卡牌数据库和普通卡图缓存。
+用户数据目录固定为 `%APPDATA%\kards-toolbox`，不查找旧目录；测试可用 `--user-data-dir` 隔离。用户备份不能覆盖独立管理的卡牌数据库和普通卡图缓存。
+
+完整包分为 `-dir-full.zip`（松散程序文件）和 `-portable-full.zip`（单个便携 EXE），都在 EXE 同级分发独立 Brotli 缓存包。松散版从程序所在目录读取数据包；便携版通过 `PORTABLE_EXECUTABLE_DIR` 定位外层 EXE 目录。启动时先检查用户目录的完成标记，无标记才解压包；在 React 应用挂载前经受限 IPC 逐项导入 IndexedDB，只补缺失图片、保留已应用牌库。全部写入成功后清理解压目录、原子写入标记并删除分发包；中断后可幂等重试。普通发布包不含缓存包，保持原有启动行为。
+
+构建脚本锁定源数据目录后复制 IndexedDB 临时快照，使用共享牌库和图片键逻辑导出当前有效缓存，排除所有个人数据。包采用逐行记录和 Brotli 质量 11，解压时校验牌库、图片键、格式、重复项及尾部数量，不接受包内路径。只保留当前项在内存中，不一次加载整个缓存包。
 
 ## 构筑、资源与界面
 

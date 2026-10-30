@@ -1,6 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('kardsDesktop', {
+  prepareCacheBundle: () => ipcRenderer.invoke('cache-bundle:prepare'),
+  readCacheBundleImage: (index: number) => ipcRenderer.invoke('cache-bundle:read-image', index),
+  finishCacheBundle: () => ipcRenderer.invoke('cache-bundle:finish'),
   fetchCardDataPage: (offset: number, source: import('../src/lib/cardData').CardDataSource) => ipcRenderer.invoke('cards:fetch-page', offset, source),
   fetchCardImage: (url: string) => ipcRenderer.invoke('cards:fetch-image', url),
   renderDeckImage: (request: unknown) => ipcRenderer.invoke('deck:render', request),
