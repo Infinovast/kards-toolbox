@@ -1,7 +1,7 @@
 {
   "name": "kards-toolbox",
   "private": true,
-  "version": "1.2.5",
+  "version": "1.2.11",
   "description": "KARDS Toolbox — local-first card library and deck manager for Windows.",
   "type": "module",
   "main": "dist-electron/main.cjs",
@@ -25,6 +25,9 @@
     "dist:win:dir:full": "node scripts/build-full.cjs --target dir",
     "dist:win:portable:full": "node scripts/build-full.cjs --target portable",
     "build:cache-bundle": "node scripts/build-full.cjs --cache-only",
+    "build:packs": "tsx scripts/build-packs.ts",
+    "export:cache:loose": "node scripts/export-cache.cjs --to-loose",
+    "export:cache:pack": "node scripts/export-cache.cjs --to-pack",
     "dist:win:portable:dev": "npm run build:desktop:dev && electron-builder --win portable --x64 -c.win.signAndEditExecutable=false",
     "start": "node dist/server.cjs",
     "preview": "vite preview",
@@ -57,6 +60,13 @@
       "!src/**/*",
       "!electron/**/*",
       "!public/**/*",
+      "!assets-private/**/*",
+      "!dist/assets/**/*.png",
+      "!dist/assets/**/*.jpg",
+      "!dist/assets/**/*.jpeg",
+      "!dist/assets/**/*.svg",
+      "!dist/assets/**/*.webp",
+      "!dist/assets/**/*.avif",
       "!release/**/*",
       "!*.log",
       "node_modules/sharp/**/*",
@@ -75,7 +85,7 @@
         "portable",
         "dir"
       ],
-      "icon": "public/assets/kards_logos/KardsLogoBlack_cards_new.png"
+      "icon": "build/app-icon.png"
     },
     "portable": {
       "artifactName": "kards_toolbox.exe"
@@ -87,7 +97,7 @@
     },
     "asarUnpack": [
       "node_modules/@img/**/*",
-      "dist/assets/kards_logos/**/*"
+      "dist-electron/static.kpak"
     ]
   },
   "dependencies": {

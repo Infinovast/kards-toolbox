@@ -1,162 +1,118 @@
-// Real Electron/IndexedDB import and build-time cache export; no network access.
-// Build first with npm run build:desktop.
+// Real production protocol + isolated IndexedDB migration/export, without network.
 const { _electron: electron, expect } = require('playwright/test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
-const { brotliDecompressSync } = require('node:zlib');
-const root = path.resolve(__dirname, '..');
+const { spawn, execFile } = require('node:child_process');
+const exec = require('node:util').promisify(execFile);
+const tools = require('./load-pack-tools.cjs');
 const { cards } = require('../public/data/cards.json');
+const root = path.resolve(__dirname, '..');
 const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l1sAAAAASUVORK5CYII=';
-
-function buildBundle(profile, output, succeeds = true, target) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [path.join(root, 'scripts/build-full.cjs'), ...(target ? ['--target', target] : ['--cache-only']), '--profile', profile, '--output', output], { cwd: root, windowsHide: true });
-    let log = '';
-    child.stdout.on('data', bytes => { log += bytes; if (target) process.stdout.write(bytes); });
-    child.stderr.on('data', bytes => { log += bytes; if (target) process.stderr.write(bytes); });
-    child.on('error', reject);
-    child.on('exit', code => (succeeds ? code === 0 : code !== 0) ? resolve(log) : reject(new Error(log)));
-  });
-}
-
-async function launch(profile, distribution, executable) {
-  const env = { ...process.env, KARDS_USE_DIST: '1' };
-  if (distribution) env.PORTABLE_EXECUTABLE_DIR = distribution;
-  else delete env.PORTABLE_EXECUTABLE_DIR;
-  delete env.ELECTRON_RUN_AS_NODE;
-  const app = await electron.launch({ executablePath: executable || require('electron'), args: [...(executable ? [] : [root]), `--user-data-dir=${profile}`, '--disable-crash-reporter'], env });
-  const page = await app.firstWindow();
-  await page.route(/^https?:/, route => route.abort());
+function buildBundle(profile, output, succeeds = true) { return new Promise((resolve, reject) => {
+  const child = spawn(process.execPath, [path.join(root, 'scripts/export-cache.cjs'), '--to-pack', '--profile', profile, '--output', output], { cwd: root, windowsHide: true });
+  let log = ''; child.stdout.on('data', bytes => { log += bytes; }); child.stderr.on('data', bytes => { log += bytes; });
+  child.on('error', reject); child.on('exit', code => (succeeds ? code === 0 : code !== 0) ? resolve(log) : reject(new Error(log)));
+}); }
+async function launch(profile, distribution) {
+  const env = { ...process.env, KARDS_USE_DIST: '1', KARDS_USE_PACKS: '1', PORTABLE_EXECUTABLE_DIR: distribution }; delete env.ELECTRON_RUN_AS_NODE;
+  const app = await electron.launch({ executablePath: require('electron'), args: [root, `--user-data-dir=${profile}`, '--disable-crash-reporter'], env });
+  const page = await app.firstWindow(); await page.route(/^https?:/, route => route.abort());
+  try { await expect(page.getByRole('heading', { name: '卡组', exact: true })).toBeVisible({ timeout: 15000 }); }
+  catch (error) { console.error('Startup DOM:', await page.locator('body').innerText()); console.error(await app.evaluate(() => process.versions)); await app.close(); throw error; }
   return { app, page };
 }
-
 async function stored(page, entries) {
   await page.addScriptTag({ path: require.resolve('localforage') });
   return page.evaluate(async entries => {
-    const store = window.localforage;
-    await store.ready();
-    for (let attempt = 0; await store.getItem('kards_settings') === null; attempt++) {
-      if (attempt >= 100) throw new Error('App storage did not initialize');
-      await new Promise(resolve => setTimeout(resolve, 50));
-    }
+    const store = window.localforage; await store.ready();
     if (entries) for (const [key, value] of Object.entries(entries)) await store.setItem(key, value);
-    const data = {};
-    await store.iterate((value, key) => { data[key] = value; });
-    return data;
+    const result = {}; await store.iterate((value, key) => { result[key] = value; }); return result;
   }, entries);
 }
-
 async function main() {
-  const output = path.join(root, 'test-results/cache-bundle');
-  await fs.mkdir(output, { recursive: true });
-  const work = await fs.mkdtemp(path.join(output, 'run-'));
+  const output = path.join(root, 'test-results/cache-bundle'); await fs.mkdir(output, { recursive: true });
+  const work = await fs.mkdtemp(path.join(output, 'kpak-'));
   let current;
   try {
-    const source = path.join(work, 'source');
-    const distribution = path.join(work, 'distribution');
-    await fs.mkdir(distribution);
+    const source = path.join(work, 'source'), distribution = path.join(work, 'distribution'); await fs.mkdir(distribution);
     current = await launch(source, distribution);
-    await expect(current.page.getByRole('heading', { name: '卡组', exact: true })).toBeVisible();
-    const key = kind => `kards_card_image_v2_${cards[0].importId}_${encodeURIComponent(cards[0][kind === 'full' ? 'imageUrl' : 'thumbUrl'])}`;
-    const database = { schemaVersion: 1, active: { cards: cards.slice(0, 2), source: 'kardsplayer', fetchedAt: '2026-10-01T00:00:00Z' } };
-    const privateData = { kards_decks: [{ id: 'private', name: 'PRIVATE DECK', code: '%%12|ZZ;;;' }], kards_builder_draft: { private: true }, deck_img_local_v1_private: png, kards_card_image_failures_v1: { private: true } };
-    const staleKey = 'kards_card_image_v2_stale_https%3A%2F%2Fwww.kardsplayer.com%2Fold.png';
-    await stored(current.page, { ...privateData, kards_card_database_v1: database, [key('full')]: png, [key('thumbnail')]: png, [staleKey]: png });
-    const locked = await buildBundle(source, distribution, false);
-    assert.match(locked, /请关闭/);
+    const fixture = cards.find(card => card.cardId === '50_infantry_regiment');
+    const key = kind => `kards_card_image_v2_${fixture.importId}_${encodeURIComponent(fixture[kind === 'full' ? 'imageUrl' : 'thumbUrl'])}`;
+    const database = { schemaVersion: 1, active: { cards: [fixture], source: 'kardsplayer', fetchedAt: '2026-10-01T00:00:00Z' } };
+    await stored(current.page, { kards_test_private: 'PRIVATE DECK', kards_card_database_v1: database, [key('full')]: png, [key('thumb')]: png, kards_card_image_failures_v1: { [key('full')]: { message: 'legacy failure', at: '2026-10-01' } } });
+    assert.match(await buildBundle(source, path.join(distribution, 'cards.kpak'), false), /请关闭/);
     await current.app.close(); current = null;
-    const log = await buildBundle(source, distribution);
-    assert.match(log, /大图 1 张，缩略图 1 张/);
-    const archive = path.join(distribution, 'kards-toolbox-cache.br');
-    const originalBytes = await fs.readFile(archive);
-    const records = brotliDecompressSync(originalBytes).toString().trim().split('\n').map(JSON.parse);
-    assert.equal(records[0].database.fetchedAt, database.active.fetchedAt);
-    assert.deepEqual(records.slice(1, -1).map(record => record.key).sort(), [key('full'), key('thumbnail')].sort());
-    assert.ok(!JSON.stringify(records).includes('PRIVATE DECK'));
-    assert.ok(!records.some(record => record.key === staleKey));
+    const log = await buildBundle(source, path.join(distribution, 'cards.kpak')); assert.match(log, /大图 1 张，缩略图 1 张/);
+    const pack = await tools.Kpak.open(path.join(distribution, 'cards.kpak'));
+    assert.equal(pack.entries.size, 2); assert.ok(!JSON.stringify([...pack.entries]).includes('PRIVATE DECK'));
+    const original = await fs.readFile(pack.file), target = path.join(work, 'target');
+    current = await launch(target, distribution);
+    let data = await stored(current.page);
+    assert.ok(!Object.keys(data).some(key => /^kards_card_image_v[12]_/.test(key)), 'full install never populates IndexedDB images');
+    assert.deepEqual(data.kards_decks, []); assert.ok(data.kards_card_database_v1.active);
+    let stats = await current.page.evaluate(() => window.kardsDesktop.listCardImageKeys()); assert.equal(stats.entries.length, 2);
+    assert.deepEqual(await fs.readFile(path.join(target, 'packs/cards.kpak')), original, 'fresh full install copies the pack without decoding or rewriting entries');
+    const image = await current.page.evaluate(async ref => { const url = 'kards://app/card-image?' + new URLSearchParams(ref); const response = await fetch(url); return { status: response.status, mime: response.headers.get('content-type'), bytes: [...new Uint8Array(await response.arrayBuffer())] }; }, { cardId: fixture.cardId, variant: 'thumb', url: fixture.thumbUrl });
+    assert.equal(image.status, 200); assert.equal(image.mime, 'image/png'); assert.deepEqual(Buffer.from(image.bytes), Buffer.from(png.split(',')[1], 'base64'));
+    assert.equal(await current.page.evaluate(() => typeof window.require), 'undefined');
+    await assert.rejects(() => current.page.evaluate(() => window.kardsDesktop.cacheCardImage({ cardId: 'bad', variant: 'full', url: 'file:///C:/Windows/win.ini' })), /卡图地址无效/);
+const assets = await current.page.evaluate(async () => { const response = await fetch('/assets/faction_icons/Germany/germany_white.svg'); return { status: response.status, mime: response.headers.get('content-type') }; });
+    assert.equal(assets.status, 200); assert.equal(assets.mime, 'image/svg+xml');
+    await fs.access(path.join(target, 'full-cache-applied.json')); await assert.rejects(() => fs.access(path.join(distribution, 'cards.kpak')));
+    // Exercise real main-process download validation and binary persistence with
+    // a deterministic net.fetch fixture, while the renderer remains isolated.
+    await current.app.evaluate(({ net }) => { global.__originalNetFetch = net.fetch; net.fetch = async () => new Response(Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l1sAAAAASUVORK5CYII=', 'base64'))); });
+    const extra = { cardId: 'sample_new_card', variant: 'full', url: fixture.imageUrl };
+    const downloaded = await current.page.evaluate(ref => window.kardsDesktop.cacheCardImage(ref), extra); assert.equal(downloaded.mime, 'image/png');
+    stats = await current.page.evaluate(() => window.kardsDesktop.listCardImageKeys()); assert.equal(stats.entries.length, 3);
+    await current.page.evaluate(ref => window.kardsDesktop.deleteCardImages([ref]), extra);
+    await current.page.evaluate(() => window.kardsDesktop.compactCardPack());
+    stats = await current.page.evaluate(() => window.kardsDesktop.listCardImageKeys()); assert.equal(stats.entries.length, 2); assert.equal(stats.deadBytes, 0);
+    await current.app.evaluate(({ net }) => { net.fetch = global.__originalNetFetch; delete global.__originalNetFetch; });
+    await current.page.reload(); await expect(current.page.getByRole('heading', { name: '卡组', exact: true })).toBeVisible();
+    await current.app.close(); current = null;
+    await fs.writeFile(path.join(distribution, 'cards.kpak'), 'invalid but completed installs skip it');
+    current = await launch(target, distribution); assert.match(await fs.readFile(path.join(distribution, 'cards.kpak'), 'utf8'), /invalid/);
+    await current.app.close(); current = null;
+    // Legacy migration goes into the pack and preserves the user's own data.
+    await fs.writeFile(path.join(distribution, 'cards.kpak'), original);
+    current = await launch(source, distribution);
+    data = await stored(current.page); assert.equal(data.kards_test_private, 'PRIVATE DECK');
+    assert.ok(!data[key('full')] && !data[key('thumb')]);
+    assert.ok(Object.keys(data.kards_card_image_failures_v1).some(key => key.startsWith('kards_card_pack_v2_')), 'legacy failure records migrate to the native cache identity');
+    assert.equal((await current.page.evaluate(() => window.kardsDesktop.listCardImageKeys())).entries.length, 2);
+    await current.app.close(); current = null;
+    const nativeExport = path.join(work, 'native.kpak'); await buildBundle(source, nativeExport); assert.equal((await tools.Kpak.open(nativeExport)).entries.size, 2);
+    const nativeOnly = path.join(work, 'native-only'); await fs.mkdir(path.join(nativeOnly, 'packs'), { recursive: true });
+    await fs.copyFile(nativeExport, path.join(nativeOnly, 'packs/cards.kpak'));
+    const nativeAgain = path.join(work, 'native-only.kpak'); await buildBundle(nativeOnly, nativeAgain);
+    const again = await tools.Kpak.open(nativeAgain), exported = await tools.Kpak.open(nativeExport);
+    assert.equal(again.entries.size, 2);
+    assert.equal(again.database.source, exported.database.source);
+    assert.equal(again.database.fetchedAt, exported.database.fetchedAt);
+    assert.deepEqual(again.database.cards.map(card => [card.cardId, card.imageUrl, card.thumbUrl]), exported.database.cards.map(card => [card.cardId, card.imageUrl, card.thumbUrl]), 'pack-only profiles export using their own catalogue');
+    const loose = path.join(work, 'loose');
+    await exec(process.execPath, [path.join(root, 'scripts/export-cache.cjs'), '--to-loose', '--profile', source, '--loose-dir', loose], { cwd: root, windowsHide: true });
+    const manifest = JSON.parse(await fs.readFile(path.join(loose, 'manifest.json'), 'utf8')); assert.equal(manifest.images.length, 2);
+    const repacked = path.join(work, 'repacked.kpak'); await tools.buildLooseCardPack(loose, repacked);
+    assert.equal((await tools.Kpak.open(repacked)).entries.size, 2);
     if (process.argv.includes('--pack')) {
-      const fullOutput = path.join(work, 'full-output');
-      const { execFile } = require('node:child_process');
-      const exec = require('node:util').promisify(execFile);
       for (const target of ['dir', 'portable']) {
-        console.log(`Checking the ${target}-full ZIP packaging pipeline…`);
-        await buildBundle(source, fullOutput, true, target);
-        const archiveName = `kards_toolbox-${require('../package.json').version}-${target}-full.zip`;
-        const extracted = path.join(work, `extracted-${target}`);
-        await exec(require('7zip-bin').path7za, ['x', path.join(fullOutput, archiveName), `-o${extracted}`, '-y'], { windowsHide: true });
-        const files = await fs.readdir(extracted);
-        assert.ok(files.includes('kards_toolbox.exe') && files.includes('kards-toolbox-cache.br'));
-        if (target === 'portable') {
-          assert.deepEqual(files.sort(), ['kards-toolbox-cache.br', 'kards_toolbox.exe']);
-        } else {
-          await fs.access(path.join(extracted, 'resources', 'app.asar'));
-          await fs.access(path.join(extracted, 'icudtl.dat'));
-          // Exercise the executable-directory lookup without portable environment variables.
-          const packagedProfile = path.join(work, 'packaged-profile');
-          current = await launch(packagedProfile, null, path.join(extracted, 'kards_toolbox.exe'));
-          await expect(current.page.getByRole('heading', { name: '卡组', exact: true })).toBeVisible();
-          assert.equal((await current.page.evaluate(() => window.kardsDesktop.getAppInfo())).packaged, true);
-          const imported = await stored(current.page);
-          assert.equal(imported[key('full')], png);
-          assert.equal(imported[key('thumbnail')], png);
-          await fs.access(path.join(packagedProfile, 'full-cache-applied.json'));
-          await assert.rejects(() => fs.access(path.join(extracted, 'kards-toolbox-cache.br')));
-          await current.app.close(); current = null;
+        const release = path.join(work, `release-${target}`);
+        await exec(process.execPath, [path.join(root, 'scripts/build-full.cjs'), '--target', target, '--profile', source, '--output', release], { cwd: root, windowsHide: true, maxBuffer: 4 * 1024 * 1024 });
+        const archive = path.join(release, `kards_toolbox-${require('../package.json').version}-${target}-full.zip`), extracted = path.join(work, `unzip-${target}`);
+        await exec(await require('./sevenzip.cjs')(), ['x', archive, `-o${extracted}`, '-y'], { windowsHide: true });
+        const names = await fs.readdir(extracted); assert.ok(names.includes('kards_toolbox.exe') && names.includes('cards.kpak'));
+        if (target === 'portable') assert.deepEqual(names.sort(), ['cards.kpak', 'kards_toolbox.exe']);
+        else {
+          const asar = require('@electron/asar'), files = asar.listPackage(path.join(extracted, 'resources/app.asar'));
+          assert.ok(files.some(file => file.replaceAll('\\', '/').endsWith('/dist-electron/static.kpak')));
+          assert.ok(!files.some(file => /\/dist\/assets\/.*\.(png|jpe?g|svg|webp|avif)$/i.test(file.replaceAll('\\', '/'))));
         }
-        console.log(`${target}-full ZIP layout verified`);
       }
     }
-    // Export used a disposable snapshot; it did not mutate the source catalogue.
-    current = await launch(source, path.join(work, 'empty'));
-    await expect(current.page.getByRole('heading', { name: '卡组', exact: true })).toBeVisible();
-    assert.deepEqual((await stored(current.page)).kards_card_database_v1, database);
-    await current.app.close(); current = null;
-
-    const target = path.join(work, 'target');
-    current = await launch(target, distribution);
-    await expect(current.page.getByRole('heading', { name: '卡组', exact: true })).toBeVisible();
-    let data = await stored(current.page);
-    assert.equal(data[key('full')], png); assert.equal(data[key('thumbnail')], png);
-    assert.ok(data.kards_card_database_v1.active.cards.some(card => card.importId === cards[0].importId));
-    assert.ok(!data.kards_builder_draft && !data.deck_img_local_v1_private && !data[staleKey]);
-    assert.deepEqual(data.kards_decks, []);
-    await fs.access(path.join(target, 'full-cache-applied.json'));
-    await assert.rejects(() => fs.access(archive));
-    await assert.rejects(() => fs.access(path.join(target, 'full-cache-staging')));
-    // Reload within the same process must also honor successful initialization.
-    await current.page.reload();
-    await expect(current.page.getByRole('heading', { name: '卡组', exact: true })).toBeVisible();
-    await current.app.close(); current = null;
-
-    // A completed profile skips an invalid new sidecar on the next launch.
-    await fs.writeFile(archive, 'corrupt');
-    current = await launch(target, distribution);
-    await expect(current.page.getByRole('heading', { name: '卡组', exact: true })).toBeVisible();
-    assert.equal(await fs.readFile(archive, 'utf8'), 'corrupt');
-    await current.app.close(); current = null;
-
-    // An existing active catalogue and a locally changed image remain untouched.
-    const existing = path.join(work, 'existing');
-    current = await launch(existing, path.join(work, 'empty'));
-    await expect(current.page.getByRole('heading', { name: '卡组', exact: true })).toBeVisible();
-    const ownDatabase = { schemaVersion: 1, active: { ...database.active, cards: cards.slice(5, 6) } };
-    await stored(current.page, { kards_card_database_v1: ownDatabase, [key('full')]: 'existing-image', kards_builder_draft: { keep: true } });
-    await current.app.close(); current = null;
-    await fs.writeFile(archive, originalBytes);
-    current = await launch(existing, distribution);
-    await expect(current.page.getByRole('heading', { name: '卡组', exact: true })).toBeVisible();
-    data = await stored(current.page);
-    assert.deepEqual(data.kards_card_database_v1, ownDatabase);
-    assert.equal(data[key('full')], 'existing-image');
-    assert.equal(data[key('thumbnail')], png);
-    assert.deepEqual(data.kards_builder_draft, { keep: true });
-    console.log('Full cache smoke passed: source lock/snapshot, private-data exclusion, current images, first start/apply/delete, reload/relaunch skip, existing-data preservation');
-  } finally {
-    if (current) await current.app.close();
-    if (path.dirname(work) === output) await fs.rm(work, { recursive: true, force: true });
-  }
+    console.log('KPAK desktop smoke passed: profile lock, legacy export/migration, zero-extraction install, protocol images/static assets, whitelist, native download/delete/compact, persistence and skip marker');
+  } finally { if (current) await current.app.close(); if (path.dirname(work) === output) await fs.rm(work, { recursive: true, force: true }); }
 }
-
 main().catch(error => { console.error(error); process.exitCode = 1; });

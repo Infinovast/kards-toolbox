@@ -8,8 +8,11 @@ import { CARD_PACKS, FACTION_ASSETS, SUBCLASS_ICONS, WILDCARDS, cardFactionIcon,
 import { ALL_CARD_KEYWORDS } from './cardKeywords';
 import { CARD_SUBTYPES } from './cardSubtypes';
 import { factionLabel, typeLabel, type KardsCardRecord } from '../types/card';
+import { CacheBundleInstaller } from '../../electron/cacheBundle';
 
-const assetPath = (url: string) => path.resolve('public', url.replace(/^\/assets\//, 'assets/'));
+const privateAssets = path.resolve('assets-private/static/assets');
+const manager = new CacheBundleInstaller(path.resolve('test-results/asset-test'), '', { root: process.cwd() });
+const assetBuffer = async (url: string) => { const asset = await manager.readStaticAsset(url); assert.ok(asset, `asset exists: ${url}`); return asset.buffer; };
 assert.deepEqual(HEADQUARTERS_STACKS.map(stack => stack.id), ['USA', 'Soviet', 'Britain', 'Japan', 'Germany', 'Common']);
 assert.ok(HEADQUARTERS_STACKS.every(stack => stack.cards.length > 0));
 assert.ok(HEADQUARTERS_STACKS.find(stack => stack.id === 'Common')!.cards.every(item => item.nation === 'Blank'));
@@ -24,9 +27,7 @@ assert.equal(HEADQUARTERS.find(item => item.groupId === 'Britain/alam_el_halfa')
 assert.ok(CARD_BACK_CATEGORIES.every(category => category.backs.length > 0));
 assert.equal(CARD_BACKS.length, 70);
 assert.ok(CARD_BACKS.every(back => /^[\w/-]+\.png$/i.test(back.file.replace(/^\/assets\//, ''))));
-assert.ok(CARD_BACKS.every(back => existsSync(assetPath(back.file))));
-assert.ok(HEADQUARTERS.every(item => existsSync(assetPath(item.image))));
-assert.ok(TABLECLOTHS.every(item => existsSync(assetPath(item.file))));
+for (const url of [...CARD_BACKS.map(back => back.file), ...HEADQUARTERS.map(item => item.image), ...TABLECLOTHS.map(item => item.file)]) await assetBuffer(url);
 const cards: KardsCardRecord[] = JSON.parse(readFileSync('public/data/cards.json', 'utf8')).cards;
 for (const cloth of TABLECLOTHS.filter(item => item.type === 'wallpaper' && item.nation)) {
   const card = cards.find(card => card.cardId === cloth.cardId);
@@ -103,12 +104,11 @@ const catalogPaths = new Set([
   ...imagePaths(manifest), ...imagePaths(ALL_CARD_KEYWORDS), ...CARD_BACKS.map(item => item.file),
   ...HEADQUARTERS.map(item => item.image), ...TABLECLOTHS.map(item => item.file),
 ]);
-const actualImages = new Set(readdirSync('public/assets', { recursive: true }).map(file => `/assets/${String(file).replaceAll('\\', '/')}`)
+const actualImages = new Set((existsSync(privateAssets) ? readdirSync(privateAssets, { recursive: true }) : [...catalogPaths].map(file => file.slice('/assets/'.length))).map(file => `/assets/${String(file).replaceAll('\\', '/')}`)
   .filter(file => /\.(png|jpe?g|svg|webp)$/i.test(file) && !/_(reserved|reversed)_\d+\./.test(file)));
 assert.deepEqual([...catalogPaths].sort(), [...actualImages].sort(), 'all supported assets are registered exactly once per file; reserved faction variants stay unused');
-for (const file of readdirSync('public/assets/keywords')) {
-  if (!file.endsWith('.png')) continue;
-  const { data, info } = await sharp(path.join('public/assets/keywords', file)).raw().toBuffer({ resolveWithObject: true });
+for (const file of [...catalogPaths].filter(file => file.startsWith('/assets/keywords/') && file.endsWith('.png'))) {
+  const { data, info } = await sharp(await assetBuffer(file)).raw().toBuffer({ resolveWithObject: true });
   assert.equal(info.channels, 4, `${file} retains RGBA transparency`);
   let solid = 0, antialiased = 0;
   for (let y = 0; y < info.height; y++) for (let x = 0; x < info.width; x++) {

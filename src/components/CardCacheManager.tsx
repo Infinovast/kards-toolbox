@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { cardDisplayTitle, type KardsCardRecord } from '../types/card';
-import { deleteCachedImages, getCachedCardImage, readCardImageCache, useCardImageCacheRevision, type CardCacheEntry } from '../lib/cardImages';
+import { compactCardImageCache, deleteCachedImages, getCachedCardImage, readCardImageCache, useCardImageCacheRevision, type CardCacheEntry } from '../lib/cardImages';
 import { startImageDownload, useImageDownload } from '../lib/imageDownloads';
 import CustomSelect from './CustomSelect';
 import PageIndicator from './PageIndicator';
@@ -95,6 +95,13 @@ export default function CardCacheManager({ cards }: { cards: KardsCardRecord[] }
     if (selected.length > 100 && !window.confirm(`缓存 ${selected.length.toLocaleString()} 张卡牌的大图和缩略图？`)) return;
     void startImageDownload(selected, scope === 'recent');
   };
+  const compact = async () => {
+    if (busy) return;
+    setDeleting(true); setActionError(''); setMessage('');
+    try { await compactCardImageCache(); setMessage('卡图缓存已整理。'); }
+    catch (error) { setActionError(error instanceof Error ? error.message : '整理缓存失败'); }
+    finally { setDeleting(false); setRefresh(value => value + 1); }
+  };
   const allImageKeys = snapshot ? [...snapshot.imageKeys.full, ...snapshot.imageKeys.thumbnail, ...snapshot.deckImageEntries.map(entry => entry.key)] : [];
 
   return <section aria-label="本地缓存" className="mb-8 rounded-lg glass-panel p-5 md:p-6">
@@ -106,6 +113,7 @@ export default function CardCacheManager({ cards }: { cards: KardsCardRecord[] }
       <div><dt className="text-kards-text-muted">卡组图片</dt><dd className="mt-1 space-y-2 text-kards-text"><div>{snapshot?.deckImages.toLocaleString() || 0} 张</div>{deleteButton(snapshot?.deckImageEntries.map(entry => entry.key) || [], '全部卡组图片缓存', '删除全部卡组图片')}</dd></div>
     </dl>
     {!!snapshot?.unusedImageKeys.length && <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-kards-border pt-3 text-xs text-kards-text-muted"><span>旧缓存与失败记录 · {snapshot.unusedImageKeys.length.toLocaleString()} 项</span>{deleteButton(snapshot.unusedImageKeys, '未使用的旧卡图缓存与失败记录', '清理旧缓存')}</div>}
+    {window.kardsDesktop?.compactCardPack && <div className="mt-3 flex items-center gap-3 text-xs text-kards-text-muted"><span>可回收空间 {((snapshot?.packDeadBytes || 0) / 1024 / 1024).toFixed(1)} MiB</span><button type="button" disabled={!snapshot || busy || !snapshot.packDeadBytes} onClick={() => void compact()} className="rounded border border-kards-border px-2 py-1 text-kards-text disabled:opacity-40">整理卡图缓存</button></div>}
     <details className="mt-4 text-sm text-kards-text"><summary className="cursor-pointer rounded py-1">卡组图片缓存清单（{snapshot?.deckImages || 0} 份）</summary>
       <div className="custom-scrollbar mt-2 max-h-64 overflow-y-auto">{snapshot?.deckImageEntries.length ? snapshot.deckImageEntries.map(entry => <div key={entry.key} className="flex items-center justify-between gap-3 border-b border-kards-border py-2"><span className="min-w-0 break-all">{entry.name}</span><div className="shrink-0">{deleteButton([entry.key], `卡组“${entry.name}”的图片缓存`, '删除', false)}</div></div>) : <p className="py-3 text-kards-text-muted">暂无卡组图片缓存。</p>}</div>
     </details>

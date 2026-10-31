@@ -24,8 +24,12 @@ declare global {
   interface Window {
     kardsDesktop?: {
       prepareCacheBundle: () => Promise<import('../lib/cacheBundleFormat').CacheBundleInfo | null>;
-      readCacheBundleImage: (index: number) => Promise<{ key: string; value: string }>;
       finishCacheBundle: () => Promise<void>;
+      listCardImageKeys: () => Promise<import('../lib/cacheBundleFormat').CardPackStats>;
+      deleteCardImages: (refs: import('../lib/cacheBundleFormat').CardImageReference[]) => Promise<void>;
+      compactCardPack: () => Promise<void>;
+      cacheCardImage: (ref: import('../lib/cacheBundleFormat').CardImageReference) => Promise<import('../lib/cacheBundleFormat').CardImageMetadata>;
+      importLegacyCardImage: (ref: import('../lib/cacheBundleFormat').CardImageReference, data: string) => Promise<void>;
       fetchCardDataPage: (offset: number, source: import('../lib/cardData').CardDataSource) => Promise<import('../lib/cardData').CardDataPage>;
       fetchCardImage: (url: string) => Promise<string>;
       renderDeckImage: (request: import('../lib/deckRenderTypes').DeckRenderRequest) => Promise<string>;

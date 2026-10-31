@@ -10,7 +10,7 @@ async function main() {
   const output = path.join(root, 'test-results', 'deck-image');
   await fs.mkdir(output, { recursive: true });
   const profile = await fs.mkdtemp(path.join(output, 'profile-'));
-  const env = { ...process.env, KARDS_USE_DIST: '1' }; delete env.ELECTRON_RUN_AS_NODE;
+  const env = { ...process.env, KARDS_USE_DIST: '1', KARDS_USE_PACKS: '1' }; delete env.ELECTRON_RUN_AS_NODE;
   const app = await electron.launch({ executablePath: require('electron'), args: [root, `--user-data-dir=${profile}`, '--disable-crash-reporter'], env });
   try {
     await app.evaluate(({ session }) => session.defaultSession.webRequest.onBeforeRequest({ urls: ['https://*/*', 'http://*/*'] }, (_request, done) => done({ cancel: true })));
@@ -26,7 +26,7 @@ async function main() {
       const card = records.find(item => item.importId === id);
       return { id, name: card.json.title['zh-Hans'], count: group + 1, image: null, rarity: card.json.rarity, faction: card.json.faction };
     }));
-    const headquartersImage = `data:image/png;base64,${(await fs.readFile(path.join(root, 'public', hq.image))).toString('base64')}`;
+    const headquartersImage = hq.image;
     const cardBackId = 'cardback-050';
     const rendered = await page.evaluate(request => window.kardsDesktop.renderDeckImage(request), { title: 'QR round trip', code, headquartersId: hq.groupId, cardBackId, mainNation: 'Japan', allyNation: 'Germany', headquartersImage, cards });
     const file = { name: 'deck.png', mimeType: 'image/png', buffer: Buffer.from(rendered.split(',')[1], 'base64') };

@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { cacheCardImage, getCachedCardImage, getCardImageFailureAttempts, recordImageCacheBatch } from './cardImages';
+import { cacheCardImage, cachedImageByteLength, getCachedCardImage, getCardImageFailureAttempts, recordImageCacheBatch } from './cardImages';
 import { cardDisplayTitle, type CardImageKind, type KardsCardRecord } from '../types/card';
 
 interface CurrentDownload { importId: string; title: string; kinds: CardImageKind[] }
@@ -68,7 +68,7 @@ export async function startImageDownload(cards: KardsCardRecord[], retry = false
           return remaining.length ? [{ ...item, kinds: remaining }] : [];
         }) }); }
       }));
-      const bytes = results.reduce((sum, result) => sum + (result.status === 'rejected' ? 0 : Math.floor((result.value.length - result.value.indexOf(',') - 1) * 0.75)), 0);
+      const bytes = results.reduce((sum, result) => sum + (result.status === 'rejected' ? 0 : cachedImageByteLength(result.value)), 0);
       publish({ bytes: state.bytes + bytes });
       if (results.some(result => result.status === 'rejected')) {
         failed(card);

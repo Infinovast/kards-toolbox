@@ -1,83 +1,33 @@
-// Run with Electron, not Node. Read a disposable snapshot rather than modifying
-// the source profile; a single-instance lock keeps it stable while copying.
-const { app, BrowserWindow, protocol } = require('electron');
-const fs = require('node:fs');
-const fsp = require('node:fs/promises');
+const fs = require('node:fs/promises');
 const path = require('node:path');
-const { createBrotliCompress, constants } = require('node:zlib');
-const { pipeline } = require('node:stream/promises');
-
-const source = process.env.KARDS_BUNDLE_PROFILE;
-const work = process.env.KARDS_BUNDLE_WORK;
-const output = process.env.KARDS_BUNDLE_OUTPUT;
-if (!source || !work || !output) throw new Error('Missing cache export paths');
-protocol.registerSchemesAsPrivileged([{ scheme: 'kards', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
-app.setName('KARDS Toolbox');
-app.setPath('userData', source);
-if (!app.requestSingleInstanceLock({ cacheExport: true })) {
-  console.error('请关闭使用此数据目录的 KARDS 工具箱，再生成完整包。');
-  app.exit(1);
-} else {
-  try {
-    const indexedDB = path.join(source, 'IndexedDB');
-    if (!fs.existsSync(indexedDB)) throw new Error(`数据目录没有卡图缓存：${source}`);
-    const snapshot = path.join(work, 'profile');
-    fs.mkdirSync(snapshot, { recursive: true });
-    fs.cpSync(indexedDB, path.join(snapshot, 'IndexedDB'), { recursive: true });
-    app.setPath('userData', snapshot);
-    app.setPath('sessionData', snapshot);
-    app.whenReady().then(exportCache).then(() => app.exit(0)).catch(fail);
-  } catch (error) { fail(error); }
-}
-
-function fail(error) {
-  console.error(error);
-  app.exit(1);
-}
-
-async function exportCache() {
-  const root = path.resolve(__dirname, '..');
-  const html = path.join(work, 'export.html');
-  await fsp.writeFile(html, '<!doctype html><meta charset="utf-8"><script src="./reader.js"></script>');
-  const files = {
-    '/export.html': html,
-    '/reader.js': path.join(work, 'reader.js'),
-    '/data/cards.json': path.join(root, 'public', 'data', 'cards.json'),
-  };
-  protocol.registerFileProtocol('kards', (request, callback) => {
-    const file = files[new URL(request.url).pathname];
-    callback(file ? { path: file } : { error: -6 });
-  });
-  const win = new BrowserWindow({ show: false, webPreferences: { nodeIntegration: false, contextIsolation: true } });
-  win.webContents.session.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*'] }, (_details, callback) => callback({ cancel: true }));
-  await win.loadURL('kards://app/export.html');
-  const manifest = await win.webContents.executeJavaScript('cacheBundleReader.getManifest()');
-  if (!manifest.keys.length) throw new Error('没有可打包的卡图，请先在应用中缓存卡图。');
-  console.log(`卡牌数据 ${manifest.header.database.cards.length} 张，大图 ${manifest.full} 张，缩略图 ${manifest.thumbnail} 张`);
-  const compressed = createBrotliCompress({ params: {
-    [constants.BROTLI_PARAM_QUALITY]: 11,
-    [constants.BROTLI_PARAM_LGWIN]: 24,
-  } });
-  const done = pipeline(compressed, fs.createWriteStream(output));
-  void done.catch(() => {});
-  const write = record => new Promise((resolve, reject) => compressed.write(`${JSON.stringify(record)}\n`, error => error ? reject(error) : resolve()));
-  try {
-    await write(manifest.header);
-    let count = 0;
-    for (const key of manifest.keys) {
-      const value = await win.webContents.executeJavaScript(`cacheBundleReader.readImage(${JSON.stringify(key)})`);
-      if (typeof value !== 'string' || value.length > 14 * 1024 * 1024 || !/^data:image\/(png|jpeg|webp|avif);base64,[A-Za-z0-9+/]+={0,2}$/.test(value)) throw new Error(`卡图缓存损坏：${key}`);
-      await write({ key, value });
-      count++;
-      if (count % 100 === 0 || count === manifest.keys.length) console.log(`压缩缓存 ${count} / ${manifest.keys.length}`);
+const os = require('node:os');
+const { spawn } = require('node:child_process');
+const tools = require('./load-pack-tools.cjs');
+const root = path.resolve(__dirname, '..');
+const args = process.argv.slice(2);
+const option = name => { const index = args.indexOf(name); return index < 0 ? undefined : args[index + 1]; };
+const source = path.resolve(process.env.KARDS_BUNDLE_PROFILE || option('--profile') || path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData/Roaming'), 'kards-toolbox'));
+const loose = path.resolve(option('--loose-dir') || path.join(root, 'assets-private/cards'));
+const output = path.resolve(process.env.KARDS_BUNDLE_OUTPUT || option('--output') || path.join(root, 'dist-packs/cards.kpak'));
+const toLoose = args.includes('--to-loose');
+const mode = toLoose ? '--to-loose' : '--to-pack';
+function run(executable, argv, env) { return new Promise((resolve, reject) => {
+  const child = spawn(executable, argv, { cwd: root, stdio: 'inherit', windowsHide: true, env });
+  child.on('error', reject); child.on('exit', code => code === 0 ? resolve() : reject(new Error(`缓存导出失败 (${code})`)));
+}); }
+async function main() {
+  if (!toLoose) {
+    await tools.buildStaticPack(root);
+    // Prefer explicitly selected profile exports over unrelated developer art.
+    if (!option('--profile') && !process.env.KARDS_BUNDLE_PROFILE && await fs.access(path.join(loose, 'manifest.json')).then(() => true, () => false)) {
+      await tools.buildLooseCardPack(loose, output); console.log(`已生成 ${output}`); return;
     }
-    await write({ complete: true, imageCount: count });
-    compressed.end();
-    await done;
-    console.log(`缓存包 ${(fs.statSync(output).size / 1024 / 1024).toFixed(1)} MiB`);
-  } catch (error) {
-    compressed.destroy();
-    await done.catch(() => {});
-    throw error;
   }
+  const work = await fs.mkdtemp(path.join(os.tmpdir(), 'kards-cache-export-'));
+  try {
+    const env = { ...process.env, KARDS_BUNDLE_PROFILE: source, KARDS_BUNDLE_WORK: work, KARDS_BUNDLE_OUTPUT: output, KARDS_BUNDLE_LOOSE: loose, KARDS_BUNDLE_MODE: mode };
+    delete env.ELECTRON_RUN_AS_NODE;
+    await run(require('electron'), [path.join(root, 'scripts/export-profile.cjs'), '--disable-crash-reporter'], env);
+  } finally { await fs.rm(work, { recursive: true, force: true }); }
 }
+main().catch(error => { console.error(error); process.exitCode = 1; });

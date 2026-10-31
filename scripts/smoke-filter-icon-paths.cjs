@@ -15,7 +15,7 @@ async function main() {
   await fs.mkdir(out, { recursive: true });
   const profile = await fs.mkdtemp(path.join(out, 'profile-'));
   const executable = process.argv[2] ? path.resolve(process.argv[2]) : null;
-  const env = { ...process.env, KARDS_USE_DIST: '1' };
+  const env = { ...process.env, KARDS_USE_DIST: '1', KARDS_USE_PACKS: '1' };
   delete env.ELECTRON_RUN_AS_NODE;
   const app = await electron.launch({ executablePath: executable || require('electron'), args: [...executable ? [] : [root], `--user-data-dir=${profile}`, '--disable-crash-reporter'], env });
   try {

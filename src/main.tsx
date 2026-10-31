@@ -16,7 +16,7 @@ async function start() {
   );
   showProgress('正在启动…');
   try {
-    await applyCacheBundle((completed, total) => showProgress(`正在初始化卡图缓存 ${completed.toLocaleString()} / ${total.toLocaleString()}`));
+    await applyCacheBundle((completed, total) => showProgress(`正在迁移旧卡图缓存 ${completed.toLocaleString()} / ${total.toLocaleString()}`));
     openApp();
   } catch (error) {
     root.render(<main className="flex h-screen flex-col items-center justify-center gap-4 bg-kards-bg p-8 text-kards-text" role="alert">

@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import localforage from 'localforage';
 import { cardDisplayTitle, cardImageUrl, type KardsCardRecord } from '../types/card';
-import { cacheCardImage, getCachedCardImage, readCardImageCache, recordImageCacheBatch } from './cardImages';
+import { cacheCardImage, cachedImageByteLength, compactCardImageCache, deleteCachedImages, getCachedCardImage, initializeCardImageIndex, readCardImageCache, recordImageCacheBatch } from './cardImages';
+import { cardPackCacheKey, type CardImageMetadata } from './cacheBundleFormat';
 import { downloadCardImage, validateCardImageUrl } from './cardImageDownload';
 import { cardKeywords, cardRelations } from './cardDetails';
 import { isGeneratedCard, isInBuilderPool } from './cardFilters';
@@ -128,3 +129,52 @@ const beforeWeatherFull = downloaded.length;
 await Promise.all(delugeFamily.map(card => cacheCardImage(card, 'full', false)));
 assert.deepEqual([...downloaded.slice(beforeWeatherFull)].sort(), delugeFamily.map(card => card.imageUrl!).sort(), 'full weather artwork remains distinct');
 console.log('Kardsplayer image and card-detail tests passed: independent legacy thumbnails, paired cache, persisted failure/partial inventory/retry, batch scope, catalogue URLs, AVIF MIME, veteran details');
+
+const packEntries = new Map<string, CardImageMetadata>(), nativeDownloads: string[] = [];
+let compactions = 0;
+Object.assign(window.kardsDesktop!, {
+  listCardImageKeys: async () => ({ entries: [...packEntries.values()], deadBytes: 7, fileBytes: 100 }),
+  cacheCardImage: async (ref: CardImageMetadata) => { const entry = { ...ref, key: cardPackCacheKey(ref), size: 234, mime: 'image/avif', updatedAt: 'test' }; nativeDownloads.push(entry.key); packEntries.set(entry.key, entry); return entry; },
+  deleteCardImages: async (refs: CardImageMetadata[]) => { refs.forEach(ref => packEntries.delete(cardPackCacheKey(ref))); },
+  compactCardPack: async () => { compactions++; },
+});
+localforage.removeItem = async (key: string) => { memory.delete(key); };
+await initializeCardImageIndex(true);
+assert.equal(await getCachedCardImage(base), null, 'desktop does not read old browser blobs');
+const keysBeforeNative = [...memory.keys()].sort();
+const nativeImage = await cacheCardImage(base, 'full', false);
+assert.ok(nativeImage.startsWith('kards://app/card-image?'));
+assert.equal(new URL(nativeImage).searchParams.get('cardId'), base.cardId);
+assert.equal(cachedImageByteLength(nativeImage), 234, 'queue speed uses binary size, not URL length');
+assert.deepEqual([...memory.keys()].filter(key => /^kards_card_image_v[12]_/.test(key)).sort(), keysBeforeNative.filter(key => /^kards_card_image_v[12]_/.test(key)), 'desktop downloads write no IndexedDB image blobs');
+assert.equal(await cacheCardImage(base, 'full', false), nativeImage);
+assert.equal(nativeDownloads.length, 1);
+await cacheCardImage(updated, 'full', false);
+assert.equal(await getCachedCardImage(base), nativeImage, 'desktop retains previous URL for rollback');
+await Promise.all(delugeFamily.map(card => cacheCardImage(card, 'thumbnail', false)));
+assert.equal(nativeDownloads.filter(key => key.includes('_thumb_')).length, 1, 'native weather thumbnails deduplicate by base cardId');
+const nativeInventory = await readCardImageCache([base, updated, ...delugeFamily]);
+assert.equal(nativeInventory.cachedThumbnail, 3);
+await deleteCachedImages([cardPackCacheKey({ cardId: base.cardId, variant: 'full', url: base.imageUrl! })]);
+assert.equal(await getCachedCardImage(base), null);
+assert.ok(await getCachedCardImage(updated));
+await compactCardImageCache(); assert.equal(compactions, 1);
+// An index response captured before an in-flight download completes must not
+// erase that newly cached image when the response arrives afterwards.
+let finishDownload!: (entry: CardImageMetadata) => void, downloadStarted!: () => void;
+const started = new Promise<void>(resolve => { downloadStarted = resolve; });
+const nativeCache = window.kardsDesktop!.cacheCardImage;
+window.kardsDesktop!.cacheCardImage = async () => {
+  downloadStarted(); return new Promise<CardImageMetadata>(resolve => { finishDownload = resolve; });
+};
+const downloading = cacheCardImage(base, 'full', false); await started;
+const stale = [...packEntries.values()];
+let finishRefresh!: (stats: { entries: CardImageMetadata[]; deadBytes: number; fileBytes: number }) => void;
+window.kardsDesktop!.listCardImageKeys = () => new Promise(resolve => { finishRefresh = resolve; });
+const refreshing = initializeCardImageIndex(true);
+const fresh = { cardId: base.cardId, variant: 'full' as const, url: base.imageUrl!, key: cardPackCacheKey({ cardId: base.cardId, variant: 'full', url: base.imageUrl! }), size: 234, mime: 'image/avif', updatedAt: 'fresh' };
+packEntries.set(fresh.key, fresh); finishDownload(fresh); await downloading;
+finishRefresh({ entries: stale, deadBytes: 0, fileBytes: 100 }); await refreshing;
+assert.ok((await getCachedCardImage(base))?.includes('v=fresh'), 'a stale index refresh preserves completed downloads');
+window.kardsDesktop!.cacheCardImage = nativeCache;
+console.log('Desktop image index tests passed: protocol URLs, binary speed, no Blob writes, weather sharing, rollback, delete, compaction and in-flight index refresh');

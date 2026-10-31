@@ -1,9 +1,13 @@
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'node:path';
+import { config } from 'dotenv';
+import { staticAssetMiddleware } from './electron/staticMiddleware';
 
 async function startServer() {
   const app = express();
+  config({ quiet: true });
+  app.use(staticAssetMiddleware(process.cwd()));
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'spa' });
     app.use(vite.middlewares);

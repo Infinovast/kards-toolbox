@@ -15,3 +15,10 @@ app-config.json
 /.impeccable/*
 !/.impeccable/design.json
 /test-results/
+/docs/local-resource-notes.md
+/assets-private/
+/dist-packs/
+*.kpak
+*.kpak.tmp
+*.kpak.idx.bak
+*.kpak.idx.bak.tmp

@@ -46,20 +46,21 @@ async function main() {
     await app.evaluate(({ BrowserWindow }) => {
       const win = BrowserWindow.getAllWindows()[0], original = win.setIcon.bind(win);
       global.__iconPaths = [];
-      win.setIcon = (icon) => { global.__iconPaths.push(icon); original(icon); };
+      win.setIcon = (icon) => { global.__iconPaths.push(icon.toDataURL()); original(icon); };
     });
     await expect.poll(() => page.evaluate(() => window.kardsDesktop.getAppInfo().then(i => i.darkIcon))).toBe(true);
     assert.equal(await page.evaluate(() => window.kardsDesktop.setTheme('light')), false);
     await expect(page.getByAltText('KARDS Logo', { exact: true })).toHaveAttribute('src', /KardsLogoWhite/);
     assert.equal(await page.evaluate(() => window.kardsDesktop.setTheme('dark')), true);
     const iconPaths = await app.evaluate(() => global.__iconPaths);
-    assert.ok(iconPaths.some(p => p.endsWith('KardsLogoBlack_cards_new.png')));
-    assert.ok(iconPaths.some(p => p.endsWith('KardsLogoWhite_cards_new.png')));
+    assert.ok(iconPaths.length >= 2 && new Set(iconPaths).size >= 2, 'native icons are decoded from the pack and change with theme');
 
     // Bundled artwork, repeated copies and the final HQ slot use the production Sharp IPC.
     const records = JSON.parse(await fs.readFile(path.join(root, 'public/data/cards.json'), 'utf8')).cards;
     if (!skipVisual) {
-    const artwork = await fs.readFile(path.join(root, 'public/assets/headquarters/Britain_Alam_el_Halfa.png'));
+    const tools = require('./load-pack-tools.cjs');
+    const pack = await tools.Kpak.open(path.join(root, 'dist-electron/static.kpak'));
+    const artwork = (await pack.read(tools.hashPackKey('assets/headquarters/Britain_Alam_el_Halfa.png', tools.packSalt()))).buffer;
     const code = '%%31|3X5C6BhHm6qCqDrktFvhwJx5;66nwx0x3;3f4p6x7e7l;5Z';
     const renderCards = [];
     for (const [group, ids] of code.split('|')[1].split(';').entries()) {

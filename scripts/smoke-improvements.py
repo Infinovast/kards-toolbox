@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "test-results/improvements"
 OUT.mkdir(parents=True, exist_ok=True)
 cards = json.loads((ROOT / "public/data/cards.json").read_text(encoding="utf-8"))["cards"]
-art = (ROOT / "public/assets/headquarters/Britain_Alam_el_Halfa.png").read_bytes()
+art = (ROOT / "assets-private/static/assets/headquarters/Britain_Alam_el_Halfa.png").read_bytes()
 CODE = "%%31|3X5C6BhHm6qCqDrktFvhwJx5;66nwx0x3;3f4p6x7e7l;5Z"
 
 def store(page, expression, argument=None):

@@ -9,7 +9,7 @@ import { getCachedCardImage } from './cardImages';
 const WIDTH = 342, HEIGHT = 242, RESOLUTION = 4;
 
 const load = (url: string) => new Promise<HTMLImageElement>((resolve, reject) => {
-  const image = new Image(); image.onload = () => resolve(image); image.onerror = () => reject(new Error('无法读取分享图资源')); image.src = url;
+  const image = new Image(); image.crossOrigin = 'anonymous'; image.onload = () => resolve(image); image.onerror = () => reject(new Error('无法读取分享图资源')); image.src = url;
 });
 
 /** Local PNG cover with the same summary and featured-card choice as preset decks. */

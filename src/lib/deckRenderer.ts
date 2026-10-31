@@ -22,20 +22,21 @@ async function imageDataUrl(url: string): Promise<string> {
 
 export async function renderDeckImage(code: string, cards: KardsCardRecord[], title = 'KARDS 卡组', background?: string | null, headquartersId?: string, limit = 40, cardBackId?: string): Promise<string> {
   const deck = decodeDeckCode(code), index = findCardsByImportId(cards);
+  const desktop = !!window.kardsDesktop?.listCardImageKeys;
   const entries = [...deck.counts].sort(([a], [b]) => (index.get(a)?.json.kredits ?? 99) - (index.get(b)?.json.kredits ?? 99));
-  if (background) background = await imageDataUrl(background);
+  if (background && !desktop) background = await imageDataUrl(background);
   const headquarters = headquartersForDeck(headquartersId, deck.mainNation) || BUNKER_HEADQUARTERS;
-  const headquartersImage = headquarters ? await imageDataUrl(headquarters.image).catch(() => null) : null;
-  const request: DeckRenderRequest = { title, code, headquartersId: headquartersImage ? headquarters?.groupId : BUNKER_HEADQUARTERS?.groupId, cardBackId, mainNation: deck.mainNation, allyNation: deck.allyNation, limit, background: background?.startsWith('data:') ? background : null,
+  const headquartersImage = headquarters ? desktop ? headquarters.image : await imageDataUrl(headquarters.image).catch(() => null) : null;
+  const request: DeckRenderRequest = { title, code, headquartersId: headquartersImage ? headquarters?.groupId : BUNKER_HEADQUARTERS?.groupId, cardBackId, mainNation: deck.mainNation, allyNation: deck.allyNation, limit, background: background || null,
     headquartersImage,
-    cards: await Promise.all(entries.map(async ([id, count]) => ({ id, count, name: index.has(id) ? cardTitle(index.get(id)!, 'zh-Hans') : `未知卡牌 ${id}`, rarity: index.get(id)?.json.rarity || '', faction: index.get(id)?.json.faction, image: index.has(id) ? await getCachedCardImage(index.get(id)!) : null }))) };
+    cards: await Promise.all(entries.map(async ([id, count]) => ({ id, count, name: index.has(id) ? cardTitle(index.get(id)!, 'zh-Hans') : `未知卡牌 ${id}`, rarity: index.get(id)?.json.rarity || '', faction: index.get(id)?.json.faction, cardId: index.get(id)?.cardId, imageUrl: index.get(id)?.imageUrl, image: !desktop && index.has(id) ? await getCachedCardImage(index.get(id)!) : null }))) };
   if (window.kardsDesktop?.renderDeckImage) return window.kardsDesktop.renderDeckImage(request);
   return renderBrowserPreview(request, background);
 }
 
 // Browser preview uses the same ten-column layout as the desktop Sharp renderer.
 async function renderBrowserPreview(request: DeckRenderRequest, background?: string | null) {
-  const load = (src: string) => new Promise<HTMLImageElement>((resolve, reject) => { const img = new Image(); img.onload = () => resolve(img); img.onerror = reject; img.src = src; });
+  const load = (src: string) => new Promise<HTMLImageElement>((resolve, reject) => { const img = new Image(); img.crossOrigin = 'anonymous'; img.onload = () => resolve(img); img.onerror = reject; img.src = src; });
   const total = request.cards.reduce((sum, card) => sum + card.count, 0);
   if (!total || total > 999) throw new Error('生图支持 1—999 张可用牌');
   const bg = await load(background || DEFAULT_TABLECLOTH);
