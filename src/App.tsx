@@ -29,6 +29,11 @@ import localforage from 'localforage';
 import Cropper from 'react-easy-crop';
 import getCroppedImg from './lib/cropImage';
 import { createBackup, parseBackup, restoreBackup } from './lib/backup';
+import { flushUserData, loadUserData, readAutomaticBackups, saveUserData, updateUserData, type AutomaticBackup } from './lib/userDataStorage';
+import { addPackHistory, emptyPackHistory, type PackHistory } from './lib/packHistory';
+import type { PackReward } from './lib/cardPacks';
+import type { CardPackKind } from './lib/assetCatalog';
+import UserDataSaveStatus from './components/UserDataSaveStatus';
 import { generateLightModeColors } from './lib/colorUtils';
 import { renderDeckImage, renderDeckMiniImage, downloadDeckImage } from './lib/deckRenderer';
 import { decodeDeckCode, findCardsByImportId } from './lib/deckCode';
@@ -219,6 +224,12 @@ const INITIAL_DECKS: Deck[] = [];
 export default function App() {
   useModalFocus();
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [dataLoadError, setDataLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [automaticBackups, setAutomaticBackups] = useState<AutomaticBackup[] | null>(null);
+  const [automaticBackupIndex, setAutomaticBackupIndex] = useState(0);
+  const [packHistory, setPackHistory] = useState<PackHistory>(emptyPackHistory);
   const [decks, setDecks] = useState<Deck[]>(INITIAL_DECKS);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
@@ -408,30 +419,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    let disposed = false;
     const loadData = async () => {
       try {
-        const getOrMigrate = async <T,>(key: string, defaultVal: T): Promise<T> => {
-           let val = await localforage.getItem<T>(key);
-           if (val !== null) return val;
-           // Fallback to localStorage
-           const lsVal = localStorage.getItem(key);
-           if (lsVal !== null) {
-              if (key === 'kards_selected_tablecloth') return lsVal as unknown as T;
-              try {
-                return JSON.parse(lsVal) as T;
-              } catch {
-                return defaultVal;
-              }
-           }
-           return defaultVal;
-        };
-
-        const loadedDecks = await getOrMigrate<Deck[]>('kards_decks', INITIAL_DECKS);
-        const loadedCollections = await getOrMigrate<Collection[]>('kards_collections', []);
-        const loadedCategories = await getOrMigrate<any[]>('kards_custom_categories', []);
-        const loadedCustomTablecloths = await getOrMigrate<string[]>('kards_custom_tablecloths', []);
-        const loadedSelectedTablecloth = await getOrMigrate<string | null>('kards_selected_tablecloth', DEFAULT_TABLECLOTH);
-        const loadedSettingsRaw = await getOrMigrate<any>('kards_settings', DEFAULT_SETTINGS);
+        const loaded = await loadUserData();
+        if (disposed) return;
+        const loadedDecks = (loaded.kards_decks || INITIAL_DECKS) as Deck[];
+        const loadedCollections = (loaded.kards_collections || []) as Collection[];
+        const loadedCategories = (loaded.kards_custom_categories || []) as typeof customCategories;
+        const loadedCustomTablecloths = (loaded.kards_custom_tablecloths || []) as string[];
+        const loadedSelectedTablecloth = (loaded.kards_selected_tablecloth || DEFAULT_TABLECLOTH) as string;
+        const loadedSettingsRaw = { ...((loaded.kards_settings || DEFAULT_SETTINGS) as any) };
         if (loadedSettingsRaw.isDarkMode !== undefined && loadedSettingsRaw.displayMode === undefined) {
           loadedSettingsRaw.displayMode = loadedSettingsRaw.isDarkMode ? 'dark' : 'light';
           delete loadedSettingsRaw.isDarkMode;
@@ -443,28 +441,30 @@ export default function App() {
         setSelectedTablecloth(resolveSelectedTablecloth(loadedSelectedTablecloth, loadedCustomTablecloths));
         setCustomTablecloths(loadedCustomTablecloths);
         setSettings({ ...DEFAULT_SETTINGS, ...loadedSettingsRaw });
+        setPackHistory((loaded.kards_pack_history_v1 || emptyPackHistory()) as PackHistory);
+        setDataLoadError(null);
         setDataLoaded(true);
       } catch (e) {
-        console.error("Failed to load data", e);
-        setDataLoaded(true);
+        if (!disposed) setDataLoadError(e instanceof Error ? e.message : '读取本地数据失败');
       }
     };
-    loadData();
-  }, []);
+    void loadData();
+    return () => { disposed = true; };
+  }, [loadAttempt]);
 
   useEffect(() => {
     if (!dataLoaded) return;
-    localforage.setItem('kards_decks', decks).catch(console.error);
+    void saveUserData('kards_decks', decks).catch(() => {});
   }, [decks, dataLoaded]);
 
   useEffect(() => {
     if (!dataLoaded) return;
-    localforage.setItem('kards_collections', collections).catch(console.error);
+    void saveUserData('kards_collections', collections).catch(() => {});
   }, [collections, dataLoaded]);
 
   useEffect(() => {
     if (!dataLoaded) return;
-    localforage.setItem('kards_custom_categories', customCategories).catch(console.error);
+    void saveUserData('kards_custom_categories', customCategories).catch(() => {});
   }, [customCategories, dataLoaded]);
 
   const [effectiveIsDarkMode, setEffectiveIsDarkMode] = useState(true);
@@ -476,7 +476,7 @@ export default function App() {
 
   useEffect(() => {
     if (!dataLoaded) return;
-    localforage.setItem('kards_settings', settings).catch(console.error);
+    void saveUserData('kards_settings', settings).catch(() => {});
 
     let isDark = true;
     if (settings.displayMode === 'system') {
@@ -661,12 +661,13 @@ export default function App() {
   const activeTableclothChoice = tableclothPickerForImage ? deckImageModal.tablecloth : selectedTablecloth;
 
   const refreshAfterBackupImport = async () => {
-    const loadedDecks = await localforage.getItem<Deck[]>('kards_decks');
-    const loadedCollections = await localforage.getItem<Collection[]>('kards_collections');
-    const loadedCategories = await localforage.getItem<typeof customCategories>('kards_custom_categories');
-    const loadedSelectedTablecloth = await localforage.getItem<string | null>('kards_selected_tablecloth');
-    const loadedCustomTablecloths = await localforage.getItem<string[]>('kards_custom_tablecloths');
-    const loadedSettings = await localforage.getItem<AppSettings>('kards_settings');
+    const loaded = await loadUserData();
+    const loadedDecks = loaded.kards_decks as Deck[] | null;
+    const loadedCollections = loaded.kards_collections as Collection[] | null;
+    const loadedCategories = loaded.kards_custom_categories as typeof customCategories | null;
+    const loadedSelectedTablecloth = loaded.kards_selected_tablecloth as string | null;
+    const loadedCustomTablecloths = loaded.kards_custom_tablecloths as string[] | null;
+    const loadedSettings = loaded.kards_settings as AppSettings | null;
 
     setDecks(loadedDecks || INITIAL_DECKS);
     setCollections(loadedCollections || []);
@@ -674,6 +675,9 @@ export default function App() {
     setCustomTablecloths(loadedCustomTablecloths || []);
     setSelectedTablecloth(resolveSelectedTablecloth(loadedSelectedTablecloth, loadedCustomTablecloths || []));
     setSettings({ ...DEFAULT_SETTINGS, ...(loadedSettings || {}) });
+    setPackHistory((loaded.kards_pack_history_v1 || emptyPackHistory()) as PackHistory);
+    setDataLoadError(null);
+    setDataLoaded(true);
     setSelectedDeckId(null);
     setBuilderDeck(null);
     setBuilderRevision((revision) => revision + 1);
@@ -682,6 +686,8 @@ export default function App() {
   };
 
   const handleExportBackup = async () => {
+    if (backupBusy) return;
+    setBackupBusy(true);
     try {
       const backup = await createBackup();
 
@@ -701,10 +707,13 @@ export default function App() {
       setBackupStatus('备份已导出。');
     } catch (err: any) {
       setBackupStatus(err.message || '导出失败。');
-    }
+    } finally { setBackupBusy(false); }
   };
 
   const handleImportBackup = async () => {
+    if (backupBusy) return;
+    setBackupBusy(true);
+    let suspended = false;
     try {
       let content: string | undefined;
 
@@ -728,6 +737,7 @@ export default function App() {
             reader.onerror = () => resolve(undefined);
             reader.readAsText(file);
           };
+          input.oncancel = () => resolve(undefined);
           input.click();
         });
       }
@@ -735,22 +745,55 @@ export default function App() {
       if (!content) return;
 
       const backup = parseBackup(content);
+      await flushUserData();
+      setDataLoaded(false); suspended = true;
       await restoreBackup(backup);
       await refreshAfterBackupImport();
-      setBackupStatus('备份已导入，卡组、设置和构筑草稿已恢复。');
+      setBackupStatus('备份已导入，卡组、设置、构筑草稿和开包历史已恢复。');
     } catch (err: any) {
       setBackupStatus(err.message || '导入失败，请检查备份文件和本地存储空间。');
-    }
+      if (suspended) setLoadAttempt(value => value + 1);
+    } finally { setBackupBusy(false); }
+  };
+
+  const showAutomaticBackups = async () => {
+    try {
+      const backups = await readAutomaticBackups();
+      if (!backups.length) { setBackupStatus('暂无自动备份。'); return; }
+      setAutomaticBackupIndex(0); setAutomaticBackups(backups);
+    } catch (error) { setBackupStatus(error instanceof Error ? error.message : '读取自动备份失败'); }
+  };
+
+  const restoreAutomaticBackup = async () => {
+    const backup = automaticBackups?.[automaticBackupIndex];
+    if (!backup || backupBusy) return;
+    setAutomaticBackups(null); setBackupBusy(true);
+    let suspended = false;
+    try {
+      await flushUserData();
+      setDataLoaded(false); suspended = true;
+      await restoreBackup({ app: 'kards-toolbox', schemaVersion: 1, exportedAt: backup.createdAt, data: backup.data });
+      await refreshAfterBackupImport();
+      setBackupStatus('已恢复自动备份。');
+    } catch (error) {
+      setBackupStatus(error instanceof Error ? error.message : '恢复自动备份失败');
+      if (suspended) setLoadAttempt(value => value + 1);
+    } finally { setBackupBusy(false); }
+  };
+
+  const recordOpenedPack = async (kind: CardPackKind, rewards: PackReward[]) => {
+    const next = await updateUserData<PackHistory>('kards_pack_history_v1', current => addPackHistory(current || emptyPackHistory(), kind, rewards));
+    setPackHistory(next);
   };
 
   useEffect(() => {
     if (!dataLoaded) return;
-    localforage.setItem('kards_selected_tablecloth', selectedTablecloth || DEFAULT_TABLECLOTH).catch(console.error);
+    void saveUserData('kards_selected_tablecloth', selectedTablecloth || DEFAULT_TABLECLOTH).catch(() => {});
   }, [selectedTablecloth, dataLoaded]);
 
   useEffect(() => {
     if (!dataLoaded) return;
-    localforage.setItem('kards_custom_tablecloths', customTablecloths).catch(console.error);
+    void saveUserData('kards_custom_tablecloths', customTablecloths).catch(() => {});
   }, [customTablecloths, dataLoaded]);
 
   const handleTableclothUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -911,7 +954,7 @@ export default function App() {
     }
   };
 
-  const handleSaveBuiltDeck = (built: BuilderDeck, warnings: string[]) => {
+  const handleSaveBuiltDeck = async (built: BuilderDeck, warnings: string[]) => {
     const parsed = parseDeck(built.code);
     const existing = decks.find((deck) => deck.id === built.id);
     const savedDeck: Deck = {
@@ -922,7 +965,9 @@ export default function App() {
       totalCards: parsed.totalCards, warnings, isArena: built.ruleSet === 'arena',
       ruleSet: built.ruleSet, customRules: built.customRules, headquartersId: built.headquartersId,
     };
-    setDecks((current) => existing ? current.map((deck) => deck.id === existing.id ? savedDeck : deck) : [...current, savedDeck]);
+    const nextDecks = existing ? decks.map((deck) => deck.id === existing.id ? savedDeck : deck) : [...decks, savedDeck];
+    await saveUserData('kards_decks', nextDecks, { rememberFailure: false });
+    setDecks(nextDecks);
     setSelectedDeckId(savedDeck.id); setBuilderDeck(null); setActiveMenu('decks');
     setSearchQuery(''); setFilterMainNation('All'); setFilterAllyNation('All'); setFilterTag('All');
   };
@@ -1235,17 +1280,20 @@ export default function App() {
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={handleExportBackup}
+                      disabled={backupBusy}
                       className="bg-kards-panel border border-kards-border text-kards-text text-xs font-bold tracking-widest py-2 hover:border-kards-gold hover:text-kards-gold transition-colors"
                     >
                       导出备份
                     </button>
                     <button
                       onClick={handleImportBackup}
+                      disabled={backupBusy}
                       className="bg-kards-panel border border-kards-border text-kards-text text-xs font-bold tracking-widest py-2 hover:border-kards-gold hover:text-kards-gold transition-colors"
                     >
                       导入备份
                     </button>
                   </div>
+                  <button type="button" disabled={backupBusy} onClick={() => { void showAutomaticBackups(); }} className="w-full rounded border border-kards-border py-2 text-xs text-kards-text-muted hover:border-kards-gold hover:text-kards-text disabled:opacity-50">恢复自动备份</button>
                   {backupStatus && (
                     <p className="text-[11px] text-kards-text-muted break-all">{backupStatus}</p>
                   )}
@@ -1258,8 +1306,25 @@ export default function App() {
     </section>
   </section>;
 
+  const automaticBackupDialog = automaticBackups && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-kards-modal-overlay p-5 backdrop-blur-sm" onClick={() => setAutomaticBackups(null)}>
+    <section role="dialog" aria-modal="true" aria-label="恢复自动备份" tabIndex={-1} onKeyDown={handleDialogKeys} onClick={event => event.stopPropagation()} className="glass-panel w-full max-w-md rounded-lg p-6 text-kards-text">
+      <h2 className="text-center text-lg font-bold">恢复自动备份？</h2>
+      <div role="group" aria-label="选择自动备份" className="my-5 flex flex-col gap-2">{automaticBackups.map((backup, index) => <button key={`${backup.createdAt}-${index}`} type="button" aria-pressed={automaticBackupIndex === index} onClick={() => setAutomaticBackupIndex(index)} className={`rounded border px-4 py-3 text-left text-sm hover:border-kards-gold ${automaticBackupIndex === index ? 'border-kards-gold text-kards-status' : 'border-kards-border'}`}>{new Date(backup.createdAt).toLocaleString()}</button>)}</div>
+      <div className="flex justify-center gap-3"><button type="button" data-dialog-cancel onClick={() => setAutomaticBackups(null)} className="rounded border border-kards-border px-5 py-2 hover:border-kards-gold">取消</button><button type="button" data-dialog-confirm onClick={() => { void restoreAutomaticBackup(); }} className="rounded bg-kards-accent px-5 py-2 text-white hover:brightness-110">恢复</button></div>
+    </section>
+  </div>;
+
+  if (!dataLoaded) return <main className="flex h-screen flex-col items-center justify-center gap-5 bg-kards-bg p-8 text-kards-text" aria-busy={!dataLoadError}>
+    <h1 className="text-xl font-bold">{dataLoadError ? '本地数据读取失败' : '正在读取本地数据…'}</h1>
+    {dataLoadError && <><p role="alert" className="max-w-lg text-center text-sm text-kards-text-muted">{dataLoadError}。已停止自动保存，原数据不会被默认值覆盖。</p><div className="flex flex-wrap justify-center gap-3"><button type="button" onClick={() => { setDataLoadError(null); setLoadAttempt(value => value + 1); }} className="rounded bg-kards-accent px-4 py-2 text-white hover:brightness-110">重试读取</button><button type="button" disabled={backupBusy} onClick={handleExportBackup} className="rounded border border-kards-border px-4 py-2 hover:border-kards-gold">导出备份</button><button type="button" disabled={backupBusy} onClick={handleImportBackup} className="rounded border border-kards-border px-4 py-2 hover:border-kards-gold">导入备份</button><button type="button" disabled={backupBusy} onClick={() => { void showAutomaticBackups(); }} className="rounded border border-kards-border px-4 py-2 hover:border-kards-gold">恢复自动备份</button></div></>}
+    {backupStatus && <p role="status" className="max-w-lg text-center text-sm text-kards-text-muted">{backupStatus}</p>}
+    {automaticBackupDialog}
+  </main>;
+
   return (
     <div className="flex flex-col h-screen military-noise relative">
+      <UserDataSaveStatus />
+      {automaticBackupDialog}
       {/* --- Top Bar --- */}
       <header className="h-14 bg-kards-gray flex items-center justify-between px-6 border-b border-kards-border z-20 transition-colors duration-300">
         <div className="flex items-center gap-8">
@@ -1388,7 +1453,7 @@ export default function App() {
             {activeMenu === 'builder' && cardDatabaseLoading && <p className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</p>}
             {activeMenu === 'packs' && (cardDatabaseLoading ? <p className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</p>
               : cardDatabaseError ? <p role="alert" className="p-6 text-red-400">{cardDatabaseError}</p>
-                : <CardPacks cards={cardDatabase} />)}
+                : <CardPacks cards={cardDatabase} history={packHistory} onOpenPack={recordOpenedPack} />)}
             {activeMenu === 'builder' && cardDatabaseError && <p className="p-6 text-red-400">{cardDatabaseError}</p>}
             {!cardDatabaseLoading && !cardDatabaseError && builderDeck && <div className={`h-full w-full max-w-[1800px] shrink-0 ${activeMenu === 'builder' ? '' : 'hidden'}`}><DeckBuilder active={activeMenu === 'builder'} key={builderRevision} cards={cardDatabase} initialDeck={builderDeck} exitRequestRef={builderExitRequest} onSave={handleSaveBuiltDeck} onBack={() => { setBuilderDeck(null); setActiveMenu('decks'); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('[aria-label="主导航"] button')?.focus()); }} /></div>}
             {activeMenu === 'settings' && settingsPage}

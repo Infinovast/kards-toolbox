@@ -26,6 +26,7 @@
     "pack": "/assets/kards_logos/cards_pack.png"
   },
   "reserve": "/assets/reserve.png",
+  "coin": "/assets/coin.png",
   "factions": {
     "Germany": {
       "icon": "/assets/faction_icons/Germany/germany.png",

@@ -1,8 +1,10 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { ArrowLeft, Check, Flag, Info, Layers3, RotateCcw } from 'lucide-react';
-import { CARD_PACKS, SET_ICONS, WILDCARDS, factionIcon, type CardPackAsset, type CardPackKind } from '../lib/assetCatalog';
+import { ArrowLeft, Check, Flag, Info, Layers3, RotateCcw, X } from 'lucide-react';
+import { CARD_PACKS, COIN_ICON, SET_ICONS, WILDCARDS, factionIcon, type CardPackAsset, type CardPackKind } from '../lib/assetCatalog';
 import { defaultCardBackForNation } from '../lib/cardAssets';
-import { cardPackPool, drawCardPack, PACK_FLIP_TIMINGS, PACK_RULES } from '../lib/cardPacks';
+import { cardPackPool, drawCardPack, packRewardRarity, PACK_FLIP_TIMINGS, PACK_RULES, type PackReward, type PackRarity } from '../lib/cardPacks';
+import type { PackHistory } from '../lib/packHistory';
+import { handleDialogKeys } from '../lib/dialogKeyboard';
 import { captureCardDetailOrigin, type CardDetailOrigin } from '../lib/cardDetailOrigin';
 import { revealDetailItem } from '../lib/cardDetailPaging';
 import { CARD_RARITIES, cardDisplayTitle, type KardsCardRecord } from '../types/card';
@@ -42,7 +44,7 @@ function PackInfo({ pack, kind }: { pack: CardPackAsset; kind: CardPackKind }) {
       <strong>每个卡包内含：</strong>
       <span role="list" className="pack-info-list"><span role="listitem">{kind === 'standard' ? 5 : 7}张{content}卡牌</span>
         <span role="listitem">{kind === 'standard' ? '至少1张限定或更高稀有度卡牌' : '至少1张特殊或精英卡牌'}</span>
-        {kind === 'officer' && <span role="listitem">可能掉落万能牌</span>}</span>
+        {kind === 'officer' && <span role="listitem">可能掉落通用万能牌</span>}</span>
     </span>
   </span>;
 }
@@ -55,8 +57,22 @@ function WildcardSymbol({ rarity }: { rarity: string }) {
   }} /></span>;
 }
 
-function PackRevealCard({ card, index, requested, onRequest, onComplete, onImpact, onInspect }: {
-  card: KardsCardRecord;
+function WildcardArt({ rarity }: { rarity: PackRarity }) {
+  const asset = WILDCARDS.Common[rarity];
+  return <span className="pack-wildcard-art" style={{ aspectRatio: `${asset.crop.width} / ${asset.crop.height}` }}>
+    <img src={asset.file} alt={`通用${RARITY_LABELS[rarity]}万能牌`} draggable={false} style={{ width: `${100 / asset.crop.width}%`, height: `${100 / asset.crop.height}%`, left: `${-100 * asset.crop.x / asset.crop.width}%`, top: `${-100 * asset.crop.y / asset.crop.height}%` }} />
+  </span>;
+}
+
+function PackHistorySummary({ history }: { history: PackHistory }) {
+  return <div className="pack-history" aria-label="开包历史">
+    <p className="pack-history-cost"><span className="pack-history-amount">100<img src={COIN_ICON} alt="金币" className="pack-history-coin" draggable={false} /></span>×<strong className="pack-history-count">{history.standard}</strong> + <span className="pack-history-amount">330<img src={COIN_ICON} alt="金币" className="pack-history-coin" draggable={false} /></span>×<strong className="pack-history-count">{history.officer}</strong> = <strong className="pack-history-total pack-history-amount">{history.standard * 100 + history.officer * 330}<img src={COIN_ICON} alt="金币" className="pack-history-coin" draggable={false} /></strong></p>
+    <div className="pack-history-rarities">{CARD_RARITIES.map(rarity => <span key={rarity} aria-label={`${RARITY_LABELS[rarity]} ${history.rarities[rarity]}`}><WildcardSymbol rarity={rarity} /><strong>{history.rarities[rarity]}</strong></span>)}</div>
+  </div>;
+}
+
+function PackRevealCard({ reward, index, requested, onRequest, onComplete, onImpact, onInspect }: {
+  reward: PackReward;
   index: number;
   requested: boolean;
   onRequest: () => void;
@@ -88,7 +104,7 @@ function PackRevealCard({ card, index, requested, onRequest, onComplete, onImpac
     if (!element) return;
     setPhase('revealing');
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const timing = PACK_FLIP_TIMINGS[card.json.rarity as keyof typeof PACK_FLIP_TIMINGS] || PACK_FLIP_TIMINGS.Standard;
+    const timing = PACK_FLIP_TIMINGS[packRewardRarity(reward)];
     const duration = timing.lift + timing.flip + timing.settle;
     const animation = element.animate(reduced ? [
       { transform: 'rotateY(0deg)', opacity: 0.5 }, { transform: 'rotateY(180deg)', opacity: 1 },
@@ -106,31 +122,35 @@ function PackRevealCard({ card, index, requested, onRequest, onComplete, onImpac
       callbacks.current.onComplete();
     };
     return () => { animation.onfinish = null; animation.cancel(); };
-  }, [requested, dealt, card]);
-  const rarity = card.json.rarity as keyof typeof RARITY_LABELS;
-  return <button ref={button} type="button" data-detail-source={card.cardId} data-state={phase} disabled={!dealt || phase === 'revealing'}
-    aria-label={phase === 'revealed' ? `查看${cardDisplayTitle(card, 'zh-Hans')}` : `翻开第 ${index + 1} 张卡牌`}
+  }, [requested, dealt, reward]);
+  const rarity = packRewardRarity(reward);
+  return <button ref={button} type="button" data-detail-source={reward.kind === 'card' ? reward.card.cardId : undefined} data-reward-kind={reward.kind} data-state={phase} disabled={!dealt || phase === 'revealing'}
+    aria-label={phase === 'revealed' ? `查看${reward.kind === 'card' ? cardDisplayTitle(reward.card, 'zh-Hans') : `通用${RARITY_LABELS[rarity]}万能牌`}` : `翻开第 ${index + 1} 张卡牌`}
     onClick={event => phase === 'revealed' ? onInspect(captureCardDetailOrigin(event.currentTarget, 'pool')) : onRequest()}
+    onDragStart={event => event.preventDefault()}
     className="pack-reveal-card card-action" style={{ '--pack-rarity': RARITY_SLOTS[rarity]?.color } as CSSProperties}>
     <span ref={deal} className="pack-reveal-deal">
       <span ref={rotator} className="pack-card-rotator">
-        <span className="pack-card-face pack-card-back"><img src={defaultCardBackForNation(card.json.faction || '')} alt="" /></span>
-        <span className="pack-card-face pack-card-front"><CardFace card={card} /></span>
+        <span className="pack-card-face pack-card-back"><img src={defaultCardBackForNation(reward.kind === 'card' ? reward.card.json.faction || '' : '')} alt="" draggable={false} /></span>
+        <span className="pack-card-face pack-card-front">{reward.kind === 'card' ? <CardFace card={reward.card} /> : <WildcardArt rarity={rarity} />}</span>
       </span>
     </span>
-    <span className="pack-reveal-rarity"><WildcardSymbol rarity={rarity} />{RARITY_LABELS[rarity]}</span>
+    <span className="pack-reveal-rarity"><WildcardSymbol rarity={rarity} />{RARITY_LABELS[rarity]}{reward.kind === 'wildcard' ? '万能牌' : ''}</span>
   </button>;
 }
 
-export default function CardPacks({ cards }: { cards: KardsCardRecord[] }) {
+export default function CardPacks({ cards, history, onOpenPack }: { cards: KardsCardRecord[]; history: PackHistory; onOpenPack: (kind: CardPackKind, rewards: PackReward[]) => Promise<void> }) {
   const [category, setCategory] = useState<CardPackAsset['category']>('nation');
   const [kind, setKind] = useState<CardPackKind>('standard');
   const [source, setSource] = useState('Britain');
-  const [opened, setOpened] = useState<{ pack: CardPackAsset; cards: KardsCardRecord[]; serial: number } | null>(null);
+  const [opened, setOpened] = useState<{ pack: CardPackAsset; cards: PackReward[]; serial: number } | null>(null);
+  const [opening, setOpening] = useState(false);
+  const openingLock = useRef(false);
   const [requested, setRequested] = useState<number[]>([]);
   const [revealed, setRevealed] = useState<number[]>([]);
   const [error, setError] = useState('');
   const [detail, setDetail] = useState<{ card: KardsCardRecord; origin?: CardDetailOrigin } | null>(null);
+  const [wildcardDetail, setWildcardDetail] = useState<PackRarity | null>(null);
   const stage = useRef<HTMLDivElement>(null);
   const page = useRef<HTMLElement>(null);
   const impact = useRef<Animation | null>(null);
@@ -140,14 +160,39 @@ export default function CardPacks({ cards }: { cards: KardsCardRecord[] }) {
   const rules = PACK_RULES[opened?.pack.kind || kind];
   const complete = !!opened && revealed.length === opened.cards.length;
   const detailSequence = useMemo(() => [...new Map((opened?.cards || []).filter((_, index) => revealed.includes(index))
-    .map(card => [card.cardId, { card }])).values()], [opened, revealed]);
-  const open = (pack: CardPackAsset = opened?.pack || selected) => {
+    .flatMap(reward => reward.kind === 'card' ? [[reward.card.cardId, { card: reward.card }] as const] : [])).values()], [opened, revealed]);
+  const open = async (pack: CardPackAsset = opened?.pack || selected) => {
+    if (openingLock.current) return;
+    openingLock.current = true; setOpening(true);
     try {
       const drawn = drawCardPack(cardPackPool(cards, pack), pack.kind);
+      await onOpenPack(pack.kind, drawn);
       setOpened(current => ({ pack, cards: drawn, serial: (current?.serial || 0) + 1 }));
       setRequested([]); setRevealed([]); setError('');
-    } catch (error) { setError(error instanceof Error ? error.message : '无法打开卡包'); }
+    } catch (error) { setError(error instanceof Error ? `无法打开卡包：${error.message}` : '无法打开卡包'); }
+    finally { openingLock.current = false; setOpening(false); }
   };
+  useEffect(() => {
+    const element = page.current;
+    if (!element || opened || opening) return;
+    let scrolling = false;
+    let resetTimer: number | undefined;
+    const wheel = (event: WheelEvent) => {
+      if (event.defaultPrevented || event.ctrlKey || !event.deltaY || openingLock.current
+        || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      window.clearTimeout(resetTimer);
+      resetTimer = window.setTimeout(() => { scrolling = false; }, 220);
+      if (scrolling) return;
+      scrolling = true;
+      if (event.clientX < window.innerWidth / 2) setCategory(current => current === 'nation' ? 'expansion' : 'nation');
+      else setKind(current => current === 'standard' ? 'officer' : 'standard');
+      setError('');
+    };
+    element.addEventListener('wheel', wheel, { passive: false });
+    return () => { element.removeEventListener('wheel', wheel); window.clearTimeout(resetTimer); };
+  }, [opened, opening]);
   useEffect(() => () => impact.current?.cancel(), []);
   const shake = (amount: number) => {
     if (!stage.current || !amount) return;
@@ -171,10 +216,11 @@ export default function CardPacks({ cards }: { cards: KardsCardRecord[] }) {
     return () => document.removeEventListener('keydown', keydown);
   }, [opened]);
   return <section ref={page} tabIndex={-1} aria-label="模拟开包" className="card-packs-page">
-    <div className="pack-page-toolbar glass-panel">
+    <div className="pack-page-toolbar glass-panel" aria-busy={opening}>
       {opened ? <>
-        <button type="button" onClick={leaveOpening} className="pack-back-button"><ArrowLeft className="h-4 w-4" />选择卡包</button>
-        <h2 className="pack-opening-title">{opened.pack.name}<span>{opened.pack.kind === 'standard' ? '标准包' : '军官包'}</span></h2>
+        <div className="pack-opening-heading"><button type="button" disabled={opening} onClick={leaveOpening} className="pack-back-button"><ArrowLeft className="h-4 w-4" />选择卡包</button>
+        <h2 className="pack-opening-title">{opened.pack.name}<span>{opened.pack.kind === 'standard' ? '标准包' : '军官包'}</span></h2></div>
+        <PackHistorySummary history={history} />
         <span className="pack-reveal-progress" role="status" aria-live="polite">已翻开 {revealed.length} / {opened.cards.length}</span>
       </> : <>
         <div role="group" aria-label="卡包来源" className="pack-segmented" data-second={category === 'expansion'}>
@@ -182,6 +228,7 @@ export default function CardPacks({ cards }: { cards: KardsCardRecord[] }) {
           {([{ id: 'nation', name: '国家卡包' }, { id: 'expansion', name: '扩展卡包' }] as const).map(item => <button key={item.id} type="button" aria-pressed={category === item.id}
             onClick={() => { setCategory(item.id); setError(''); }}>{item.id === 'nation' ? <Flag className="h-4 w-4" /> : <Layers3 className="h-4 w-4" />}{item.name}</button>)}
         </div>
+        <PackHistorySummary history={history} />
         <div role="group" aria-label="卡包规格" className="pack-segmented pack-kind-segmented" data-second={kind === 'officer'}>
           <span className="pack-segmented-indicator" aria-hidden="true" />
           {([{ id: 'standard', name: '标准包' }, { id: 'officer', name: '军官包' }] as const).map(item => <div key={item.id} className="pack-kind-option">
@@ -195,28 +242,28 @@ export default function CardPacks({ cards }: { cards: KardsCardRecord[] }) {
       <div ref={stage} data-pack-stage className="pack-opening-stage" key={opened.serial}>
         <img src={opened.pack.file} alt="" className="pack-opening-cover" />
         {[opened.cards.slice(0, opened.pack.kind === 'standard' ? 3 : 4), opened.cards.slice(opened.pack.kind === 'standard' ? 3 : 4)].map((row, rowIndex) => <div key={rowIndex} className="pack-opening-row">
-          {row.map((card, column) => {
+          {row.map((reward, column) => {
             const index = column + (rowIndex ? (opened.pack.kind === 'standard' ? 3 : 4) : 0);
-            return <PackRevealCard key={index} card={card} index={index} requested={requested.includes(index)}
+            return <PackRevealCard key={index} reward={reward} index={index} requested={requested.includes(index)}
               onRequest={() => setRequested(current => [...new Set([...current, index])])}
               onComplete={() => setRevealed(current => [...new Set([...current, index])])} onImpact={shake}
-              onInspect={origin => setDetail({ card, origin })} />;
+              onInspect={origin => reward.kind === 'card' ? setDetail({ card: reward.card, origin }) : setWildcardDetail(reward.rarity)} />;
           })}
         </div>)}
       </div>
       <footer className="pack-opening-footer glass-panel">
         <div className="pack-result-summary" aria-label="开包结果">{complete && CARD_RARITIES.map(rarity => {
-          const count = opened.cards.filter(card => card.json.rarity === rarity).length;
+          const count = opened.cards.filter(reward => packRewardRarity(reward) === rarity).length;
           return count > 0 && <span key={rarity}><WildcardSymbol rarity={rarity} />{RARITY_LABELS[rarity]}<strong>{count}</strong></span>;
         })}</div>
-        {complete ? <button type="button" onClick={() => open()} className="pack-open-button"><RotateCcw className="h-4 w-4" />再开一包</button>
+        {complete ? <button type="button" disabled={opening} onClick={() => { void open(); }} className="pack-open-button"><RotateCcw className="h-4 w-4" />再开一包</button>
           : <button type="button" disabled={requested.length === opened.cards.length} onClick={() => setRequested(opened.cards.map((_, index) => index))} className="pack-open-button">{requested.length === opened.cards.length ? '翻开中…' : '全部翻开'}</button>}
       </footer>
     </> : <>
       <div className="pack-selection-stage">
         <div key={`${category}-${kind}`} role="group" aria-label="选择卡包" data-category={category} className="pack-selection-grid">
           {options.map(pack => <button key={pack.id} type="button" aria-pressed={selected.id === pack.id} aria-label={`${pack.name}${kind === 'standard' ? '标准包' : '军官包'}`}
-            onClick={() => { setSource(pack.source); setError(''); }} onDoubleClick={() => open(pack)} className="pack-choice card-action">
+            disabled={opening} onClick={() => { setSource(pack.source); setError(''); }} onDoubleClick={() => { void open(pack); }} className="pack-choice card-action">
             <span className="pack-choice-art"><img src={pack.file} alt="" />{selected.id === pack.id && <Check className="pack-choice-check h-5 w-5" />}</span>
             <span className="pack-choice-name"><PackSourceIcon pack={pack} />{pack.name}</span>
           </button>)}
@@ -225,11 +272,17 @@ export default function CardPacks({ cards }: { cards: KardsCardRecord[] }) {
       <footer className="pack-selection-footer glass-panel">
         <div className="pack-selection-description"><h2><span className="pack-selected-source"><PackSourceIcon key={selected.source} pack={selected} />{selected.name}</span><span className="pack-selected-kind">{kind === 'standard' ? '标准包' : '军官包'}</span></h2><span className="text-xs text-kards-text-muted">卡池 {pool.length.toLocaleString()} 张</span></div>
         <div className="pack-probabilities" aria-label="单卡基础出卡概率">{CARD_RARITIES.map(rarity => <span key={rarity}><WildcardSymbol rarity={rarity} /><span>{RARITY_LABELS[rarity]}<strong>{rules.probabilities[rarity]}%</strong></span></span>)}</div>
-        <button type="button" onClick={() => open()} disabled={!pool.length} className="pack-open-button">打开卡包</button>
+        <button type="button" onClick={() => { void open(); }} disabled={!pool.length || opening} className="pack-open-button">{opening ? '打开中…' : '打开卡包'}</button>
       </footer>
     </>}
     {error && <p role="alert" className="pack-error">{error}</p>}
     {detail && <CardDetailModal card={detail.card} origin={detail.origin} cards={cards} sequence={detailSequence}
       onNavigate={item => revealDetailItem(item, 'pool', stage.current)} onClose={() => setDetail(null)} />}
+    {wildcardDetail && <div className="fixed inset-0 z-[80] flex items-center justify-center bg-kards-modal-overlay p-6 backdrop-blur-sm" onClick={() => setWildcardDetail(null)}>
+      <section role="dialog" aria-modal="true" aria-label="通用万能牌" tabIndex={-1} onKeyDown={handleDialogKeys} onClick={event => event.stopPropagation()} className="pack-wildcard-detail">
+        <button type="button" data-dialog-cancel aria-label="关闭万能牌详情" onClick={() => setWildcardDetail(null)} className="pack-wildcard-close"><X className="h-5 w-5" /></button>
+        <WildcardArt rarity={wildcardDetail} /><p className="mt-3 text-center text-sm text-kards-text">通用{RARITY_LABELS[wildcardDetail]}万能牌</p>
+      </section>
+    </div>}
   </section>;
 }

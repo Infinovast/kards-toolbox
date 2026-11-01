@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { emptyPackHistory, addPackHistory, validatePackHistory } from './packHistory';
+import { drawCardPack } from './cardPacks';
+import type { KardsCardRecord } from '../types/card';
+
+const cards = JSON.parse(readFileSync('public/data/cards.json', 'utf8')).cards as KardsCardRecord[];
+const before = emptyPackHistory();
+const standard = drawCardPack(cards, 'standard', () => 0.99999);
+const officer = drawCardPack(cards, 'officer', () => 0.99999);
+const next = addPackHistory(addPackHistory(before, 'standard', standard), 'officer', officer);
+assert.equal(next.standard, 1);
+assert.equal(next.officer, 1);
+assert.equal(next.standard * 100 + next.officer * 330, 430);
+assert.equal(next.rarities.Elite, 12, 'rarity history counts regular cards and Common wildcards');
+assert.deepEqual(before, emptyPackHistory(), 'updates do not mutate the previous snapshot');
+assert.doesNotThrow(() => validatePackHistory(JSON.parse(JSON.stringify(next))));
+for (const value of [null, {}, { ...next, standard: -1 }, { ...next, officer: 1.5 }, { ...next, rarities: {} }, { ...next, standard: 0 }]) assert.throws(() => validatePackHistory(value));
+assert.throws(() => addPackHistory(before, 'officer', standard), /历史格式/);
+console.log('persistent pack history totals and validation passed');

@@ -29,6 +29,7 @@ export interface CardPackAsset {
 export const FACTION_ASSETS: Record<string, FactionAsset> = manifest.factions;
 export const LOGOS = manifest.logos;
 export const RESERVE_ICON = manifest.reserve;
+export const COIN_ICON = manifest.coin;
 export const TYPE_ICONS: Record<string, string> = manifest.types;
 export const SUBCLASS_ICONS: Record<string, string> = manifest.subclasses;
 export const RARITY_ICONS: Record<string, string> = manifest.rarities;

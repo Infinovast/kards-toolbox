@@ -2,6 +2,7 @@ import { useEffect, useMemo, useReducer, useRef, useState, type DragEvent } from
 import { createPortal } from 'react-dom';
 import { Check, Redo2, Save, Search, Undo2, X } from 'lucide-react';
 import localforage from 'localforage';
+import { queueUserDataTask, saveUserData } from '../lib/userDataStorage';
 import { cardDisplayTitle, cardTitle, factionLabel, type KardsCardRecord } from '../types/card';
 import { handleDialogKeys } from '../lib/dialogKeyboard';
 import DeckCardStrip, { DeckHeadquartersStrip } from './DeckCardStrip';
@@ -53,7 +54,7 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
   active?: boolean;
   cards: KardsCardRecord[];
   initialDeck: BuilderDeck | null;
-  onSave: (deck: BuilderDeck, warnings: string[]) => void;
+  onSave: (deck: BuilderDeck, warnings: string[]) => void | Promise<void>;
   onBack: () => void;
   exitRequestRef?: { current: ((afterLeave?: () => void) => void) | null };
 }) {
@@ -78,6 +79,10 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
   const [toast, setToast] = useState<string | null>(null);
   const [confirmToast, setConfirmToast] = useState<{ kind: 'exit' | 'short' | 'reserved'; message: string; targetRuleSet?: DeckRuleSet } | null>(null);
   const [draftLoaded, setDraftLoaded] = useState(false);
+  const [draftLoadAttempt, setDraftLoadAttempt] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const savingLock = useRef(false);
+  const draftTimer = useRef<number | undefined>(undefined);
   const [selectedCard, setSelectedCard] = useState<KardsCardRecord | null>(null);
   const [selectedHeadquarters, setSelectedHeadquarters] = useState<HeadquartersAsset | null>(null);
   const [detailOrigin, setDetailOrigin] = useState<CardDetailOrigin | undefined>();
@@ -106,16 +111,20 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
   const showToast = (value: string) => setToast(value);
 
   useEffect(() => {
-    localforage.getItem<Draft>('kards_builder_draft').then((draft) => {
-      if (!draft) { rememberInitial(history.present); return; }
+    let disposed = false;
+    queueUserDataTask(() => localforage.getItem<Draft>('kards_builder_draft')).then((draft) => {
+      if (disposed) return;
+      if (!draft) { rememberInitial(history.present); setDraftLoaded(true); return; }
       const value = {
         ...draft, entries: new Map(draft.entries),
         headquartersId: draft.headquartersId && draft.headquartersId !== 'default' ? draft.headquartersId : defaultHeadquartersForNation(draft.mainNation)?.groupId || '',
         customRules: { ...DEFAULT_DECK_RULES.standard, ...draft.customRules },
       };
       rememberInitial(value); dispatch({ type: 'reset', value });
-    }).catch(() => setMessage('构筑草稿读取失败，可以重新开始构筑')).finally(() => setDraftLoaded(true));
-  }, []);
+      setDraftLoaded(true); setMessage('');
+    }).catch(() => { if (!disposed) setMessage('构筑草稿读取失败，已停止自动保存'); });
+    return () => { disposed = true; };
+  }, [draftLoadAttempt]);
 
   useEffect(() => {
     if (!initialDeck || !draftLoaded) return;
@@ -136,9 +145,10 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
   useEffect(() => {
     if (!draftLoaded) return;
     const timer = window.setTimeout(() => {
-      localforage.setItem('kards_builder_draft', { mainNation, allyNation, headquartersId, ruleSet, customRules, entries: [...entries], deckName, deckId })
+      void saveUserData('kards_builder_draft', { mainNation, allyNation, headquartersId, ruleSet, customRules, entries: [...entries], deckName, deckId })
         .catch(() => setMessage('草稿保存失败，请检查本地存储空间'));
     }, 250);
+    draftTimer.current = timer;
     return () => window.clearTimeout(timer);
   }, [mainNation, allyNation, headquartersId, ruleSet, customRules, entries, deckName, deckId, draftLoaded]);
 
@@ -177,6 +187,7 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
   const hasReservedCards = [...entries.keys()].some(id => cardsById.get(id)?.reserved);
 
   const adjustCard = (importId: string, change: number, source?: HTMLElement) => {
+    if (savingLock.current || !draftLoaded) return;
     const currentCount = entries.get(importId) || 0;
     if ((change < 0 && !currentCount) || (change > 0 && currentCount >= 999)) return;
     if (change > 0 && totalWithHeadquarters >= deckLimit) {
@@ -213,7 +224,8 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
     setDragOverZone(null);
   };
 
-  const saveDeck = (targetRuleSet: DeckRuleSet = ruleSet, allowShort = false) => {
+  const saveDeck = async (targetRuleSet: DeckRuleSet = ruleSet, allowShort = false) => {
+    if (savingLock.current || !draftLoaded) return;
     const targetRules = targetRuleSet === 'custom' ? customRules : DEFAULT_DECK_RULES[targetRuleSet];
     if (targetRuleSet === 'standard' && hasReservedCards) {
       setConfirmToast({ kind: 'reserved', message: '保存更改，并切换竞技场构筑规则？\n标准构筑不允许携带预备卡' });
@@ -224,13 +236,20 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
       return;
     }
     const saveWarnings = validateDeck(entries, cardsById, mainNation, allyNation, targetRules);
-    onSave({ id: deckId, code: encodeDeckCode(mainNation, allyNation, entries), name: deckName.trim() || '新卡组', ruleSet: targetRuleSet, customRules, headquartersId: headquartersId || defaultHeadquartersForNation(mainNation)?.groupId }, saveWarnings);
-    afterLeave.current?.(); afterLeave.current = undefined;
+    savingLock.current = true; setSaving(true);
+    try {
+      await onSave({ id: deckId, code: encodeDeckCode(mainNation, allyNation, entries), name: deckName.trim() || '新卡组', ruleSet: targetRuleSet, customRules, headquartersId: headquartersId || defaultHeadquartersForNation(mainNation)?.groupId }, saveWarnings);
+      afterLeave.current?.(); afterLeave.current = undefined;
+    } catch (error) {
+      setMessage(`卡组保存失败：${error instanceof Error ? error.message : '请检查本地存储空间'}。请重试保存。`);
+      afterLeave.current = undefined;
+    } finally { savingLock.current = false; setSaving(false); }
   };
   const leaveBuilder = () => {
     onBack(); afterLeave.current?.(); afterLeave.current = undefined;
   };
   const requestExit = (next?: () => void) => {
+    if (savingLock.current) return;
     afterLeave.current = next;
     if (isDirty) setConfirmToast({ kind: 'exit', message: '保存修改？' });
     else leaveBuilder();
@@ -255,11 +274,13 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
     const kind = confirmToast?.kind;
     setConfirmToast(null);
     if (kind === 'exit') {
-      void localforage.removeItem('kards_builder_draft').catch(console.error).finally(leaveBuilder);
+      window.clearTimeout(draftTimer.current);
+      void saveUserData('kards_builder_draft', null, { rememberFailure: false }).then(leaveBuilder)
+        .catch(() => setMessage('草稿删除失败，尚未退出构筑，请重试'));
     } else afterLeave.current = undefined;
   };
 
-  return <div ref={rootRef} tabIndex={-1} aria-label="卡组构筑" onKeyDown={event => {
+  return <div ref={rootRef} tabIndex={-1} aria-label="卡组构筑" aria-busy={saving} inert={saving} onKeyDown={event => {
     if (event.defaultPrevented || event.nativeEvent.isComposing || !active || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
     if (event.key === 'Escape' && (event.target as HTMLElement).tagName !== 'SELECT') { event.preventDefault(); event.stopPropagation(); requestExit(); }
     else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && draftLoaded) { event.preventDefault(); if (isDirty || !deckId) saveDeck(); else leaveBuilder(); }
@@ -329,11 +350,12 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
       </div>
       {warnings.length > 0 && <div className="custom-scrollbar max-h-28 shrink-0 overflow-y-auto rounded bg-kards-input-bg p-2 text-xs text-kards-text-muted"><div className="mb-1 font-bold text-kards-status">冲突</div>{warnings.map((warning) => <p key={warning}>{warning}</p>)}</div>}
       {message && <p role="status" className="custom-scrollbar max-h-16 shrink-0 overflow-y-auto text-xs text-kards-text-muted">{message}</p>}
+      {!draftLoaded && message && <button type="button" onClick={() => setDraftLoadAttempt(value => value + 1)} className="rounded border border-kards-border px-3 py-2 text-xs hover:border-kards-gold">重试读取草稿</button>}
       </div>
       <div aria-label="构筑操作" className="builder-actions">
         <button type="button" onClick={() => changeHistory('undo')} disabled={!history.past.length} aria-label="撤回" title="撤回 · Ctrl+Z"><Undo2 className="h-5 w-5" /></button>
         <button type="button" onClick={() => changeHistory('redo')} disabled={!history.future.length} aria-label="重做" title="重做 · Ctrl+Y / Ctrl+Shift+Z"><Redo2 className="h-5 w-5" /></button>
-        <button type="button" onClick={() => isDirty || !deckId ? saveDeck() : leaveBuilder()} disabled={!draftLoaded} aria-label="保存并退出" title="保存并退出 · Ctrl+Enter" className="builder-save">{isDirty ? <Save className="h-6 w-6" /> : <Check className="h-6 w-6" />}</button>
+        <button type="button" onClick={() => isDirty || !deckId ? void saveDeck() : leaveBuilder()} disabled={!draftLoaded || saving} aria-label="保存并退出" title="保存并退出 · Ctrl+Enter" className="builder-save">{isDirty ? <Save className="h-6 w-6" /> : <Check className="h-6 w-6" />}</button>
       </div>
     </aside>
     </div>

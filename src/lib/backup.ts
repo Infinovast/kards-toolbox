@@ -1,16 +1,10 @@
 import localforage from 'localforage';
+import { USER_DATA_KEYS, validateUserDataValue } from './userDataSchema';
+import { assertUserDataSaved, queueUserDataTask, replaceUserData } from './userDataStorage';
 
 export const BACKUP_SCHEMA_VERSION = 1;
 
-export const BACKUP_KEYS = [
-  'kards_decks',
-  'kards_builder_draft',
-  'kards_collections',
-  'kards_custom_categories',
-  'kards_settings',
-  'kards_selected_tablecloth',
-  'kards_custom_tablecloths',
-] as const;
+export const BACKUP_KEYS = USER_DATA_KEYS;
 
 export type BackupKey = typeof BACKUP_KEYS[number] | `deck_img_${string}`;
 
@@ -22,24 +16,28 @@ export interface KardsBackup {
 }
 
 export async function createBackup(): Promise<KardsBackup> {
-  const data: Partial<Record<BackupKey, unknown>> = {};
+  return queueUserDataTask(async () => {
+    assertUserDataSaved();
+    const data: Partial<Record<BackupKey, unknown>> = {};
 
-  for (const key of BACKUP_KEYS) {
-    data[key] = await localforage.getItem(key);
-  }
-
-  await localforage.iterate((value, key) => {
-    if (key.startsWith('deck_img_')) {
-      data[key as BackupKey] = value;
+    for (const key of BACKUP_KEYS) {
+      data[key] = await localforage.getItem(key);
+      validateUserDataValue(key, data[key]);
     }
-  });
 
-  return {
-    schemaVersion: BACKUP_SCHEMA_VERSION,
-    exportedAt: new Date().toISOString(),
-    app: 'kards-toolbox',
-    data,
-  };
+    await localforage.iterate((value, key) => {
+      if (key.startsWith('deck_img_')) {
+        data[key as BackupKey] = value;
+      }
+    });
+
+    return {
+      schemaVersion: BACKUP_SCHEMA_VERSION,
+      exportedAt: new Date().toISOString(),
+      app: 'kards-toolbox',
+      data,
+    };
+  });
 }
 
 export function parseBackup(content: string): KardsBackup {
@@ -49,24 +47,12 @@ export function parseBackup(content: string): KardsBackup {
     throw new Error('Unsupported or invalid KARDS backup file.');
   }
 
+  for (const [key, value] of Object.entries(parsed.data)) validateUserDataValue(key, value);
+
   return parsed;
 }
 
 export async function restoreBackup(backup: KardsBackup) {
-  const entries = Object.entries(backup.data);
-
-  for (const [key] of entries) {
-    const isKnownKey = BACKUP_KEYS.includes(key as typeof BACKUP_KEYS[number]) || key.startsWith('deck_img_');
-    if (!isKnownKey) {
-      throw new Error(`Unsupported backup key: ${key}`);
-    }
-  }
-
-  for (const [key, value] of entries) {
-    if (value === null || value === undefined) {
-      await localforage.removeItem(key);
-    } else {
-      await localforage.setItem(key, value);
-    }
-  }
+  const validated = parseBackup(JSON.stringify(backup));
+  await queueUserDataTask(() => replaceUserData(Object.entries(validated.data)));
 }
