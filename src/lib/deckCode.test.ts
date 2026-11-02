@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { decodeDeckCode, encodeDeckCode, findCardsByImportId } from './deckCode';
-import { DEFAULT_DECK_RULES, validateDeck } from './deckRules';
+import { DEFAULT_DECK_RULES, deckModeLabel, deckRuleSet, validateDeck } from './deckRules';
 import type { KardsCardRecord } from '../types/card';
 
 const cards = JSON.parse(readFileSync('public/data/cards.json', 'utf8')).cards as KardsCardRecord[];
@@ -29,6 +29,22 @@ const legalCounts = new Map([['a0', 4], ['a1', 3], ['a2', 2], ['a3', 1]]);
 assert.deepEqual(validateDeck(legalCounts, fixtureIndex, 'Germany', 'Germany', { ...DEFAULT_DECK_RULES.standard, deckSize: 10 }), []);
 assert.equal(validateDeck(new Map([['a3', 2]]), fixtureIndex, 'Germany', 'Germany', { ...DEFAULT_DECK_RULES.standard, deckSize: 2 }).length, 1);
 assert.deepEqual(validateDeck(new Map([['a3', 9]]), fixtureIndex, 'Germany', 'Germany', { ...DEFAULT_DECK_RULES.arena, deckSize: 9 }), []);
+const allyWarning = '盟国牌数量过多';
+for (const ruleSet of ['standard', 'arena'] as const) {
+  const rules = DEFAULT_DECK_RULES[ruleSet];
+  assert.equal(rules.maxAllyCards, 12);
+  assert.ok(!validateDeck(new Map([['a0', 12]]), fixtureIndex, 'Britain', 'Germany', rules).includes(allyWarning));
+  assert.ok(validateDeck(new Map([['a0', 13]]), fixtureIndex, 'Britain', 'Germany', rules).includes(allyWarning));
+  assert.ok(!validateDeck(new Map([['a0', 13]]), fixtureIndex, 'Germany', 'Germany', rules).includes(allyWarning));
+}
+const reservedCard = { ...fixtures[0], importId: 'r0', reserved: true };
+const modeIndex = findCardsByImportId([...fixtures, reservedCard]);
+assert.equal(deckRuleSet(new Map(), modeIndex), 'standard');
+assert.equal(deckRuleSet(new Map([['a0', 4]]), modeIndex), 'standard');
+assert.equal(deckRuleSet(new Map([['a0', 4], ['r0', 1]]), modeIndex), 'arena');
+assert.equal(deckRuleSet(new Map([['r0', 0]]), modeIndex), 'standard');
+assert.equal(deckModeLabel('standard'), '排位/休闲模式');
+assert.equal(deckModeLabel('arena'), '经典模式');
 const unknown = decodeDeckCode('%%12|ZZ;;;');
 assert.equal(encodeDeckCode(unknown.mainNation, unknown.allyNation, unknown.counts), '%%12|ZZ;;;');
 assert.match(validateDeck(unknown.counts, new Map(), 'Germany', 'Britain', DEFAULT_DECK_RULES.standard).join(' '), /缺少卡牌 ZZ/);

@@ -37,7 +37,7 @@ import UserDataSaveStatus from './components/UserDataSaveStatus';
 import { generateLightModeColors } from './lib/colorUtils';
 import { renderDeckImage, renderDeckMiniImage, downloadDeckImage } from './lib/deckRenderer';
 import { decodeDeckCode, findCardsByImportId } from './lib/deckCode';
-import { DEFAULT_DECK_RULES, validateDeck, type DeckRuleSet, type DeckRules } from './lib/deckRules';
+import { DEFAULT_DECK_RULES, deckModeLabel, deckRuleSet, validateDeck, type DeckRuleSet } from './lib/deckRules';
 import { extractDeckCodeFromText, inferDeckTitleFromText } from './lib/deckImport';
 import ImageDownloadProgress from './components/ImageDownloadProgress';
 import { handleDialogKeys, useDismissiblePanel, useModalFocus } from './lib/dialogKeyboard';
@@ -85,7 +85,6 @@ interface Deck {
   isArena: boolean;
   tags?: string[];
   ruleSet?: DeckRuleSet;
-  customRules?: DeckRules;
 }
 
 interface Collection {
@@ -213,11 +212,10 @@ const parseDeck = (code: string) => {
   const decoded = decodeDeckCode(code);
   const mainNation = decoded.mainNation as Nation, allyNation = decoded.allyNation as Nation;
   const totalCards = [...decoded.counts.values()].reduce((sum, count) => sum + count, 0);
-  const isArena = mainNation === allyNation;
   const warnings = totalCards === 39 ? [] : [`卡组当前 ${totalCards + 1} 张，默认要求 40 张（含总部）`];
   if (!NATION_DATA[mainNation].isMainAllowed) warnings.push('所选主国不在五个主要国家中');
-  const defaultName = isArena ? '竞技场卡组' : `${NATION_DATA[mainNation].label}${NATION_DATA[allyNation].label}卡组`;
-  return { mainNation, allyNation, totalCards, warnings, isArena, defaultName };
+  const defaultName = `${NATION_DATA[mainNation].label}${mainNation === allyNation ? '' : NATION_DATA[allyNation].label}卡组`;
+  return { mainNation, allyNation, totalCards, warnings, defaultName };
 };
 
 const INITIAL_DECKS: Deck[] = [];
@@ -575,7 +573,7 @@ export default function App() {
   const [collectionToDelete, setCollectionToDelete] = useState<Collection | null>(null);
   const [collectionToRename, setCollectionToRename] = useState<Collection | null>(null);
   const [renameCollectionName, setRenameCollectionName] = useState('');
-  const [deckImageModal, setDeckImageModal] = useState<{show: boolean, deck: Pick<Deck, 'name' | 'code' | 'headquartersId' | 'ruleSet' | 'customRules' | 'cardBackUrl' | 'allyNation'> | null, loading: boolean, miniLoading: boolean, imageUrl: string | null, miniImageUrl: string | null, view: 'full' | 'mini', error: string | null, tablecloth: string}>({show: false, deck: null, loading: false, miniLoading: false, imageUrl: null, miniImageUrl: null, view: 'full', error: null, tablecloth: DEFAULT_TABLECLOTH});
+  const [deckImageModal, setDeckImageModal] = useState<{show: boolean, deck: Pick<Deck, 'name' | 'code' | 'headquartersId' | 'cardBackUrl' | 'allyNation'> | null, loading: boolean, miniLoading: boolean, imageUrl: string | null, miniImageUrl: string | null, view: 'full' | 'mini', error: string | null, tablecloth: string}>({show: false, deck: null, loading: false, miniLoading: false, imageUrl: null, miniImageUrl: null, view: 'full', error: null, tablecloth: DEFAULT_TABLECLOTH});
   const [tableclothPickerForImage, setTableclothPickerForImage] = useState(false);
   const deckImageRequest = useRef(0);
   const closeDeckImage = () => { deckImageRequest.current++; setTableclothPickerForImage(false); setDeckImageModal(current => ({ ...current, show: false })); };
@@ -585,11 +583,11 @@ export default function App() {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'tablecloth' | 'cardback', id: string, catId?: string } | null>(null);
 
-  const getOrGenerateDeckImage = async (deck: Pick<Deck, 'name' | 'code' | 'headquartersId' | 'ruleSet' | 'customRules' | 'cardBackUrl' | 'allyNation'> & { mainNation?: string }, backgroundOverride?: string) => {
+  const getOrGenerateDeckImage = async (deck: Pick<Deck, 'name' | 'code' | 'headquartersId' | 'cardBackUrl' | 'allyNation'> & { mainNation?: string }, backgroundOverride?: string) => {
     const mainNation = deck.mainNation || decodeDeckCode(deck.code).mainNation;
     const headquarters = headquartersForDeck(deck.headquartersId, mainNation);
     const background = backgroundOverride || tableclothForHeadquarters(headquarters?.groupId) || selectedTablecloth;
-    const limit = (deck.ruleSet === 'custom' ? deck.customRules?.deckSize ?? DEFAULT_DECK_RULES.standard.deckSize : DEFAULT_DECK_RULES.standard.deckSize) + 1;
+    const limit = DEFAULT_DECK_RULES.standard.deckSize + 1;
     const cardBackUrl = cardBackForDeck({ ...deck, mainNation });
     const customBack = customCategories.flatMap(category => category.backs).find(back => back.url === cardBackUrl);
     const cardBackId = CARD_BACKS.find(back => back.file === cardBackUrl)?.id || (customBack ? `custom:${customBack.id}` : undefined);
@@ -598,7 +596,7 @@ export default function App() {
     return imageData;
   };
 
-  const handleGetDeckImage = async (deck: Pick<Deck, 'name' | 'code' | 'headquartersId' | 'ruleSet' | 'customRules' | 'cardBackUrl' | 'allyNation'> & { mainNation?: string }) => {
+  const handleGetDeckImage = async (deck: Pick<Deck, 'name' | 'code' | 'headquartersId' | 'cardBackUrl' | 'allyNation'> & { mainNation?: string }) => {
     const request = ++deckImageRequest.current;
     const mainNation = deck.mainNation || decodeDeckCode(deck.code).mainNation;
     const background = tableclothForHeadquarters(headquartersForDeck(deck.headquartersId, mainNation)?.groupId) || selectedTablecloth;
@@ -878,7 +876,8 @@ export default function App() {
   ];
   const previewAllyCount = selectedDeck?.mainNation === selectedDeck?.allyNation ? 0 : previewEntries.reduce((sum, entry) => sum + (entry.card?.json.faction?.toLowerCase() === selectedDeck?.allyNation?.toLowerCase() ? entry.count : 0), 0);
   const previewMainCount = 1 + previewEntries.reduce((sum, entry) => sum + (entry.card?.json.faction?.toLowerCase() === selectedDeck?.mainNation.toLowerCase() ? entry.count : 0), 0);
-  const previewDeckLimit = selectedDeck?.ruleSet === 'custom' ? (selectedDeck.customRules?.deckSize ?? DEFAULT_DECK_RULES.standard.deckSize) + 1 : DEFAULT_DECK_RULES.standard.deckSize + 1;
+  const previewDeckLimit = DEFAULT_DECK_RULES.standard.deckSize + 1;
+  const previewAllyLimit = DEFAULT_DECK_RULES.standard.maxAllyCards;
 
   const handleCloseImportModal = () => {
     cancelImageImport.current?.();
@@ -910,7 +909,9 @@ export default function App() {
   const addDeckFromCode = (sourceText: string, name: string, headquartersId?: string, cardBackId?: string) => {
       const deckCode = extractDeckCodeFromText(sourceText);
       const inferredName = inferDeckTitleFromText(sourceText, deckCode);
-      const { mainNation, allyNation, totalCards, warnings, isArena, defaultName } = parseDeck(deckCode);
+      const { mainNation, allyNation, totalCards, defaultName } = parseDeck(deckCode);
+      const entries = decodeDeckCode(deckCode).counts, index = findCardsByImportId(cardDatabase);
+      const ruleSet = deckRuleSet(entries, index);
       const catalogBack = CARD_BACKS.find(back => back.id === cardBackId && cardBackIsAvailable(back, mainNation, allyNation));
       const customBack = cardBackId?.startsWith('custom:') ? customCategories.flatMap(category => category.backs).find(back => back.id === cardBackId.slice(7)) : undefined;
       
@@ -926,8 +927,8 @@ export default function App() {
         cardBackNation: catalogBack?.nation,
         isFavorite: false,
         totalCards,
-        warnings: validateDeck(decodeDeckCode(deckCode).counts, findCardsByImportId(cardDatabase), mainNation, allyNation, DEFAULT_DECK_RULES[isArena ? 'arena' : 'standard']),
-        isArena
+        warnings: validateDeck(entries, index, mainNation, allyNation, DEFAULT_DECK_RULES[ruleSet]),
+        ruleSet, isArena: ruleSet === 'arena'
       };
       
       setDecks(current => [...current, newDeck]);
@@ -965,7 +966,7 @@ export default function App() {
       name: built.name, mainNation: parsed.mainNation, allyNation: parsed.allyNation,
       code: built.code, isFavorite: existing?.isFavorite || false,
       totalCards: parsed.totalCards, warnings, isArena: built.ruleSet === 'arena',
-      ruleSet: built.ruleSet, customRules: built.customRules, headquartersId: built.headquartersId,
+      ruleSet: built.ruleSet, headquartersId: built.headquartersId,
     };
     const nextDecks = existing ? decks.map((deck) => deck.id === existing.id ? savedDeck : deck) : [...decks, savedDeck];
     await saveUserData('kards_decks', nextDecks, { rememberFailure: false });
@@ -1106,10 +1107,11 @@ export default function App() {
     const cardsById = findCardsByImportId(cardDatabase);
     setDecks(current => current.map(deck => {
       try {
-        const ruleSet = deck.ruleSet || (deck.isArena ? 'arena' : 'standard');
-        const rules = ruleSet === 'custom' ? { ...DEFAULT_DECK_RULES.standard, ...deck.customRules } : DEFAULT_DECK_RULES[ruleSet];
-        const warnings = validateDeck(decodeDeckCode(deck.code).counts, cardsById, deck.mainNation, deck.allyNation, rules);
-        return JSON.stringify(warnings) === JSON.stringify(deck.warnings) ? deck : { ...deck, warnings };
+        const entries = decodeDeckCode(deck.code).counts;
+        const ruleSet = deckRuleSet(entries, cardsById);
+        const warnings = validateDeck(entries, cardsById, deck.mainNation, deck.allyNation, DEFAULT_DECK_RULES[ruleSet]);
+        return JSON.stringify(warnings) === JSON.stringify(deck.warnings) && deck.ruleSet === ruleSet && deck.isArena === (ruleSet === 'arena')
+          ? deck : { ...deck, warnings, ruleSet, isArena: ruleSet === 'arena' };
       } catch { return deck; }
     }));
   }, [cardDatabase, dataLoaded]);
@@ -1413,7 +1415,7 @@ export default function App() {
                   transition={{ duration: 0.25 }}
                   className="absolute inset-0 flex items-center justify-center"
                 >
-                  {!selectedDeck.isArena && selectedDeck.allyNation ? (
+                  {selectedDeck.allyNation && selectedDeck.allyNation !== selectedDeck.mainNation ? (
                     <div className="flex items-center justify-center gap-32 w-full">
                       <div className="flex-1 flex justify-end">
                         <img 
@@ -1545,7 +1547,7 @@ export default function App() {
                 />
                 
                 <div className="mb-3 flex flex-col items-center gap-3 text-xs text-kards-text-muted">
-                  <DeckCountIndicator mainNation={selectedDeck.mainNation} allyNation={selectedDeck.allyNation} mainCount={previewMainCount} allyCount={previewAllyCount} total={previewTotalCards} limit={previewDeckLimit} />
+                  <DeckCountIndicator mainNation={selectedDeck.mainNation} allyNation={selectedDeck.allyNation} mainCount={previewMainCount} allyCount={previewAllyCount} allyLimit={previewAllyLimit} total={previewTotalCards} limit={previewDeckLimit} />
                 </div>
                 <ul aria-label="卡组紧凑列表" className="space-y-0.5 text-sm">
                   <li><DeckHeadquartersStrip nation={selectedDeck.mainNation} headquartersId={selectedDeck.headquartersId} onClick={(headquarters, origin) => { selectDeck(selectedDeck.id); setDetailOrigin(origin); setDetailCard(null); setDetailHeadquarters(headquarters); }} /></li>
@@ -2779,9 +2781,9 @@ function DeckCard({ deck, selected, onClick, onHover, onHoverLeave, onDoubleClic
                 {w}
               </span>
             ))}
-            {deck.isArena && (
+            {deck.ruleSet === 'arena' && (
               <span className="bg-kards-gold/90 text-[10px] text-black px-2 py-0.5 font-bold uppercase tracking-tight shadow-lg">
-                竞技场卡组
+                {deckModeLabel('arena')}
               </span>
             )}
           </div>

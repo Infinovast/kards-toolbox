@@ -33,6 +33,7 @@ export const COIN_ICON = manifest.coin;
 export const TYPE_ICONS: Record<string, string> = manifest.types;
 export const SUBCLASS_ICONS: Record<string, string> = manifest.subclasses;
 export const RARITY_ICONS: Record<string, string> = manifest.rarities;
+export const RARITY_COUNT_IMAGES: Record<string, string[]> = manifest.rarityCounts;
 export const SET_ICONS: Record<string, string> = manifest.sets;
 export const WILDCARDS: Record<string, Record<string, WildcardAsset>> = manifest.wildcards;
 export const CARD_PACKS: CardPackAsset[] = manifest.cardpacks as CardPackAsset[];

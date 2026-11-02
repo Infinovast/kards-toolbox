@@ -137,11 +137,11 @@ with sync_playwright() as p:
     deck.dblclick()
     builder = page.get_by_test_id('builder-grid')
     expect(builder).to_be_visible()
-    page.get_by_role('button', name='显示预备卡', exact=True).click()
+    page.get_by_role('button', name='含预备', exact=True).click()
     badge = builder.locator('.library-reserved-badge')
     assert badge.evaluate("""el=>{const b=el.getBoundingClientRect(),parent=el.parentElement.getBoundingClientRect();
       return b.x < parent.x+parent.width/2 && b.y > parent.y+parent.height/2;}""")
-    page.get_by_role('button', name='显示预备卡', exact=True).click()
+    page.get_by_role('button', name='含预备', exact=True).click()
     tile = builder.get_by_role('button', name='查看交互卡牌01', exact=True)
     row = page.locator(f'[data-deck-card-id="{cards[0]["importId"]}"]')
     page.evaluate("""()=>{window.__latencies=[];document.addEventListener('click',event=>{

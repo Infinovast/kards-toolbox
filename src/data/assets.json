@@ -132,6 +132,30 @@
     "Special": "/assets/rarity/special.svg",
     "Standard": "/assets/rarity/standard.svg"
   },
+  "rarityCounts": {
+    "Standard": [
+      "/assets/rarity/standard_0.png",
+      "/assets/rarity/standard_1.png",
+      "/assets/rarity/standard_2.png",
+      "/assets/rarity/standard_3.png",
+      "/assets/rarity/standard_4.png"
+    ],
+    "Limited": [
+      "/assets/rarity/limited_0.png",
+      "/assets/rarity/limited_1.png",
+      "/assets/rarity/limited_2.png",
+      "/assets/rarity/limited_3.png"
+    ],
+    "Special": [
+      "/assets/rarity/special_0.png",
+      "/assets/rarity/special_1.png",
+      "/assets/rarity/special_2.png"
+    ],
+    "Elite": [
+      "/assets/rarity/elite_0.png",
+      "/assets/rarity/elite_1.png"
+    ]
+  },
   "sets": {
     "Allegiance": "/assets/sets/set-Allegiance.svg",
     "Base": "/assets/sets/set-Base.svg",

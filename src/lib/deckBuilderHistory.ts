@@ -1,11 +1,7 @@
-import type { DeckRules, DeckRuleSet } from './deckRules';
-
 export interface DeckBuilderState {
   mainNation: string;
   allyNation: string;
   headquartersId: string;
-  ruleSet: DeckRuleSet;
-  customRules: DeckRules;
   entries: Map<string, number>;
   deckName: string;
   deckId?: string;

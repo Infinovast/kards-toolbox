@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { cacheCardImage } from '../lib/cardImages';
+import { RARITY_COUNT_IMAGES } from '../lib/assetCatalog';
 import { cardDisplayTitle, type KardsCardRecord } from '../types/card';
 
 export function CardFace({ card, enabled = true, className = '', initialSource = '' }: {
@@ -25,13 +26,11 @@ export const RARITY_SLOTS: Record<string, { max: number; color: string }> = {
   Special: { max: 2, color: '#e4e9ef' }, Elite: { max: 1, color: '#ffda62' },
 };
 export function RaritySlots({ rarity = 'Standard', count }: { rarity?: string; count: number }) {
-  const { max, color } = RARITY_SLOTS[rarity] || RARITY_SLOTS.Standard;
-  const fullCount = max - Math.min(Math.max(0, count), max);
-  return <div className="rarity-slots" aria-label={`已携带 ${count} 张，标准上限 ${max} 张`}>
-    {Array.from({ length: max }, (_, i) => {
-      const half = i >= fullCount;
-      return <span key={i} data-fill={half ? 'half' : 'full'} style={{ background: half ? `linear-gradient(to top right, ${color} 50%, transparent 50%)` : color, borderColor: color }} />;
-    })}
+  const key = RARITY_SLOTS[rarity] ? rarity : 'Standard';
+  const { max } = RARITY_SLOTS[key];
+  const source = RARITY_COUNT_IMAGES[key][Math.min(Math.max(0, count), max)];
+  return <div className="rarity-slots" role="img" aria-label={`已携带 ${count} 张，标准上限 ${max} 张`}>
+    <img src={source} width={115} height={40} alt="" draggable={false} />
     {count > max && <span className="rarity-overflow">+{count - max}</span>}
   </div>;
 }

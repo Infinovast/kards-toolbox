@@ -1,7 +1,7 @@
 import { cardTitle, type KardsCardRecord } from '../types/card';
 import { isGeneratedCard } from './cardFilters';
 
-export type DeckRuleSet = 'standard' | 'arena' | 'custom';
+export type DeckRuleSet = 'standard' | 'arena';
 export interface DeckRules {
   deckSize: number;
   maxStandard: number;
@@ -14,10 +14,16 @@ export interface DeckRules {
 }
 
 // 卡组码不含总部：39 张可用牌 + 1 张总部。
-export const DEFAULT_DECK_RULES: Record<Exclude<DeckRuleSet, 'custom'>, DeckRules> = {
+export const DEFAULT_DECK_RULES: Record<DeckRuleSet, DeckRules> = {
   standard: { deckSize: 39, maxStandard: 4, maxLimited: 3, maxSpecial: 2, maxElite: 1, maxAllyCards: 12, allowReserved: false, allowGenerated: false },
-  arena: { deckSize: 39, maxStandard: 39, maxLimited: 39, maxSpecial: 39, maxElite: 39, maxAllyCards: 39, allowReserved: true, allowGenerated: false },
+  arena: { deckSize: 39, maxStandard: 39, maxLimited: 39, maxSpecial: 39, maxElite: 39, maxAllyCards: 12, allowReserved: true, allowGenerated: false },
 };
+
+export function deckRuleSet(entries: Map<string, number>, cardsById: Map<string, KardsCardRecord>): DeckRuleSet {
+  return [...entries].some(([id, count]) => count > 0 && cardsById.get(id)?.reserved) ? 'arena' : 'standard';
+}
+
+export const deckModeLabel = (ruleSet: DeckRuleSet) => ruleSet === 'arena' ? '经典模式' : '排位/休闲模式';
 
 export function validateDeck(entries: Map<string, number>, cardsById: Map<string, KardsCardRecord>, mainNation: string, allyNation: string, rules: DeckRules): string[] {
   const warnings: string[] = [];
@@ -37,6 +43,6 @@ export function validateDeck(entries: Map<string, number>, cardsById: Map<string
     if (card.reserved && !rules.allowReserved) warnings.push(`${name} 是预备卡`);
     if (!rules.allowGenerated && isGeneratedCard(card)) warnings.push(`${name} 是衍生卡，不能直接加入标准卡组`);
   }
-  if (allyCount > rules.maxAllyCards) warnings.push(`盟国牌共 ${allyCount} 张，超过上限 ${rules.maxAllyCards} 张`);
+  if (allyCount > rules.maxAllyCards) warnings.push('盟国牌数量过多');
   return warnings;
 }

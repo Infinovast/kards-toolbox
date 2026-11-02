@@ -15,8 +15,6 @@ const count = (value: unknown) => Number.isSafeInteger(value) && (value as numbe
 const optional = (value: unknown, check: (value: any) => boolean) => value === undefined || check(value);
 const nation = (value: unknown) => CARD_FACTIONS.some(faction => faction.id !== 'Neutral' && faction.id === value);
 const uniqueIds = (values: { id: string }[]) => new Set(values.map(value => value.id)).size === values.length;
-const rules = (value: unknown) => object(value) && ['deckSize', 'maxStandard', 'maxLimited', 'maxSpecial', 'maxElite', 'maxAllyCards'].every(key => count(value[key]))
-  && typeof value.allowReserved === 'boolean' && typeof value.allowGenerated === 'boolean';
 
 export function validateUserDataValue(key: string, value: unknown) {
   if (!USER_DATA_KEYS.includes(key as UserDataKey) && !key.startsWith('deck_img_')) throw new Error(`不支持的备份项目：${key}`);
@@ -29,7 +27,8 @@ export function validateUserDataValue(key: string, value: unknown) {
         && optional(deck.allyNation, nation) && optional(deck.tags, strings)
         && optional(deck.warnings, strings) && optional(deck.totalCards, count)
         && optional(deck.isFavorite, item => typeof item === 'boolean') && optional(deck.isArena, item => typeof item === 'boolean')
-        && optional(deck.ruleSet, item => ['standard', 'arena', 'custom'].includes(item)) && optional(deck.customRules, rules)
+        // Older backups may carry a removed preset; the mode is recalculated from their cards.
+        && optional(deck.ruleSet, item => ['standard', 'arena', 'custom'].includes(item))
         && ['cardBackUrl', 'cardBackNation', 'headquartersId'].every(key => optional(deck[key], item => typeof item === 'string')));
       if (valid) {
         valid = uniqueIds(value as { id: string }[]);
@@ -60,7 +59,6 @@ export function validateUserDataValue(key: string, value: unknown) {
     case 'kards_builder_draft':
       valid = object(value) && nation(value.mainNation) && nation(value.allyNation) && typeof value.deckName === 'string'
         && optional(value.deckId, item => typeof item === 'string') && optional(value.headquartersId, item => typeof item === 'string')
-        && ['standard', 'arena', 'custom'].includes(value.ruleSet) && optional(value.customRules, rules)
         && Array.isArray(value.entries) && value.entries.every((entry: unknown) => Array.isArray(entry) && entry.length === 2
           && typeof entry[0] === 'string' && count(entry[1]));
       break;
