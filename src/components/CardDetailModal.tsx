@@ -173,7 +173,7 @@ export default function CardDetailModal({ card: initialCard, headquarters: initi
           </section>}
           {card ? <dl className="card-detail-section grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-3 text-sm">
             <CardSubtypeInfo cardId={card.cardId} language={language} />
-            {!isGeneratedCard(card) && <><dt>稀有度</dt><dd><CardRarity rarity={card.json.rarity} faction={faction} previewEnabled={arrived && !isClosing} /></dd></>}
+            {!isGeneratedCard(card) && <><dt className="self-center">稀有度</dt><dd className="flex items-center"><CardRarity rarity={card.json.rarity} faction={faction} previewEnabled={arrived && !isClosing} /></dd></>}
             <dt>状态</dt><dd className="flex items-center gap-2">{card.reserved && <ReservedBadge />}{cardStatusLabel(card)}</dd>
             <dt>卡池</dt><dd>{card.json.permanent_pool ? '常备卡池' : '轮换卡池'}</dd>
           </dl> : <dl className="card-detail-section grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 text-sm"><dt>稀有度</dt><dd>{headquarters?.rarity || '普通'}</dd></dl>}

@@ -1,6 +1,6 @@
 # KARDS Toolbox（KARDS 工具箱）
 
-Windows 本地卡牌与卡组工具。当前版本：**1.2.12**。
+Windows 本地卡牌与卡组工具。当前版本：**1.2.13**。
 
 ## 界面预览
 
@@ -8,11 +8,11 @@ Windows 本地卡牌与卡组工具。当前版本：**1.2.12**。
 | :---: | :---: |
 | <img src="docs/screenshots/01-decks.png" width="400" alt="卡组管理"> | <img src="docs/screenshots/02-deck-builder.png" width="400" alt="卡组构筑"> |
 | **卡牌资料库** | **卡牌详情** |
-| <img src="docs/screenshots/03-card-library.png" width="400" alt="卡牌资料库截图"> | <img src="docs/screenshots/04-card-detail.png" width="400" alt="卡牌详情截图"> |
+| <img src="docs/screenshots/03-card-library.png" width="400" alt="卡牌资料库"> | <img src="docs/screenshots/04-card-detail.png" width="400" alt="卡牌详情"> |
 | **卡包选择** | **模拟开包** |
-| <img src="docs/screenshots/05-pack-selection.png" width="400" alt="卡包选择截图"> | <img src="docs/screenshots/06-pack-opening.png" width="400" alt="模拟开包截图"> |
+| <img src="docs/screenshots/05-pack-selection.png" width="400" alt="卡包选择"> | <img src="docs/screenshots/06-pack-opening.png" width="400" alt="模拟开包"> |
 | **卡组分享** | **数据与缓存管理** |
-| <img src="docs/screenshots/07-deck-export.png" width="400" alt="卡组分享截图"> | <img src="docs/screenshots/08-data-and-cache.png" width="400" alt="数据与缓存管理截图"> |
+| <img src="docs/screenshots/07-deck-export.png" width="400" alt="卡组分享"> | <img src="docs/screenshots/08-data-and-cache.png" width="400" alt="数据与缓存管理"> |
 
 ## 使用说明
 

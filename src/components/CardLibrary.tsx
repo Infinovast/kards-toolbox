@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Download, Search, X } from 'lucide-react';
 import { CardFace } from './CardFace';
 import { cardFactionIcon, SET_ICONS } from '../lib/assetCatalog';
@@ -42,6 +42,8 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
   const [filters, setFilters] = useState<CardFilters>({ ...EMPTY_CARD_FILTERS });
   const expansions = useMemo(() => [...new Set(cards.map((card) => card.json.set).filter(Boolean))].sort(), [cards]);
   const [language, setLanguage] = useState<CardLanguage>('zh-Hans');
+  const searchRef = useRef<HTMLDivElement>(null);
+  const searchMeasureRef = useRef<HTMLSpanElement>(null);
   const [sortKey, setSortKey] = useState<CardSortKey>('kredits');
   const [sortDirection, setSortDirection] = useState<CardSortDirection>('asc');
   const [page, setPage] = useState(1);
@@ -57,6 +59,15 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
   const detailRef = useDismissiblePanel(detailMode === 'sidebar' && (!!selectedCard || !!selectedHeadquarters), closeDetails);
   const cardsByCardId = useMemo(() => new Map(cards.map(card => [card.cardId, card])), [cards]);
   const relations = selectedCard ? cardRelations(selectedCard) : [];
+  useLayoutEffect(() => {
+    const measure = searchMeasureRef.current;
+    if (!measure) return;
+    const resize = () => searchRef.current?.style.setProperty('--search-content-width', `${Math.ceil(measure.getBoundingClientRect().width) + 74}px`);
+    resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(measure);
+    return () => observer.disconnect();
+  }, []);
 
   const filteredCards = useMemo(() => sortCards(cards.filter(card => matchesCardFilters(card, filters)), sortKey, sortDirection), [cards, filters, sortKey, sortDirection]);
   const searchAlternatives = useMemo(() => {
@@ -124,7 +135,7 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
   };
   const resetFilters = () => { setFilters({ ...EMPTY_CARD_FILTERS }); setSortKey('kredits'); setSortDirection('asc'); setPage(1); setExpandedHeadquarters(null); };
   const searchHint = <div role="status" className="library-empty-content glass-panel">
-    <h2 className="library-empty-title">{filteredCards.length ? '当前条件下搜索+筛选结果较少' : '当前条件下搜索+筛选无结果'}</h2>
+    <h2 className="library-empty-title">{filteredCards.length ? '当前条件下搜索与筛选结果较少' : '当前条件下搜索与筛选无结果'}</h2>
     {searchAlternatives.queryOnly > 0 && <button type="button" className="library-global-search" onClick={() => selectFilter({ ...EMPTY_CARD_FILTERS, query: filters.query })}>
       单独搜索找到了 <strong>{searchAlternatives.queryOnly.toLocaleString()}</strong> 个结果，<span className="underline underline-offset-4">点击查看</span>
     </button>}
@@ -145,13 +156,13 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
           <CardStatusSelect value={filters.status} onChange={status => selectFilter({ ...filters, status })} />
           <CostFilterButtons value={filters.cost} onChange={cost => selectFilter({ ...filters, cost })} />
           <CardFilterSelects filters={filters} onChange={selectFilter} expansions={expansions} language={language} />
-          <button onClick={resetFilters} className="shrink-0 whitespace-nowrap px-2 py-2 text-sm text-kards-text-muted hover:text-kards-text">重置筛选</button>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-1 text-xs text-kards-text-muted">
+        <div className="library-toolbar flex flex-wrap items-center justify-between gap-2 text-xs text-kards-text-muted">
           <div className="library-search-controls">
-            <div className="library-search relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kards-text-muted" />
+            <div ref={searchRef} className="library-search relative">
+              <span ref={searchMeasureRef} aria-hidden="true" className="library-search-measure">{filters.query || '名称、描述、词条...'}</span>
+              <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-kards-text-muted" />
               <input title={CARD_SEARCH_HINT} aria-label="搜索卡牌" value={filters.query} onChange={(event) => selectFilter({ ...filters, query: event.target.value })} onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.closest('section')?.querySelector<HTMLButtonElement>('[data-testid="library-grid"] button')?.focus(); } }} placeholder="名称、描述、词条..." className="w-full rounded border border-kards-border bg-kards-input-bg py-2 pl-9 pr-9 text-sm text-kards-text outline-none focus:border-kards-gold" />
               <SearchClearButton label="清除卡牌搜索" value={filters.query} onClear={() => selectFilter({ ...filters, query: '' })} />
             </div>
@@ -164,6 +175,7 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="library-result-count">找到 <strong>{filteredCards.length.toLocaleString()}</strong> 张</span>
+            <button type="button" onClick={resetFilters} className="library-clear-filters">清除筛选</button>
             <button disabled={!filteredCards.length || download.status === 'running' || download.status === 'paused'} onClick={() => {
               if (filteredCards.length > 100 && !window.confirm(`缓存当前筛选的 ${filteredCards.length.toLocaleString()} 张卡牌大图+缩略图？`)) return;
               startImageDownload(filteredCards);
@@ -185,7 +197,7 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
             }} className="card-tile hq-stack-tile card-action group">
               <span className="hq-stack-art" aria-hidden="true">{item.stack.cards.map((headquarters, index) => {
                 const offset = index - (item.stack.cards.length - 1) / 2;
-                return <img key={headquarters.id} data-detail-source={`hq:${headquarters.id}`} src={headquarters.image} alt="" style={{ transform: `translateX(${offset * 1.2}px) rotate(${offset * 0.4}deg)`, zIndex: index + 1 }} />;
+                return <img key={headquarters.id} data-detail-source={`hq:${headquarters.id}`} src={headquarters.image} alt="" style={{ transform: `translateX(${offset * 1.2}px) rotate(${offset * 0.4}deg)`, zIndex: item.stack.cards.length - index }} />;
               })}</span>
             </button>;
             const { card } = item;
@@ -220,7 +232,7 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
                 <CardSubtypeInfo cardId={selectedCard.cardId} language={language} />
                 <dt>部署费用</dt><dd>{selectedCard.json.kredits ?? '—'} K</dd>
                 {!['order', 'countermeasure'].includes(selectedCard.json.type || '') && <><dt>行动费用</dt><dd>{selectedCard.json.operationCost ?? '—'} K</dd><dt>攻击 / 生命</dt><dd>{selectedCard.json.attack ?? '—'} / {selectedCard.json.defense ?? '—'}</dd></>}
-                {!isGeneratedCard(selectedCard) && <><dt>稀有度</dt><dd><CardRarity rarity={selectedCard.json.rarity} faction={selectedCard.json.faction} /></dd></>}
+                {!isGeneratedCard(selectedCard) && <><dt className="self-center">稀有度</dt><dd className="flex items-center"><CardRarity rarity={selectedCard.json.rarity} faction={selectedCard.json.faction} /></dd></>}
                 <dt>状态</dt><dd>{cardStatusLabel(selectedCard)}</dd>
                 {selectedCard.json.set && selectedCard.json.set !== 'OnlySpawnable' && <><dt>扩展包</dt><dd className="flex items-center gap-1"><span className="h-5 w-5 shrink-0"><FilterIcon src={SET_ICONS[selectedCard.json.set] || SET_ICONS.All} /></span>{expansionLabel(selectedCard.json.set, language)}</dd></>}
                 <dt>常备卡池</dt><dd>{selectedCard.json.permanent_pool ? '是' : '否'}</dd><dt>卡组码 ID</dt><dd>{selectedCard.importId}</dd>

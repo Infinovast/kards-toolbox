@@ -23,6 +23,10 @@
       "black": "/assets/kards_logos/KardsLogoBlack_icon_new.png",
       "white": "/assets/kards_logos/KardsLogoWhite_icon_new.png"
     },
+    "titlebar": {
+      "black": "/assets/kards_logos/KardsLogoBlack_card.png",
+      "white": "/assets/kards_logos/KardsLogoWhite_card.png"
+    },
     "pack": "/assets/kards_logos/cards_pack.png"
   },
   "reserve": "/assets/reserve.png",

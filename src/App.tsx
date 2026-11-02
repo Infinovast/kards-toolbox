@@ -42,6 +42,7 @@ import { extractDeckCodeFromText, inferDeckTitleFromText } from './lib/deckImpor
 import ImageDownloadProgress from './components/ImageDownloadProgress';
 import { handleDialogKeys, useDismissiblePanel, useModalFocus } from './lib/dialogKeyboard';
 import CardLibrary from './components/CardLibrary';
+import useDeckGridLayout from './lib/useDeckGridLayout';
 import CardPacks from './components/CardPacks';
 import { resetUsageTips } from './lib/usageTips';
 import TableclothBackground from './components/TableclothBackground';
@@ -268,6 +269,7 @@ export default function App() {
   const lastClipboardPromptRef = useRef<string | null>(null);
   const [backupStatus, setBackupStatus] = useState<string | null>(null);
   const [activeMenu, setActiveMenu] = useState<'decks' | 'cards' | 'packs' | 'builder' | 'about' | 'settings'>('decks');
+  const deckGrid = useDeckGridLayout(dataLoaded && activeMenu === 'decks' && !settings.showDeckFolders, settings.uiScale, settings.deckGap);
   const [aboutReturnMenu, setAboutReturnMenu] = useState<'decks' | 'cards' | 'packs' | 'builder' | 'settings'>('decks');
   const [settingsReturnMenu, setSettingsReturnMenu] = useState<'decks' | 'cards' | 'packs' | 'builder' | 'about'>('decks');
   const settingsPageRef = useRef<HTMLElement>(null);
@@ -1444,7 +1446,7 @@ export default function App() {
           </div>
 
           {/* Scrollable Content Container */}
-          <div className={`h-full w-full ${activeMenu === 'packs' ? 'overflow-hidden' : 'overflow-y-auto'} no-scrollbar relative z-10 flex flex-col items-center ${activeMenu === 'cards' || activeMenu === 'packs' || activeMenu === 'builder' || activeMenu === 'settings' ? '' : 'p-12'}`}>
+          <div ref={deckGrid.ref} className={`h-full w-full ${activeMenu === 'packs' ? 'overflow-hidden' : 'overflow-y-auto'} no-scrollbar relative z-10 flex flex-col items-center ${activeMenu === 'cards' || activeMenu === 'packs' || activeMenu === 'builder' || activeMenu === 'settings' ? '' : 'p-12'}`}>
             {activeMenu === 'cards' && (
               cardDatabaseLoading ? <div className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</div>
                 : cardDatabaseError ? <div className="max-w-xl rounded border border-red-500/40 bg-red-500/10 p-6 text-red-300">{cardDatabaseError}</div>
@@ -1458,18 +1460,13 @@ export default function App() {
             {!cardDatabaseLoading && !cardDatabaseError && builderDeck && <div className={`h-full w-full max-w-[1800px] shrink-0 ${activeMenu === 'builder' ? '' : 'hidden'}`}><DeckBuilder active={activeMenu === 'builder'} key={builderRevision} cards={cardDatabase} initialDeck={builderDeck} exitRequestRef={builderExitRequest} onSave={handleSaveBuiltDeck} onBack={() => { setBuilderDeck(null); setActiveMenu('decks'); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('[aria-label="主导航"] button')?.focus()); }} /></div>}
             {activeMenu === 'settings' && settingsPage}
             {activeMenu === 'about' && <AboutPage isDarkMode={effectiveIsDarkMode} onBack={() => setActiveMenu(aboutReturnMenu)} />}
-            {activeMenu === 'decks' && <div className="mb-6 flex w-full max-w-7xl flex-wrap items-center justify-between gap-3">
-              {settings.showDeckFolders && <button onClick={() => setShowNewDeckModal(true)} className="flex items-center gap-2 rounded bg-kards-accent px-3 py-2 text-sm font-bold text-white"><Plus className="h-4 w-4" />新卡组</button>}
+            {activeMenu === 'decks' && settings.showDeckFolders && <div className="mb-6 flex w-full max-w-7xl flex-wrap items-center justify-between gap-3">
+              <button onClick={() => setShowNewDeckModal(true)} className="flex items-center gap-2 rounded bg-kards-accent px-3 py-2 text-sm font-bold text-white"><Plus className="h-4 w-4" />新卡组</button>
             </div>}
             {activeMenu === 'decks' && !settings.showDeckFolders && (
               <div data-testid="deck-grid"
-                style={{ 
-                  display: 'grid',
-                  gridTemplateColumns: `repeat(auto-fill, minmax(${10 * settings.uiScale}rem, 1fr))`,
-                  gap: `${settings.deckGap * settings.uiScale}rem`,
-                  justifyItems: 'center'
-                }}
-                className="max-w-7xl w-full relative"
+                style={deckGrid.style}
+                className="max-w-7xl w-full shrink-0 relative"
               >
                 {sortedDecks.map((deck) => (
                   <DeckCard 
@@ -1488,12 +1485,12 @@ export default function App() {
                 {/* Add Deck Placeholder */}
                 <button 
                   onClick={() => setShowNewDeckModal(true)}
-                  className="flex flex-col items-center group flex-shrink-0"
+                  className="flex min-w-0 flex-col items-center group flex-shrink-0"
                 >
                   <div 
                     style={{ 
                       backgroundColor: `rgba(var(--rgb-panel-overlay), ${settings.importBoxOpacity})`,
-                      width: `${10 * settings.uiScale}rem`
+                      width: `var(--deck-card-width, ${10 * settings.uiScale}rem)`
                     }}
                     className="aspect-[5/7] military-border backdrop-blur-sm flex items-center justify-center group-hover:border-kards-gold transition-all rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.3)]"
                   >
@@ -2723,14 +2720,14 @@ function DeckCard({ deck, selected, onClick, onHover, onHoverLeave, onDoubleClic
       aria-label={`选择卡组 ${deck.name}`}
       aria-pressed={selected}
       whileHover={{ y: -5 }}
-      className="flex flex-col items-center group cursor-pointer"
+      className="flex min-w-0 flex-col items-center group cursor-pointer"
       onClick={onClick}
       onMouseEnter={onHover}
       onMouseLeave={onHoverLeave}
       onDoubleClick={onDoubleClick}
     >
       <div 
-        style={{ width: `${10 * settings.uiScale}rem` }}
+        style={{ width: `var(--deck-card-width, ${10 * settings.uiScale}rem)` }}
         className={`
           aspect-[5/7] relative transition-all duration-300 shrink-0
           ${selected ? 'scale-105 z-10' : 'hover:brightness-110'}
@@ -2804,8 +2801,8 @@ function DeckCard({ deck, selected, onClick, onHover, onHoverLeave, onDoubleClic
         <div className="absolute inset-0 pointer-events-none border border-black/10 m-1" />
       </div>
 
-      <div className="mt-4 flex flex-col items-center gap-2">
-        <span className={`text-sm font-bold tracking-tight text-center px-4 py-1 rounded shadow-md backdrop-blur-md border transition-all ${selected ? 'text-kards-gold bg-kards-panel border-kards-gold/50 shadow-kards-gold/20' : 'text-kards-text bg-kards-panel/80 border-kards-border/50'}`}>
+      <div className="mt-4 flex w-full min-w-0 flex-col items-center gap-2">
+        <span title={deck.name} className={`max-w-full truncate text-sm font-bold tracking-tight text-center px-4 py-1 rounded shadow-md backdrop-blur-md border transition-all ${selected ? 'text-kards-gold bg-kards-panel border-kards-gold/50 shadow-kards-gold/20' : 'text-kards-text bg-kards-panel/80 border-kards-border/50'}`}>
           {deck.name}
         </span>
       </div>

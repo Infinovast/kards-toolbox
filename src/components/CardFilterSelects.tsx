@@ -14,7 +14,7 @@ export function FilterIcon({ src, fullColor = false }: { src: string; fullColor?
     : <span className="filter-symbol" style={{ '--filter-icon': `url("${maskUrl}")` } as CSSProperties} />;
 }
 
-const englishNations: Record<string, string> = { Soviet: 'Soviet Union', USA: 'United States', Anzac: 'ANZAC' };
+const englishNations: Record<string, string> = { Soviet: 'Soviet', USA: 'USA', Anzac: 'ANZAC' };
 const englishTypes: Record<string, string> = { infantry: 'Infantry', tank: 'Tank', fighter: 'Fighter', bomber: 'Bomber', artillery: 'Artillery', order: 'Order', countermeasure: 'Countermeasure' };
 const rarityLabels = { Standard: '普通', Limited: '稀有', Special: '特殊', Elite: '精英' };
 const setDefinitions = [
@@ -34,7 +34,7 @@ export function expansionOptions(available: string[], language: CardLanguage): S
   const sets = available.filter(id => !['OnlySpawnable', 'Special'].includes(id));
   const known = setDefinitions.filter(([id]) => sets.includes(id));
   const extra = sets.filter(id => !setDefinitions.some(([key]) => key === id)).map(id => [id, id, id]);
-  return [{ value: 'All', label: chinese(language) ? '全部扩展包' : 'All sets', icon: <FilterIcon src={SET_ICONS.All} /> }, ...[...known, ...extra].map(([id, zh, en]) => ({
+  return [{ value: 'All', label: chinese(language) ? '全部扩展' : 'All sets', icon: <FilterIcon src={SET_ICONS.All} /> }, ...[...known, ...extra].map(([id, zh, en]) => ({
     value: id, label: chinese(language) ? zh : en,
     icon: <FilterIcon src={SET_ICONS[id] || SET_ICONS.All} />,
   }))];

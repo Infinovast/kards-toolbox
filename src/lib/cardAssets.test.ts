@@ -15,6 +15,7 @@ const manager = new CacheBundleInstaller(path.resolve('test-results/asset-test')
 const assetBuffer = async (url: string) => { const asset = await manager.readStaticAsset(url); assert.ok(asset, `asset exists: ${url}`); return asset.buffer; };
 assert.deepEqual(HEADQUARTERS_STACKS.map(stack => stack.id), ['USA', 'Soviet', 'Britain', 'Japan', 'Germany', 'Common']);
 assert.ok(HEADQUARTERS_STACKS.every(stack => stack.cards.length > 0));
+assert.deepEqual(HEADQUARTERS_STACKS.map(stack => stack.cards[0].name), ['瑟堡', '斯大林格勒', '阿拉姆哈勒法', '特鲁克', '但泽', '补给列车']);
 assert.ok(HEADQUARTERS_STACKS.find(stack => stack.id === 'Common')!.cards.every(item => item.nation === 'Blank'));
 assert.equal(new Set(HEADQUARTERS_STACKS.find(stack => stack.id === 'Common')!.cards.map(item => item.groupId)).size, HEADQUARTERS_STACKS.find(stack => stack.id === 'Common')!.cards.length);
 assert.equal(HEADQUARTERS.length, 50);

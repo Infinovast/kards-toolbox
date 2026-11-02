@@ -4,7 +4,7 @@ import { calculateCardPoolLayout } from './cardPoolLayout';
 
 export default function useCardPoolLayout(variant: 'library' | 'builder', itemCount: number, page: number, onPageChange: (page: number) => void) {
   const ref = useRef<HTMLDivElement>(null);
-  const [layout, setLayout] = useState({ columns: 1, rows: 1, cardWidth: variant === 'library' ? 156 : 124 });
+  const [layout, setLayout] = useState({ columns: 1, rows: 1, cardWidth: variant === 'library' ? 132 : 124 });
   useLayoutEffect(() => {
     const element = ref.current;
     if (!element) return;

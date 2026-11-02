@@ -122,5 +122,9 @@ export const HEADQUARTERS_STACKS = [
   { id: 'Common', label: '中立', nation: 'Blank', scope: 'common' as const },
 ].map(category => ({
   ...category,
-  cards: HEADQUARTERS.filter(item => item.scope === category.scope && item.nation === category.nation),
+  cards: HEADQUARTERS.filter(item => item.scope === category.scope && item.nation === category.nation)
+    .sort((a, b) => {
+      const first = category.id === 'Common' ? 'Common/supply_train_neutral' : DEFAULT_HEADQUARTERS_BY_NATION[category.nation];
+      return Number(b.groupId === first) - Number(a.groupId === first);
+    }),
 }));
