@@ -73,7 +73,7 @@ export const CARD_TYPES = [
   { id: 'bomber', label: '轰炸机' },
   { id: 'artillery', label: '火炮' },
   { id: 'order', label: '指令' },
-  { id: 'countermeasure', label: '反制' },
+  { id: 'countermeasure', label: '反制指令' },
 ] as const;
 
 export const CARD_RARITIES = ['Standard', 'Limited', 'Special', 'Elite'] as const;

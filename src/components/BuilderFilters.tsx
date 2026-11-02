@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import type { CardFilters } from '../lib/cardFilters';
 import { CARD_SUBTYPES } from '../lib/cardSubtypes';
 import { SUBCLASS_ICONS } from '../lib/assetCatalog';
@@ -19,20 +19,21 @@ function SymbolFilter({ label, options, value, onChange, collapsed, rarity = fal
   </div>;
 }
 
-export default function BuilderFilters({ filters, onChange, expansions, mainNation, allyNation }: {
-  filters: CardFilters; onChange: (filters: CardFilters) => void; expansions: string[]; mainNation: string; allyNation: string;
+export default function BuilderFilters({ filters, onChange, expansions, mainNation, allyNation, costChart }: {
+  filters: CardFilters; onChange: (filters: CardFilters) => void; expansions: string[]; mainNation: string; allyNation: string; costChart: ReactNode;
 }) {
   const bar = useRef<HTMLDivElement>(null);
   const costs = useRef<HTMLDivElement>(null);
   const subtype = useRef<HTMLDivElement>(null);
   const expansion = useRef<HTMLDivElement>(null);
+  const chart = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState(0);
   const countries = nationOptions().filter(option => option.value === mainNation || option.value === allyNation);
   const types = cardTypeOptions();
   const rarities = rarityOptions('zh-Hans', true);
 
   useLayoutEffect(() => {
-    const row = bar.current, fixed = [costs.current, subtype.current, expansion.current];
+    const row = bar.current, fixed = [costs.current, subtype.current, expansion.current, chart.current];
     if (!row || fixed.some(element => !element)) return;
     const measure = () => {
       const style = getComputedStyle(row);
@@ -45,7 +46,7 @@ export default function BuilderFilters({ filters, onChange, expansions, mainNati
       // Collapse in priority order, independently of the groups' visual order.
       const widths = [types.length, rarities.length, countries.length].map(count => count * size + (count - 1) * gap);
       let required = fixed.reduce((sum, element) => sum + element!.getBoundingClientRect().width, 0)
-        + widths.reduce((sum, width) => sum + width, 0) + parseFloat(style.columnGap) * 5;
+        + widths.reduce((sum, width) => sum + width, 0) + parseFloat(style.columnGap) * 6;
       let next = 0;
       while (required > available && next < widths.length) {
         required += (next === 2 ? countryDropdown : dropdown) - widths[next];
@@ -68,5 +69,6 @@ export default function BuilderFilters({ filters, onChange, expansions, mainNati
       options={CARD_SUBTYPES.map(item => ({ value: item.id, label: item.name['zh-Hans'], icon: <FilterIcon src={SUBCLASS_ICONS[item.id]} /> }))} /></div>
     <div ref={expansion}><CustomSelect className="filter-expansion-select" label="构筑扩展包筛选" value={filters.expansion}
       onChange={expansion => onChange({ ...filters, expansion })} options={expansionOptions(expansions, 'zh-Hans')} /></div>
+    <div ref={chart} className="builder-cost-chart-control">{costChart}</div>
   </div>;
 }

@@ -15,12 +15,13 @@ import { revealDetailItem, type CardDetailItem } from '../lib/cardDetailPaging';
 import { nationOptions } from './CardFilterSelects';
 import BuilderFilters from './BuilderFilters';
 import { decodeDeckCode, encodeDeckCode, findCardsByImportId } from '../lib/deckCode';
-import { DEFAULT_DECK_RULES, deckModeLabel, deckRuleSet, validateDeck, type DeckRuleSet } from '../lib/deckRules';
+import { DEFAULT_DECK_RULES, deckRuleSet, validateDeck, type DeckRuleSet } from '../lib/deckRules';
 import { defaultHeadquartersForNation, headquartersForDeck, type HeadquartersAsset } from '../lib/cardAssets';
 import { CardFace, RaritySlots } from './CardFace';
 import ReservedBadge from './ReservedBadge';
 import SearchClearButton from './SearchClearButton';
 import DeckCountIndicator from './DeckCountIndicator';
+import DeckCostChart from './DeckCostChart';
 import DeckCardMotion, { useDeckCardMotion } from './DeckCardMotion';
 import { CARD_SEARCH_HINT, EMPTY_CARD_FILTERS, isGeneratedCard, isInBuilderPool, matchesCardFilters, type CardFilters } from '../lib/cardFilters';
 import { deckBuilderReducer, type DeckBuilderState } from '../lib/deckBuilderHistory';
@@ -283,7 +284,8 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
       }
     }
   }} className="flex h-full min-h-0 flex-col gap-3 p-4 outline-none">
-    <BuilderFilters filters={filters} onChange={setFilters} expansions={expansions} mainNation={mainNation} allyNation={allyNation} />
+    <BuilderFilters filters={filters} onChange={setFilters} expansions={expansions} mainNation={mainNation} allyNation={allyNation}
+      costChart={<DeckCostChart entries={entries} cardsById={cardsById} active={active} />} />
     <div className="flex min-h-0 flex-1 gap-4">
     <section className="flex min-w-0 flex-1 flex-col gap-3 overflow-hidden">
       <div className="builder-pool-toolbar">
@@ -314,7 +316,6 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
       <div className="builder-sidebar-header builder-sidebar-bar"><h2 className="font-bold text-kards-text">{deckId ? '编辑卡组' : '当前卡组'}</h2><DeckCountIndicator compact fullColorNations mainNation={mainNation} allyNation={allyNation} mainCount={mainCount} allyCount={allyCount} allyLimit={rules.maxAllyCards} total={totalWithHeadquarters} limit={deckLimit} /></div>
       <div className="builder-sidebar-scroll custom-scrollbar space-y-3">
       <input value={deckName} onChange={(e) => setDeckName(e.target.value)} className="deck-name-input" aria-label="卡组名称" onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && !e.ctrlKey && !e.metaKey) { e.preventDefault(); e.currentTarget.blur(); } }} />
-      <p className="builder-mode" aria-label="构筑方式">{deckModeLabel(ruleSet)}</p>
       {totalCards <= 5 && <div className="grid grid-cols-2 gap-2" aria-label="构筑国家选择">
         <CustomSelect label="主国" value={mainNation} onChange={value => requestNationChange('main', value)} className="min-w-0 w-full" options={nationOptions().filter(item => item.value !== 'Neutral').map(item => ({ ...item, label: `${item.label}主国` }))} />
         <CustomSelect label="盟国" value={allyNation} onChange={value => requestNationChange('ally', value)} className="min-w-0 w-full" options={nationOptions().filter(item => item.value !== 'Neutral').map(item => ({ ...item, label: `${item.label}盟国` }))} />

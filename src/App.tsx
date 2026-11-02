@@ -52,6 +52,7 @@ import { revealDetailItem, type CardDetailItem } from './lib/cardDetailPaging';
 import DeckBuilder, { type BuilderDeck } from './components/DeckBuilder';
 import DeckCardStrip, { DeckHeadquartersStrip } from './components/DeckCardStrip';
 import DeckCountIndicator from './components/DeckCountIndicator';
+import DeckCostChart from './components/DeckCostChart';
 import ReservedBadge from './components/ReservedBadge';
 import SearchClearButton from './components/SearchClearButton';
 import NewDeckDialog from './components/NewDeckDialog';
@@ -868,6 +869,10 @@ export default function App() {
       .map(([id, count]) => ({ id, count, card: index.get(id) })); }
     catch { return []; }
   }, [selectedDeck?.code, cardDatabase]);
+  const previewCosts = React.useMemo(() => ({
+    entries: new Map(previewEntries.map(entry => [entry.id, entry.count])),
+    cardsById: new Map(previewEntries.flatMap(entry => entry.card ? [[entry.id, entry.card] as const] : [])),
+  }), [previewEntries]);
   const previewTotalCards = previewEntries.reduce((sum, entry) => sum + entry.count, 1);
   const previewHeadquarters = selectedDeck && headquartersForDeck(selectedDeck.headquartersId, selectedDeck.mainNation);
   const previewDetailSequence: CardDetailItem[] = [
@@ -1593,6 +1598,7 @@ export default function App() {
                   </div>
                   <button onClick={() => { selectDeck(selectedDeck.id); setShowHeadquartersModal(selectedDeck.id); }} className="deck-detail-option">更换总部</button>
                   <button onClick={() => { selectDeck(selectedDeck.id); setShowCardBackModal(selectedDeck.id); }} className="deck-detail-option">更换卡背</button>
+                  <DeckCostChart entries={previewCosts.entries} cardsById={previewCosts.cardsById} active hoverOnly className="deck-detail-option deck-detail-cost-chart-button" />
                 </div>
                 {!!selectedDeck.tags?.length && <div className="flex w-full items-center gap-2 overflow-x-auto custom-scrollbar">
                   {selectedDeck.tags?.map(tag => (

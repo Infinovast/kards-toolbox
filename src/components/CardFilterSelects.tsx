@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import { CARD_FACTIONS, CARD_RARITIES, CARD_TYPES, type CardLanguage } from '../types/card';
 import CustomSelect, { type SelectOption } from './CustomSelect';
+import KreditLabel from './KreditLabel';
 import type { CardFilters } from '../lib/cardFilters';
 import { CARD_SUBTYPES } from '../lib/cardSubtypes';
 import { KEYWORD_FILTER_GROUPS } from '../lib/cardKeywords';
@@ -91,7 +92,7 @@ export function CostFilterButtons({ value, onChange, label = '费用筛选' }: {
       const selected = value.includes(cost);
       return <button key={cost} type="button" aria-label={`费用 ${index}K${index === 7 ? '+' : ''}`} aria-pressed={selected}
         className="builder-cost-button" onClick={() => onChange(selected ? value.filter(item => item !== cost) : [...value, cost])}>
-        {index}<small>K{index === 7 ? '+' : ''}</small>
+        <KreditLabel cost={index} />
       </button>;
     })}
   </div>;

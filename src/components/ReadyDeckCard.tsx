@@ -7,12 +7,8 @@ import { summarizeDeckCover } from '../lib/deckCover';
 import { cardDisplayTitle, factionLabel, type KardsCardRecord } from '../types/card';
 import { CARD_STRIP_NATIONS } from './DeckCardStrip';
 import { FilterIcon } from './CardFilterSelects';
-import { factionIcon, WILDCARDS } from '../lib/assetCatalog';
-
-const RARITIES = [
-  { id: 'Elite', label: '精英' }, { id: 'Special', label: '特殊' },
-  { id: 'Limited', label: '稀有' }, { id: 'Standard', label: '普通' },
-];
+import { factionIcon } from '../lib/assetCatalog';
+import DeckRaritySummary from './DeckRaritySummary';
 
 export default function ReadyDeckCard({ deck, cardsById, selected, onSelect }: {
   deck: ReadyDeck;
@@ -65,16 +61,7 @@ export default function ReadyDeckCard({ deck, cardsById, selected, onSelect }: {
       </span>
     </span>
     <span className="ready-deck-footer">
-      <span className="ready-deck-rarities">
-        {RARITIES.map(rarity => {
-          const wildcard = WILDCARDS.Common[rarity.id], crop = wildcard.crop;
-          return <span key={rarity.id} title={`${rarity.label} ${summary.rarities[rarity.id] || 0} 张`}>
-            <span className="ready-deck-rarity-icon"><img src={wildcard.file} alt={rarity.label}
-              style={{ width: `${100 / crop.width}%`, height: `${100 / crop.height}%`, left: `${-100 * crop.x / crop.width}%`, top: `${-100 * crop.y / crop.height}%` }} /></span>
-            <span>{summary.rarities[rarity.id] || 0}</span>
-          </span>;
-        })}
-      </span>
+      <DeckRaritySummary rarities={summary.rarities} />
     </span>
   </button>;
 }

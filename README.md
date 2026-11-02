@@ -1,18 +1,20 @@
 # KARDS Toolbox（KARDS 工具箱）
 
-Windows 本地卡牌与卡组工具。当前版本：**1.2.15**。
+Windows 本地卡牌与卡组工具。当前版本：**1.2.17**。
 
 ## 界面预览
 
-| 卡组管理 | 卡组构筑 |
+| 1. 卡组管理 | 2. 卡组构筑 |
 | :---: | :---: |
 | <img src="docs/screenshots/01-decks.png" width="400" alt="卡组管理"> | <img src="docs/screenshots/02-deck-builder.png" width="400" alt="卡组构筑"> |
-| **卡牌资料库** | **卡牌详情** |
-| <img src="docs/screenshots/03-card-library.png" width="400" alt="卡牌资料库"> | <img src="docs/screenshots/04-card-detail.png" width="400" alt="卡牌详情"> |
-| **卡包选择** | **模拟开包** |
-| <img src="docs/screenshots/05-pack-selection.png" width="400" alt="卡包选择"> | <img src="docs/screenshots/06-pack-opening.png" width="400" alt="模拟开包"> |
-| **卡组分享** | **数据与缓存管理** |
-| <img src="docs/screenshots/07-deck-export.png" width="400" alt="卡组分享"> | <img src="docs/screenshots/08-data-and-cache.png" width="400" alt="数据与缓存管理"> |
+| **3. 卡组分析** | **4. 卡牌资料库** |
+| <img src="docs/screenshots/03-deck-analysis.png" width="400" alt="卡组分析"> | <img src="docs/screenshots/04-card-library.png" width="400" alt="卡牌资料库"> |
+| **5. 卡牌详情** | **6. 卡包选择** |
+| <img src="docs/screenshots/05-card-detail.png" width="400" alt="卡牌详情"> | <img src="docs/screenshots/06-pack-selection.png" width="400" alt="卡包选择"> |
+| **7. 模拟开包** | **8. 卡组分享图** |
+| <img src="docs/screenshots/07-pack-opening.png" width="400" alt="模拟开包"> | <img src="docs/screenshots/08-deck-export.png" width="400" alt="卡组分享图"> |
+| **9. 卡组迷你图** | **10. 数据与缓存管理** |
+| <img src="docs/screenshots/09-deck-export-mini.png" width="400" alt="卡组迷你图"> | <img src="docs/screenshots/10-data-and-cache.png" width="400" alt="数据与缓存管理"> |
 
 ## 使用说明
 
@@ -23,12 +25,14 @@ Windows 本地卡牌与卡组工具。当前版本：**1.2.15**。
 - “导入卡组”可选择卡组图片，优先读取二维码中的卡组名、总部、卡背和卡组码；没有可用二维码时，Windows 桌面版使用本机文字识别尝试还原标题及卡组。识别结果先填入窗口，核对后确认导入；文字识别可能遗漏卡牌。
 - 单击卡组固定打开右侧详情，双击进入构筑；未选中卡组时，悬停可临时预览。详情浮层不挤压卡组网格，点击外部空白或按 Esc 关闭。
 - 详情中可复制卡组码、生成本地 PNG，以及更换卡背和总部。图片预览中的“更换桌布”只影响本次生图；“切换到迷你分享图”生成战备封面风格的高清 PNG，预览保持 342×242，导出分辨率为 1368×968，包含牌数、费用分布、稀有度、实际卡背和分享二维码，可切回完整卡组图。
+- 悬停“更换卡背”右侧的“卡组分析”按钮可查看卡组统计，移开即关闭；此处不支持点击固定。
 - 生成图右上角包含卡组名、总部、卡背标识和卡组码的二维码，兼容不含卡背信息的旧图片。自定义卡背按本地标识恢复，资源不存在时使用主国默认卡背；识别与生成均在本地完成。
 
 ### 卡组构筑
 
 - 单击卡池卡牌或详情中的卡牌条查看资料；双击卡池卡牌或构筑卡牌条加入一张，右键移除一张，也可在卡池和右侧清单之间拖动。
 - 上行依次使用费用、类型、国家、稀有度、子类和扩展筛选，下行左侧为搜索及“含预备”，右侧显示结果数量。类型、国家与稀有度直接点击图标多选；窗口变窄时按类型、稀有度、国家顺序收为菜单。卡池只展示主国及盟国可选卡牌，滚轮翻页；卡组数量包括一张总部。
+- 悬停筛选栏最右侧的“卡组分析”按钮预览当前卡组的 0K—7K+ 花费分布，按陆军、空军、指令、反制分类；有行动花费的档位左半为部署分布、右半为行动分布。下方显示平均花费、平均单位部署、平均单位行动、单位/指令比及稀有度分布；单位含陆军和空军，指令数含反制，均按实际张数统计且不计总部。移开鼠标后关闭；点击按钮则固定浮窗并模糊背景，可点击外部或按 Esc 关闭。
 - 构筑方式随卡组内容自动判断：不含预备卡为“排位/休闲模式”，含预备卡为“经典模式”。超限时提示并标红，保存不足张数时需确认；卡牌数超过 5 张后隐藏主国、盟国选择栏。
 - 右下角提供撤回、重做及保存并退出。离开有修改的卡组时可选择保存或放弃。
 
