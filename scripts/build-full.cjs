@@ -41,6 +41,7 @@ async function main() {
       return;
     }
     await run(process.execPath, [path.join(root, 'node_modules/vite/bin/vite.js'), 'build']);
+    await run(process.execPath, [path.join(root, 'scripts/collect-licenses.cjs')]);
     await run(process.execPath, [path.join(root, 'scripts/build-electron.cjs')]);
     await run(process.execPath, [path.join(root, 'node_modules/electron-builder/cli.js'), '--win', target === 'dir' ? '--dir' : 'portable', '--x64', '-c.win.signAndEditExecutable=false', `-c.directories.output=${path.join(work, 'app')}`]);
     const contents = target === 'dir' ? path.join(work, 'app', 'win-unpacked') : path.join(work, 'package');

@@ -1,20 +1,26 @@
+<p align="center">
+  <img src="docs/assets/kards-toolbox-brand.png" alt="KARDS Toolbox brand" width="200">
+</p>
+
 # KARDS Toolbox（KARDS 工具箱）
 
-Windows 本地卡牌与卡组工具。当前版本：**1.2.17**。
+[中文](README.md) | [English](README_en.md)
 
-## 界面预览
+KARDS Toolbox 是面向 Kards 玩家的卡牌、卡组和卡包本地管理工具。
+
+## 界面概览
 
 | 1. 卡组管理 | 2. 卡组构筑 |
 | :---: | :---: |
-| <img src="docs/screenshots/01-decks.png" width="400" alt="卡组管理"> | <img src="docs/screenshots/02-deck-builder.png" width="400" alt="卡组构筑"> |
+| <img src="docs/assets/01-decks.png" width="400" alt="卡组管理"> | <img src="docs/assets/02-deck-builder.png" width="400" alt="卡组构筑"> |
 | **3. 卡组分析** | **4. 卡牌资料库** |
-| <img src="docs/screenshots/03-deck-analysis.png" width="400" alt="卡组分析"> | <img src="docs/screenshots/04-card-library.png" width="400" alt="卡牌资料库"> |
+| <img src="docs/assets/03-deck-analysis.png" width="400" alt="卡组分析"> | <img src="docs/assets/04-card-library.png" width="400" alt="卡牌资料库"> |
 | **5. 卡牌详情** | **6. 卡包选择** |
-| <img src="docs/screenshots/05-card-detail.png" width="400" alt="卡牌详情"> | <img src="docs/screenshots/06-pack-selection.png" width="400" alt="卡包选择"> |
+| <img src="docs/assets/05-card-detail.png" width="400" alt="卡牌详情"> | <img src="docs/assets/06-pack-selection.png" width="400" alt="卡包选择"> |
 | **7. 模拟开包** | **8. 卡组分享图** |
-| <img src="docs/screenshots/07-pack-opening.png" width="400" alt="模拟开包"> | <img src="docs/screenshots/08-deck-export.png" width="400" alt="卡组分享图"> |
+| <img src="docs/assets/07-pack-opening.png" width="400" alt="模拟开包"> | <img src="docs/assets/08-deck-export.png" width="400" alt="卡组分享图"> |
 | **9. 卡组迷你图** | **10. 数据与缓存管理** |
-| <img src="docs/screenshots/09-deck-export-mini.png" width="400" alt="卡组迷你图"> | <img src="docs/screenshots/10-data-and-cache.png" width="400" alt="数据与缓存管理"> |
+| <img src="docs/assets/09-deck-export-mini.png" width="400" alt="卡组迷你图"> | <img src="docs/assets/10-data-and-cache.png" width="400" alt="数据与缓存管理"> |
 
 ## 使用说明
 
@@ -77,11 +83,15 @@ Windows 本地卡牌与卡组工具。当前版本：**1.2.17**。
 
 ## 从源码运行
 
-需要 Windows 10/11 x64、Node.js 22 和 npm。在项目目录执行：
+需要 Windows 10/11 x64、Node.js 22 和 npm。源码仓库不包含游戏静态素材；桌面运行前需要按 [资源准备](docs/build-and-run.md#静态资源与源码仓库) 自行准备有权使用的资源或兼容资源包。在项目目录执行：
 
 ```powershell
 npm ci
 npm run dev:desktop
 ```
 
-更多内容：[构建与运行](docs/build-and-run.md) · [项目架构](docs/architecture.md) · [界面规范](DESIGN.md)。
+## License
+
+本项目中的代码和文档采用 [MIT License](LICENSE)。KARDS 商标、游戏素材、卡牌资料、截图中的游戏内容和第三方依赖分别适用其原有权属及许可，详见 [第三方内容与许可证](THIRD_PARTY_NOTICES.md)。本工具非官方项目。
+
+更多内容：[构建与运行](docs/build-and-run.md) · [项目架构](docs/architecture.md) · [界面规范](DESIGN.md) · [贡献指南](CONTRIBUTING.md) · [安全报告](SECURITY.md)。

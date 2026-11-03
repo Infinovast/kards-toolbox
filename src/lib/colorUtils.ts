@@ -54,7 +54,7 @@ export function generateLightModeColors(baseHex: string) {
     '--color-kards-input-bg': hslToHex(h, s, Math.min(100, l + 11)),
     '--color-kards-modal-bg': panelHex,
     '--color-kards-modal-overlay': `rgba(${hexToRgb(baseHex) || '220, 215, 201'}, 0.85)`,
-    '--bg-pattern': `url("https://www.transparenttextures.com/patterns/cubes.png"), radial-gradient(circle at center, ${panelHex} 0%, ${baseHex} 100%)`,
+    '--bg-pattern': `radial-gradient(circle at center, ${panelHex} 0%, ${baseHex} 100%)`,
     '--rgb-panel-overlay': pbRgb,
     '--rgb-panel-overlay-inv': '0, 0, 0'
   };

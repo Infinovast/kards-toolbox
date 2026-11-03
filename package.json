@@ -2,6 +2,7 @@
   "name": "kards-toolbox",
   "private": true,
   "version": "1.2.17",
+  "license": "MIT",
   "description": "KARDS Toolbox — local-first card library and deck manager for Windows.",
   "type": "module",
   "main": "dist-electron/main.cjs",
@@ -12,7 +13,7 @@
     "dev:desktop": "concurrently -k \"npm:dev:renderer\" \"npm:dev:electron:wait\"",
     "dev:electron:wait": "wait-on tcp:5173 && npm run build:electron && node scripts/start-electron.cjs . --disable-crash-reporter",
     "build": "npm run build:web && npm run build:server",
-    "build:web": "vite build",
+    "build:web": "vite build && node scripts/collect-licenses.cjs",
     "build:server": "esbuild server.ts --bundle --platform=node --format=cjs --outfile=dist/server.cjs --external:express",
     "build:electron": "node scripts/build-electron.cjs",
     "build:electron:dev": "node -e \"process.env.KARDS_ENABLE_DEVELOPER_OPTIONS='true'; require('./scripts/build-electron.cjs')\"",
@@ -57,6 +58,9 @@
       "dist/**/*",
       "dist-electron/**/*",
       "package.json",
+      "LICENSE",
+      "THIRD_PARTY_NOTICES.md",
+      "THIRD_PARTY_NOTICES_en.md",
       "!src/**/*",
       "!electron/**/*",
       "!public/**/*",
@@ -77,6 +81,12 @@
     "extraMetadata": {
       "main": "dist-electron/main.cjs"
     },
+    "extraFiles": [
+      { "from": "LICENSE", "to": "LICENSE.KARDS-Toolbox.txt" },
+      { "from": "THIRD_PARTY_NOTICES.md", "to": "THIRD_PARTY_NOTICES.md" },
+      { "from": "THIRD_PARTY_NOTICES_en.md", "to": "THIRD_PARTY_NOTICES_en.md" },
+      { "from": "dist/THIRD_PARTY_LICENSES.txt", "to": "THIRD_PARTY_LICENSES.txt" }
+    ],
     "win": {
       "executableName": "kards_toolbox",
       "signAndEditExecutable": true,

@@ -119,7 +119,7 @@ Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴
 
 总部名称、英文名、简介与历史集中维护在 `src/data/headquarters.json`。清单的 `id` 和 `groupId` 保持稳定，以兼容已保存卡组及专属桌布关联。
 
-界面颜色、间距、浮层与动画约定见 [界面规范](../DESIGN.md)。包依赖仍由 npm 管理，依赖自带许可证与 Electron 运行时许可证随各自组件保留；游戏素材的权属说明位于关于页。
+界面颜色、间距、浮层与动画约定见 [界面规范](../DESIGN.md)。包依赖仍由 npm 管理；`scripts/collect-licenses.cjs` 在网页及完整缓存构建时从已安装生产依赖收集许可文本，桌面打包附带项目与第三方声明。依赖自带许可证与 Electron 运行时许可证随各自组件保留；游戏内容的权属范围见 [第三方说明](../THIRD_PARTY_NOTICES.md)。
 
 词条唯一清单位于 `src/data/cardKeywords.json`：`label` / `english` 管理中英对照，`icon` 指向可选词条图标（动员使用 `mobilize.png`，老兵使用 `veteran.png`）；PNG 保留真实透明空白与抗锯齿边缘，避免半透明底层形成灰色矩形，`attribute` 标识属性词条，`highlighted` 标识战斗词条；战斗词条属于属性词条，属性词条属于完整词条表。`numbered` 声明重甲/情报的数值后缀，`attributeAliases` 管理属性别名及详情可见性，`excludeFollowing` 避免“战斗”命中“战斗机”。`filterGroup` 管理三列筛选分类及排列顺序，`descriptionPrefix` 匹配描述中的“词条：”形式，`cardIds` 维护倒计时卡名单，`textMatch: false` 排除纯筛选项目的正文匹配。筛选菜单、详情属性与中英文规则文字加粗均由该清单派生；战斗强调色只用于筛选项与详情的词条信息，规则正文仅加粗。
 

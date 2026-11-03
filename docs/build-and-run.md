@@ -7,6 +7,19 @@
 - 在包含 `package.json` 的项目根目录执行命令，目录可以重命名。
 - 无二维码的图片导入使用 Windows 本机 OCR，需要相应语言的文字识别组件。
 
+## 静态资源与源码仓库
+
+Git 仓库不包含 `assets-private/`、`dist-packs/`、`.env`、构建产物和用户数据。仅克隆源码不能直接得到与截图一致的完整桌面版；`npm ci` 不会下载游戏素材。
+
+桌面开发和构建需要以下两种资源来源之一，素材的使用和再分发须先核实 [第三方许可](../THIRD_PARTY_NOTICES.md)：
+
+- **松散资源**：把有权使用的图片放入 `assets-private/static/assets/`，保持 `src/data/assets.json`、`cardbacks.json`、`headquarters.json`、`tablecloths.json` 和词条清单引用的相对路径。桌面构建还从 `assets/kards_logos/KardsLogoBlack_cards_new.png` 提取应用图标。
+- **已有资源包**：把兼容的 `static.kpak` 放入 `dist-packs/static.kpak`。该方式在没有松散资源目录时使用，资源包与构建时的 salt 必须一致。
+
+可先执行 `npx tsx scripts/build-packs.ts --static-only` 生成或验证静态包；桌面构建也会自动执行这一步。资源缺失时，纯网页构建 `npm run build:web` 仍可生成界面，但运行时缺少对应图像，桌面构建无法完成。
+
+默认使用源码中的公开 `DEFAULT_PACK_SALT`。如需兼容自有资源包，可在本地 `.env` 设置 `KARDS_PACK_SALT`，网页和桌面构建应保持一致。该值只参与资源包散列和混淆，不是保护秘密的加密密钥；不要把真实凭据放入资源包或构建环境。`.env*` 均不提交。
+
 ## 日常开发
 
 ```powershell
@@ -58,6 +71,8 @@ npm run dist:win:portable
 发布根目录始终为 `release/`，文件夹版始终为 `release/win-unpacked/`，重复打包会更新同一目录，不按日期或版本创建新目录。ZIP 和安装包的文件名仍可包含版本号；这是文件名，不影响目录位置。
 
 普通用户无需安装 Node.js、npm 或源码。程序文件夹中的 Electron 运行时及依赖文件属于正常分发内容，不能单独删除。应用版本取自 `package.json`；修改版本后必须重新打包，现有 EXE 和 ZIP 不会自动更新。
+
+网页构建同时生成 `dist/THIRD_PARTY_LICENSES.txt`，收集已安装生产依赖的版权及许可证文本。标准桌面打包把它与 `LICENSE.KARDS-Toolbox.txt`、`THIRD_PARTY_NOTICES.md` 及 `THIRD_PARTY_NOTICES_en.md` 放在分发目录；保留 Electron/Chromium 和原生组件原有许可文件。自行组合发布包时也应包含这些声明，并核实游戏素材授权及 LGPL 组件的分发义务。
 
 ## 用户数据
 
