@@ -6,6 +6,8 @@ import { BUNKER_HEADQUARTERS, DEFAULT_TABLECLOTH, headquartersForDeck } from './
 import { deckRenderCounterSvg } from './deckRenderCounter';
 import { deckQrSvg } from './deckImageCode';
 import { factionIcon, LOGOS, RARITY_ICONS } from './assetCatalog';
+import { summarizeDeckCosts } from './deckCostCurve';
+import { DECK_BACKGROUND_BLUR, DECK_BACKGROUND_TINT, DECK_STATISTICS_POSITION, deckHeaderTitle, deckStatisticsSvg } from './deckRenderHeader';
 
 async function imageDataUrl(url: string): Promise<string> {
   if (url.startsWith('data:')) return url;
@@ -27,8 +29,10 @@ export async function renderDeckImage(code: string, cards: KardsCardRecord[], ti
   if (background && !desktop) background = await imageDataUrl(background);
   const headquarters = headquartersForDeck(headquartersId, deck.mainNation) || BUNKER_HEADQUARTERS;
   const headquartersImage = headquarters ? desktop ? headquarters.image : await imageDataUrl(headquarters.image).catch(() => null) : null;
+  const costs = summarizeDeckCosts(deck.counts, index);
   const request: DeckRenderRequest = { title, code, headquartersId: headquartersImage ? headquarters?.groupId : BUNKER_HEADQUARTERS?.groupId, cardBackId, mainNation: deck.mainNation, allyNation: deck.allyNation, limit, background: background || null,
     headquartersImage,
+    statistics: { curve: costs.buckets.map(bucket => bucket.total), totals: costs.totals },
     cards: await Promise.all(entries.map(async ([id, count]) => ({ id, count, name: index.has(id) ? cardTitle(index.get(id)!, 'zh-Hans') : `未知卡牌 ${id}`, rarity: index.get(id)?.json.rarity || '', faction: index.get(id)?.json.faction, cardId: index.get(id)?.cardId, imageUrl: index.get(id)?.imageUrl, image: !desktop && index.has(id) ? await getCachedCardImage(index.get(id)!) : null }))) };
   if (window.kardsDesktop?.renderDeckImage) return window.kardsDesktop.renderDeckImage(request);
   return renderBrowserPreview(request, background);
@@ -43,9 +47,13 @@ async function renderBrowserPreview(request: DeckRenderRequest, background?: str
   const width = 2304, cols = 10, gap = 6, thumbW = Math.floor((width - 120) / cols - 6), thumbH = Math.floor(thumbW * 1.42), top = 195;
   const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = Math.max(1440, top + Math.ceil((total + 1) / cols) * (thumbH + gap) + 20);
   const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('无法创建画布');
-  ctx.drawImage(bg, 0, 0, width, canvas.height);
+  const margin = DECK_BACKGROUND_BLUR * 2, scale = Math.max((width + margin * 2) / bg.width, (canvas.height + margin * 2) / bg.height);
+  ctx.filter = `blur(${DECK_BACKGROUND_BLUR}px)`;
+  ctx.drawImage(bg, (width - bg.width * scale) / 2, (canvas.height - bg.height * scale) / 2, bg.width * scale, bg.height * scale);
+  ctx.filter = 'none';
+  ctx.fillStyle = `rgba(0,0,0,${DECK_BACKGROUND_TINT})`; ctx.fillRect(0, 0, width, canvas.height);
   const logo = await load(LOGOS.wordmark.white); ctx.drawImage(logo, 40, -25, 240, 240);
-  ctx.fillStyle = '#f2ead6'; ctx.font = 'bold 48px Microsoft YaHei,sans-serif'; ctx.fillText(request.title, 350, 87, 1000);
+  ctx.fillStyle = '#f2ead6'; ctx.font = 'bold 48px Microsoft YaHei,sans-serif'; ctx.fillText(deckHeaderTitle(request.title), 350, 87, 580);
   const [mainIcon, allyIcon, totalIcon] = await Promise.all([
     imageDataUrl(factionIcon(request.mainNation, 'white')),
     imageDataUrl(factionIcon(request.allyNation, 'white')),
@@ -53,6 +61,8 @@ async function renderBrowserPreview(request: DeckRenderRequest, background?: str
   ]);
   const counter = await load(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(deckRenderCounterSvg(request, { main: mainIcon, ally: allyIcon, total: totalIcon }))}`);
   ctx.drawImage(counter, 350, 110);
+  const statistics = deckStatisticsSvg(request.statistics);
+  if (statistics) ctx.drawImage(await load(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(statistics)}`), DECK_STATISTICS_POSITION.left, DECK_STATISTICS_POSITION.top);
   const qr = await load(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(deckQrSvg(request.code, request.headquartersId, request.title, request.cardBackId))}`);
   ctx.drawImage(qr, 60 + (cols - 1) * (thumbW + gap) + thumbW - qr.width - 8, Math.round((top - qr.height) / 2) + 8);
   const rarities = ['Elite', 'Special', 'Limited', 'Standard'];

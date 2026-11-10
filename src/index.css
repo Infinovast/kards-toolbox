@@ -327,10 +327,6 @@ input, textarea { caret-color: var(--color-kards-gold); }
 .deck-cost-stack { display: flex; flex: 1; flex-direction: column-reverse; min-width: 0; height: 100%; }
 .deck-cost-stack + .deck-cost-stack { border-left: 1px solid #d4d0bc66; }
 .deck-cost-segment { display: block; flex-shrink: 0; }
-.deck-cost-segment.is-army, .deck-cost-swatch.is-army { background: #416849; }
-.deck-cost-segment.is-air, .deck-cost-swatch.is-air { background: #477ca8; }
-.deck-cost-segment.is-order, .deck-cost-swatch.is-order { background: #ba7b1e; }
-.deck-cost-segment.is-countermeasure, .deck-cost-swatch.is-countermeasure { background: #101110; }
 .kredit-label { display: inline-flex; align-items: center; justify-content: center; gap: 1px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .kredit-label > strong { font-size: var(--kredit-value-size, 23px); line-height: 1.1; }
 .kredit-label > span { display: flex; flex-direction: column; align-self: flex-start; padding-top: var(--kredit-unit-offset, 3px); font-size: var(--kredit-unit-size, 10px); line-height: 1.1; }

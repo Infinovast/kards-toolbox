@@ -1,11 +1,13 @@
 import type { KardsCardRecord } from '../types/card';
 
 export const DECK_COST_CATEGORIES = [
-  { key: 'army', label: '陆军' },
-  { key: 'air', label: '空军' },
-  { key: 'order', label: '指令' },
-  { key: 'countermeasure', label: '反制指令' },
+  { key: 'army', label: '陆军', shortLabel: '陆', color: '#416849' },
+  { key: 'air', label: '空军', shortLabel: '空', color: '#477ca8' },
+  { key: 'order', label: '指令', shortLabel: '指', color: '#ba7b1e' },
+  { key: 'countermeasure', label: '反制指令', shortLabel: '反', color: '#101110' },
 ] as const;
+
+export type DeckCostCategory = typeof DECK_COST_CATEGORIES[number]['key'];
 
 export function summarizeDeckCosts(entries: Map<string, number>, cardsById: Map<string, KardsCardRecord>) {
   const emptyBucket = () => ({ army: 0, air: 0, order: 0, countermeasure: 0, total: 0 });

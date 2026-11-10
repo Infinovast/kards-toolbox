@@ -6,6 +6,7 @@ import { deckRenderCounterSvg } from '../src/lib/deckRenderCounter';
 import { BUNKER_HEADQUARTERS, DEFAULT_TABLECLOTH } from '../src/lib/cardAssets';
 import { deckQrSvg } from '../src/lib/deckImageCode';
 import { factionIcon, LOGOS, RARITY_ICONS } from '../src/lib/assetCatalog';
+import { DECK_BACKGROUND_BLUR, DECK_BACKGROUND_TINT, DECK_STATISTICS_POSITION, deckHeaderTitle, deckStatisticsSvg } from '../src/lib/deckRenderHeader';
 
 const safe = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c]!);
 const svg = (width: number, height: number, body: string) => Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><style>text{font-family:Microsoft YaHei,Arial,sans-serif}</style>${body}</svg>`);
@@ -28,8 +29,8 @@ export async function renderDeckImage(request: DeckRenderRequest): Promise<strin
   const thumbW = Math.floor((canvasW - 120) / cols - 6);
   const thumbH = Math.floor(thumbW * 1.42), gridStartY = 195;
   const canvasH = Math.max(1440, gridStartY + Math.ceil((total + 1) / cols) * (thumbH + pad) + 20);
-  const base = sharp(bg).resize(canvasW, canvasH, { fit: 'cover' });
-  const composites: OverlayOptions[] = [];
+  const base = sharp(bg).resize(canvasW, canvasH, { fit: 'cover' }).blur(DECK_BACKGROUND_BLUR);
+  const composites: OverlayOptions[] = [{ input: svg(canvasW, canvasH, `<rect width="100%" height="100%" fill="black" opacity="${DECK_BACKGROUND_TINT}"/>`), left: 0, top: 0 }];
   let position = 0;
   for (const card of request.cards) {
     const art = card.cardId && card.imageUrl ? (await readCardImage(card.cardId, 'full', card.imageUrl))?.buffer : cachedBuffer(card.image);
@@ -47,13 +48,15 @@ export async function renderDeckImage(request: DeckRenderRequest): Promise<strin
   composites.push({ input: bunker, left: 60 + position % cols * (thumbW + pad), top: gridStartY + Math.floor(position / cols) * (thumbH + pad) });
   const logo = await sharp(await asset(LOGOS.wordmark.white)).trim().resize({ height: 130 }).png().toBuffer();
   composites.push({ input: logo, left: 60, top: 24 });
-  composites.push({ input: svg(1100, 85, `<text x="0" y="72" font-size="48" font-weight="700" fill="#f2ead6">${safe(request.title.slice(0, 24))}</text>`), left: 350, top: 15 });
+  composites.push({ input: svg(580, 85, `<text x="0" y="72" font-size="48" font-weight="700" fill="#f2ead6">${safe(deckHeaderTitle(request.title))}</text>`), left: 350, top: 15 });
   const nationIcon = async (nation: string) => `data:image/svg+xml;base64,${(await asset(factionIcon(nation, 'white'))).toString('base64')}`;
   const counter = deckRenderCounterSvg(request, {
     main: await nationIcon(request.mainNation), ally: await nationIcon(request.allyNation),
     total: `data:image/png;base64,${(await asset(LOGOS.cards.white)).toString('base64')}`,
   });
   composites.push({ input: Buffer.from(counter), left: 350, top: 110 });
+  const statistics = deckStatisticsSvg(request.statistics);
+  if (statistics) composites.push({ input: Buffer.from(statistics), ...DECK_STATISTICS_POSITION });
   const qr = await sharp(Buffer.from(deckQrSvg(request.code, request.headquartersId, request.title, request.cardBackId))).png().toBuffer();
   const qrWidth = (await sharp(qr).metadata()).width!;
   composites.push({ input: qr, left: 60 + (cols - 1) * (thumbW + pad) + thumbW - qrWidth - 8, top: Math.round((gridStartY - qrWidth) / 2) + 8 });

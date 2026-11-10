@@ -57,6 +57,8 @@ import ReservedBadge from './components/ReservedBadge';
 import SearchClearButton from './components/SearchClearButton';
 import NewDeckDialog from './components/NewDeckDialog';
 import DeckImageImport from './components/DeckImageImport';
+import DeckImagePage from './components/DeckImagePage';
+import { saveDeckImage } from './lib/deckImageCache';
 import DeckFolders from './components/DeckFolders';
 import AboutPage from './components/AboutPage';
 import CardDataUpdater from './components/CardDataUpdater';
@@ -267,10 +269,10 @@ export default function App() {
   const [clipboardDeckCandidate, setClipboardDeckCandidate] = useState<ClipboardDeckCandidate | null>(null);
   const lastClipboardPromptRef = useRef<string | null>(null);
   const [backupStatus, setBackupStatus] = useState<string | null>(null);
-  const [activeMenu, setActiveMenu] = useState<'decks' | 'cards' | 'packs' | 'builder' | 'about' | 'settings'>('decks');
+  const [activeMenu, setActiveMenu] = useState<'decks' | 'cards' | 'packs' | 'builder' | 'about' | 'settings' | 'deck-image'>('decks');
   const deckGrid = useDeckGridLayout(dataLoaded && activeMenu === 'decks' && !settings.showDeckFolders, settings.uiScale, settings.deckGap);
-  const [aboutReturnMenu, setAboutReturnMenu] = useState<'decks' | 'cards' | 'packs' | 'builder' | 'settings'>('decks');
-  const [settingsReturnMenu, setSettingsReturnMenu] = useState<'decks' | 'cards' | 'packs' | 'builder' | 'about'>('decks');
+  const [aboutReturnMenu, setAboutReturnMenu] = useState<'decks' | 'cards' | 'packs' | 'builder' | 'settings' | 'deck-image'>('decks');
+  const [settingsReturnMenu, setSettingsReturnMenu] = useState<'decks' | 'cards' | 'packs' | 'builder' | 'about' | 'deck-image'>('decks');
   const settingsPageRef = useRef<HTMLElement>(null);
   useEffect(() => { if (activeMenu === 'settings') settingsPageRef.current?.focus(); }, [activeMenu]);
   const [builderDeck, setBuilderDeck] = useState<BuilderDeck | null>(null);
@@ -367,6 +369,7 @@ export default function App() {
   const [customCategories, setCustomCategories] = useState<{id: string, name: string, backs: {id: string, url: string, name: string}[]}[]>([]);
 
   useEffect(() => {
+    if (activeMenu === 'deck-image') return;
     let detecting = false;
     let cancelled = false;
     const readClipboardText = async () => {
@@ -417,7 +420,7 @@ export default function App() {
       cancelled = true;
       window.removeEventListener('focus', detectClipboardDeck);
     };
-  }, []);
+  }, [activeMenu]);
 
   useEffect(() => {
     let disposed = false;
@@ -593,7 +596,7 @@ export default function App() {
     const customBack = customCategories.flatMap(category => category.backs).find(back => back.url === cardBackUrl);
     const cardBackId = CARD_BACKS.find(back => back.file === cardBackUrl)?.id || (customBack ? `custom:${customBack.id}` : undefined);
     const imageData = await renderDeckImage(deck.code, cardDatabase, deck.name, background, deck.headquartersId, limit, cardBackId);
-    await localforage.setItem(`deck_img_local_v1_${deck.code}`, imageData);
+    await saveDeckImage(deck.code, imageData);
     return imageData;
   };
 
@@ -640,6 +643,8 @@ export default function App() {
       const customBack = customCategories.flatMap(category => category.backs).find(back => back.url === cardBackUrl);
       const cardBackId = CARD_BACKS.find(back => back.file === cardBackUrl)?.id || (customBack ? `custom:${customBack.id}` : undefined);
       const mini = await renderDeckMiniImage(deck.code, cardDatabase, deck.name, deckImageModal.tablecloth, deck.headquartersId, cardBackUrl, cardBackId);
+      if (request !== deckImageRequest.current) return;
+      await saveDeckImage(deck.code, mini, 'mini');
       if (request !== deckImageRequest.current) return;
       setDeckImageModal(current => ({ ...current, miniLoading: false, miniImageUrl: mini, view: 'mini' }));
     } catch (error: any) {
@@ -1348,7 +1353,7 @@ export default function App() {
           </div>
           <nav className="flex items-center gap-6">
             <h1 className="text-kards-text font-bold border-l border-kards-border pl-6 cursor-default tracking-widest">
-              {activeMenu === 'cards' ? '卡牌' : activeMenu === 'packs' ? '卡包' : activeMenu === 'builder' ? '卡组构筑' : activeMenu === 'about' ? '关于' : activeMenu === 'settings' ? '设置' : '卡组'}
+              {activeMenu === 'cards' ? '卡牌' : activeMenu === 'packs' ? '卡包' : activeMenu === 'deck-image' ? '卡组生图' : activeMenu === 'builder' ? '卡组构筑' : activeMenu === 'about' ? '关于' : activeMenu === 'settings' ? '设置' : '卡组'}
             </h1>
             <div className="flex items-center gap-3">
               {activeMenu === 'decks' && <>
@@ -1400,6 +1405,7 @@ export default function App() {
           <SidebarButton active={activeMenu === 'cards'} onClick={() => setActiveMenu('cards')} icon={<img src={effectiveIsDarkMode ? LOGOS.cards.beige : LOGOS.cards.black} alt="" className="h-8 w-8 object-contain" />} label="卡牌" />
           <SidebarButton active={activeMenu === 'packs'} onClick={() => setActiveMenu('packs')} icon={<img src={LOGOS.pack} alt="" className="pack-navigation-icon h-8 w-8 object-contain" />} label="卡包" />
           <div aria-label="应用工具" className="mt-auto flex flex-col gap-1 border-t border-kards-border pt-1">
+            <SidebarButton active={activeMenu === 'deck-image'} onClick={() => { setClipboardDeckCandidate(null); setActiveMenu('deck-image'); }} icon={<ImageIcon className="w-6 h-6" />} label="卡组生图" />
             <SidebarButton active={showTableclothModal} onClick={() => openTableclothPicker()} icon={<Palette className="w-6 h-6" />} label="桌布" />
             <SidebarButton active={activeMenu === 'settings'} onClick={() => { if (activeMenu !== 'settings') setSettingsReturnMenu(activeMenu); setActiveMenu('settings'); }} icon={<Settings className="w-6 h-6" />} label="设置" />
           </div>
@@ -1453,7 +1459,10 @@ export default function App() {
           </div>
 
           {/* Scrollable Content Container */}
-          <div ref={deckGrid.ref} className={`h-full w-full ${activeMenu === 'packs' ? 'overflow-hidden' : 'overflow-y-auto'} no-scrollbar relative z-10 flex flex-col items-center ${activeMenu === 'cards' || activeMenu === 'packs' || activeMenu === 'builder' || activeMenu === 'settings' ? '' : 'p-12'}`}>
+          <div ref={deckGrid.ref} className={`h-full w-full ${activeMenu === 'packs' || activeMenu === 'deck-image' ? 'overflow-hidden' : 'overflow-y-auto'} no-scrollbar relative z-10 flex flex-col items-center ${activeMenu === 'cards' || activeMenu === 'packs' || activeMenu === 'builder' || activeMenu === 'settings' || activeMenu === 'deck-image' ? '' : 'p-12'}`}>
+            {activeMenu === 'deck-image' && (cardDatabaseLoading ? <p className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</p>
+              : cardDatabaseError ? <p role="alert" className="p-6 text-red-400">{cardDatabaseError}</p>
+                : <DeckImagePage cards={cardDatabase} decks={decks} tablecloth={selectedTablecloth} customCategories={customCategories} />)}
             {activeMenu === 'cards' && (
               cardDatabaseLoading ? <div className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</div>
                 : cardDatabaseError ? <div className="max-w-xl rounded border border-red-500/40 bg-red-500/10 p-6 text-red-300">{cardDatabaseError}</div>
@@ -1657,7 +1666,7 @@ export default function App() {
 
       {/* --- Clipboard Import Prompt --- */}
       <AnimatePresence>
-        {clipboardDeckCandidate && !showImportModal && (
+        {clipboardDeckCandidate && !showImportModal && activeMenu !== 'deck-image' && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}

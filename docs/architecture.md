@@ -19,6 +19,8 @@ Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴
 | 路径 | 职责 |
 | --- | --- |
 | `src/App.tsx` | 应用导航、卡组列表与详情、主题、设置及备份入口 |
+| `src/components/DeckImagePage.tsx`、`src/lib/deckImageCache.ts` | 卡组生图快捷页、剪贴板自动填充、双预览及按现有图片缓存发现历史记录 |
+| `src/components/DeckImageHistoryItem.tsx`、`src/lib/deckRenderHeader.ts` | 可见历史项的双缩略图、旧缓存迷你图补全；Canvas 与 Sharp 共用的费用柱状图、分类饼图及标题布局 |
 | `src/components/CardLibrary.tsx` | 卡牌筛选、分页、总部堆叠与资料详情 |
 | `src/lib/deckCover.ts` / `src/lib/deckMiniRenderer.ts` | 战备封面与迷你分享图共用统计及代表卡选择；本地 Canvas 导出带元数据二维码的 PNG |
 | `src/components/HeadquartersGallery.tsx` | 无底板的总部散开与反向收回，支持中途关闭，到位后显示国家标题 |
@@ -94,6 +96,7 @@ Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴
 | 浏览器完整图与缩略图 | IndexedDB 的 `kards_card_image_v2_` 前缀 | 不包含 |
 | 下载失败与最近批次 | `kards_card_image_failures_v1`、`kards_card_image_batch_v1` | 不包含 |
 | 卡组生图缓存 | `deck_img_local_v1_` 前缀 | 包含 |
+| 迷你分享图缓存 | `deck_img_mini_v1_` 前缀 | 包含 |
 
 用户数据目录固定为 `%APPDATA%\kards-toolbox`，不查找旧目录；测试可用 `--user-data-dir` 隔离。用户备份不能覆盖独立管理的卡牌数据库和普通卡图缓存。
 
@@ -122,6 +125,10 @@ Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴
 界面颜色、间距、浮层与动画约定见 [界面规范](../DESIGN.md)。包依赖仍由 npm 管理；`scripts/collect-licenses.cjs` 在网页及完整缓存构建时从已安装生产依赖收集许可文本，桌面打包附带项目与第三方声明。依赖自带许可证与 Electron 运行时许可证随各自组件保留；游戏内容的权属范围见 [第三方说明](../THIRD_PARTY_NOTICES.md)。
 
 词条唯一清单位于 `src/data/cardKeywords.json`：`label` / `english` 管理中英对照，`icon` 指向可选词条图标（动员使用 `mobilize.png`，老兵使用 `veteran.png`）；PNG 保留真实透明空白与抗锯齿边缘，避免半透明底层形成灰色矩形，`attribute` 标识属性词条，`highlighted` 标识战斗词条；战斗词条属于属性词条，属性词条属于完整词条表。`numbered` 声明重甲/情报的数值后缀，`attributeAliases` 管理属性别名及详情可见性，`excludeFollowing` 避免“战斗”命中“战斗机”。`filterGroup` 管理三列筛选分类及排列顺序，`descriptionPrefix` 匹配描述中的“词条：”形式，`cardIds` 维护倒计时卡名单，`textMatch: false` 排除纯筛选项目的正文匹配。筛选菜单、详情属性与中英文规则文字加粗均由该清单派生；战斗强调色只用于筛选项与详情的词条信息，规则正文仅加粗。
+
+卡组生图快捷页在进入和窗口重新获得焦点时读取剪贴板；同一次页面会话中，相同剪贴板卡组码不会重复覆盖手动输入。有效输入停止 350ms 后并行生成完整图与迷你图，过期请求不会替换新预览。图片放大通过 Portal 复用详情遮罩和模态键盘处理；历史侧栏沿用卡组详情浮栏布局，只枚举完整图缓存键，可见记录读取图片后缩为小图，旧缓存缺少迷你图时补生成。完整图重绘会先清除旧迷你缓存，迷你图写入等待完整图保存成功，避免标题、总部或桌布更新后配对错误。该页面不创建卡组。
+
+完整生图由 `summarizeDeckCosts` 计算含实际张数、不含总部的费用和类别统计，随 `DeckRenderRequest.statistics` 传给桌面；两种渲染器共用 `deckStatisticsSvg`，饼图颜色与卡组分析都读取 `DECK_COST_CATEGORIES`。背景在合成清晰卡牌与数据前单独模糊和压暗。
 
 ## 模拟开包
 

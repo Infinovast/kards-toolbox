@@ -73,7 +73,7 @@ export default function DeckCostChart({ entries, cardsById, active, hoverOnly = 
             <div className="deck-cost-frame" aria-hidden="true">
               <div className="deck-cost-bars">
                 {distributions.map(item => <div key={item.label} className="deck-cost-stack" data-distribution={item.label === '部署' ? 'deployment' : 'operation'} title={`${costLabel} ${item.label}：${item.bucket.total} 张`}>
-                  {DECK_COST_CATEGORIES.map(({ key }) => <span key={key} className={`deck-cost-segment is-${key}`} style={{ height: `${item.bucket[key] / curve.max * 100}%` }} />)}
+                  {DECK_COST_CATEGORIES.map(({ key, color }) => <span key={key} className={`deck-cost-segment is-${key}`} style={{ backgroundColor: color, height: `${item.bucket[key] / curve.max * 100}%` }} />)}
                 </div>)}
               </div>
               <div className="deck-cost-kredit"><KreditLabel cost={cost} /></div>
@@ -81,7 +81,7 @@ export default function DeckCostChart({ entries, cardsById, active, hoverOnly = 
           </div>; })}
         </div>
         <div className="deck-cost-legend">
-          {DECK_COST_CATEGORIES.map(({ key, label }) => <div key={key}><span aria-hidden="true" className={`deck-cost-swatch is-${key}`} /><span>{label}：<strong>{curve.totals[key]}</strong></span></div>)}
+          {DECK_COST_CATEGORIES.map(({ key, label, color }) => <div key={key}><span aria-hidden="true" className={`deck-cost-swatch is-${key}`} style={{ backgroundColor: color }} /><span>{label}：<strong>{curve.totals[key]}</strong></span></div>)}
         </div>
         <div className="deck-cost-averages">
           {[

@@ -8,6 +8,8 @@
 
 KARDS Toolbox is a local tool for KARDS players to browse cards, build and manage decks, and simulate opening card packs.
 
+Current version: **1.2.19**.
+
 ## Screenshots
 
 | 1. Deck management | 2. Deck builder |
@@ -35,6 +37,13 @@ The control names below are English descriptions of the Chinese interface shown 
 - Deck details let you copy the code, generate a local PNG, and change the card back or headquarters. Changing the tablecloth in the image preview affects only that export. **Switch to mini sharing image** generates a high-resolution PNG styled like a ready-made deck cover: the preview is 342×242 and the exported image is 1368×968. It includes the card count, cost distribution, rarity counts, actual card back, and sharing QR code. You can switch back to the full deck image.
 - Hover over **Deck analysis**, to the right of **Change card back**, to view deck statistics. This preview closes when you move away and cannot be pinned by clicking.
 - Generated images include a QR code in the upper-right corner containing the deck name, headquarters ID, card back ID, and deck code. Older images without card back information remain compatible. Custom card backs are restored by their local IDs; if the resource is unavailable, the main nation's default back is used. Recognition and image generation run locally.
+
+## Deck image shortcut
+
+- Open **卡组生图** above the tablecloth button in the left sidebar. Enter a deck code or paste the full in-game deck text; a new valid code in the clipboard is filled automatically on entry and when the app regains focus.
+- Full and mini sharing images refresh automatically and can each be downloaded as PNG. Click either image to enlarge it over a blurred backdrop; click outside or press Esc to close. Saved decks with the same code retain their name, headquarters and card back; other codes use a name based on their nations.
+- Full exports use a frosted background. The header includes a 0–7+ cost curve and a pie chart for army, air, orders and countermeasures, using the deck analysis colors and direct labels with bold counts. Headquarters are excluded.
+- **历史记录** opens a floating sidebar styled like deck details, listing local deck image caches, including images generated from deck details. Each entry shows full and mini thumbnails; missing mini images are generated automatically. Select an entry to fill its code and restore its cached image. These caches are included in user backups.
 
 ### Deck builder
 
