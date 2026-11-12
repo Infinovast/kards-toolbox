@@ -339,6 +339,28 @@ input, textarea { caret-color: var(--color-kards-gold); }
 .deck-cost-averages small { font-size: 11px; }
 .deck-cost-averages b { font-weight: 700; }
 .deck-cost-rarities { justify-content: center; gap: 18px; margin-top: 14px; font-size: 12px; line-height: 18px; }
+.deck-ability-chart { margin-top: 18px; padding-top: 12px; border-top: 1px solid #d4d0bc33; font-size: 12px; line-height: 18px; }
+.deck-ability-legend { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px 18px; margin-bottom: 6px; color: #b8b6ad; font-size: 11px; }
+.deck-ability-legend > span { display: inline-flex; align-items: center; gap: 6px; }
+.deck-ability-legend i { display: inline-block; position: static; flex-shrink: 0; transform: none; }
+.deck-ability-colors { display: inline-flex; gap: 2px; }
+.deck-ability-row { display: grid; grid-template-columns: 72px minmax(0, 1fr) 32px; align-items: center; gap: 12px; min-height: 24px; }
+.deck-ability-track { position: relative; height: 4px; margin: 0 5px; background: #d4d0bc14; }
+.deck-ability-track > i { position: absolute; top: 50%; transform: translateY(-50%); }
+.deck-ability-band { height: 10px; background: #d4d0bc44; }
+.deck-ability-legend .deck-ability-band { width: 18px; }
+.deck-ability-point { width: 8px; height: 8px; border-radius: 50%; }
+.deck-ability-track > .deck-ability-point { transform: translate(-50%, -50%); }
+.deck-ability-score { text-align: right; }
+.deck-ability-scale { min-height: 16px; color: #b8b6ad; font-size: 11px; }
+.deck-ability-scale > span:nth-child(2) { position: relative; height: 16px; margin: 0 5px; }
+.deck-ability-scale > span > span { position: absolute; transform: translateX(-50%); }
+.deck-ability-unavailable { margin: 0; text-align: center; color: #b8b6ad; }
+@media (max-height: 700px) {
+  .deck-cost-dialog { padding-top: 20px; padding-bottom: 20px; }
+  .deck-cost-bars { height: clamp(88px, 16dvh, 112px); }
+  .deck-cost-legend { margin-top: 18px; }
+}
 .builder-sidebar { position: relative; min-height: 0; isolation: isolate; }
 .builder-sidebar-scroll { height: 100%; overflow-y: auto; padding: 92px 16px 84px; scroll-padding: 92px 0 84px; }
 .builder-sidebar-bar { position: absolute; left: 0; right: 0; z-index: 3; background-color: rgba(var(--rgb-panel-overlay), 0.72); backdrop-filter: blur(16px) saturate(1.1); }

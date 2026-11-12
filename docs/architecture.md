@@ -36,7 +36,7 @@ Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴
 | `src/components/CardCacheManager.tsx` | 缓存分类、覆盖统计、预览、重试与删除 |
 | `src/lib/cardData.ts`、`cardDatabase.ts`、`cardDataSync.ts` | 卡牌数据校验、持久化和跨页面同步任务 |
 | `src/lib/cardImages.ts`、`cardImageDownload.ts`、`imageDownloads.ts` | 图片缓存、下载校验及后台队列 |
-| `src/lib/deckCode.ts`、`deckImport.ts`、`deckRules.ts` | 卡组码、导入和构筑规则 |
+| `src/lib/deckCode.ts`、`deckImport.ts`、`deckRules.ts`、`deckAnalysis.ts` | 卡组码、导入、构筑规则及五项能力评分；`src/data/deckAnalysis.json` 保存审查数据与固定样本区间，未标注或卡文更新时使用印刷属性与常见效果估算 |
 | `src/lib/cardFilters.ts`、`cardPoolLayout.ts` | 共享筛选语义与自适应分页布局 |
 | `src/lib/useDeckGridLayout.ts` | 复用网格尺寸计算，以较窄的缩放范围适配卡组主页，保留纵向滚动及用户缩放设置 |
 | `src/lib/cardKeywords.ts`、`cardSort.ts` | 词条读取 `src/data/cardKeywords.json` 统一清单，派生 16 个属性词条、7 个战斗词条及全部文字强调；牌库主排序及费用、类型次级排序 |

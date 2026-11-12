@@ -6,7 +6,19 @@ import KreditLabel from './KreditLabel';
 import DeckRaritySummary from './DeckRaritySummary';
 import { handleDialogKeys } from '../lib/dialogKeyboard';
 import { DECK_COST_CATEGORIES, summarizeDeckCosts } from '../lib/deckCostCurve';
+import { analyzeDeckAbilities } from '../lib/deckAnalysis';
 import type { KardsCardRecord } from '../types/card';
+
+const ABILITY_HUES = [6, 30, 54, 114]; // Red → orange → yellow → green.
+const abilityColor = (hue: number) => `hsl(${hue} 55% 62%)`;
+function abilityPointColor(score: number, low: number, high: number) {
+  const width = Math.max(1, high - low);
+  // Lower edge: orange; band midpoint: yellow; upper edge and beyond: green.
+  const position = score < low ? Math.max(0, 1 + (score - low) / Math.max(10, width))
+    : Math.min(3, 1 + 2 * (score - low) / width);
+  const index = Math.min(2, Math.floor(position));
+  return abilityColor(ABILITY_HUES[index] + (ABILITY_HUES[index + 1] - ABILITY_HUES[index]) * (position - index));
+}
 
 export default function DeckCostChart({ entries, cardsById, active, hoverOnly = false, className = 'builder-cost-chart-button' }: {
   entries: Map<string, number>; cardsById: Map<string, KardsCardRecord>; active: boolean; hoverOnly?: boolean; className?: string;
@@ -17,6 +29,7 @@ export default function DeckCostChart({ entries, cardsById, active, hoverOnly = 
   const hoverBlockedUntil = useRef(0);
   const id = useId();
   const curve = useMemo(() => summarizeDeckCosts(entries, cardsById), [entries, cardsById]);
+  const abilities = useMemo(() => active && mode ? analyzeDeckAbilities(entries, cardsById) : null, [entries, cardsById, active, mode]);
   const clearHover = () => { window.clearTimeout(hoverTimer.current); hoverTimer.current = undefined; };
   const close = () => {
     clearHover();
@@ -92,6 +105,27 @@ export default function DeckCostChart({ entries, cardsById, active, hoverOnly = 
           <span>单位/指令比：<small>{curve.totals.army + curve.totals.air} : {curve.totals.order + curve.totals.countermeasure}</small></span>
         </div>
         <DeckRaritySummary rarities={curve.rarities} className="deck-cost-rarities" />
+        <div className="deck-ability-chart" aria-label="五项能力评分">
+          {abilities?.status === 'ready' ? <>
+            <div className="deck-ability-legend" aria-hidden="true">
+              <span><span className="deck-ability-colors">{ABILITY_HUES.map(hue => <i key={hue} className="deck-ability-point" style={{ backgroundColor: abilityColor(hue) }} />)}</span>本卡组</span>
+              <span><i className="deck-ability-band" />典型区间</span>
+            </div>
+            {abilities.axes.map(axis => <div key={axis.id} className="deck-ability-row" role="img"
+              aria-label={`${axis.name} ${axis.score.toFixed(1)}分；样本中间50%区间 ${axis.low.toFixed(1)}至${axis.high.toFixed(1)}分`}>
+              <span aria-hidden="true">{axis.name}</span>
+              <span className="deck-ability-track" aria-hidden="true">
+                <i className="deck-ability-band" style={{ left: `${axis.low}%`, width: `${axis.high - axis.low}%` }} />
+                <i className="deck-ability-point" style={{ left: `${axis.score}%`, backgroundColor: abilityPointColor(axis.score, axis.low, axis.high) }} />
+              </span>
+              <span className="deck-ability-score" aria-hidden="true">{axis.score.toFixed(1)}</span>
+            </div>)}
+            <div className="deck-ability-row deck-ability-scale" aria-hidden="true"><span /><span>
+              {[0, 50, 100].map(tick => <span key={tick} style={{ left: `${tick}%` }}>{tick}</span>)}
+            </span><span /></div>
+          </> : <p className="deck-ability-unavailable" role="status">{abilities?.status === 'incomplete'
+            ? '构筑满39张后显示能力评分' : '部分卡牌资料缺失或数值无效，无法计算评分'}</p>}
+        </div>
       </section>
     </motion.div>}
     </AnimatePresence>, document.body)}

@@ -1,7 +1,7 @@
 {
   "name": "kards-toolbox",
   "private": true,
-  "version": "1.2.19",
+  "version": "1.3.0",
   "license": "MIT",
   "description": "KARDS Toolbox — local-first card library and deck manager for Windows.",
   "type": "module",
@@ -36,7 +36,7 @@
     "lint": "tsc --noEmit",
     "test:deck-import": "tsx src/lib/deckImport.test.ts",
     "test:deck-image-header": "tsx src/lib/deckRenderHeader.test.ts",
-    "test": "npm run test:deck-import && tsx src/lib/deckCode.test.ts && tsx src/lib/deckCostCurve.test.ts && tsx src/lib/deckImageImport.test.ts && npm run test:deck-image-header && tsx src/lib/backup.test.ts && tsx src/lib/userDataStorage.test.ts && tsx electron/userDataPath.test.ts && tsx electron/cacheBundle.test.ts && tsx src/lib/cardData.test.ts && tsx src/lib/cardAssets.test.ts && tsx src/lib/cardFilters.test.ts && tsx src/lib/cardKeywords.test.tsx && tsx src/lib/pagination.test.ts && tsx src/lib/cardImages.test.ts && tsx src/lib/cardPacks.test.ts && tsx src/lib/packHistory.test.ts",
+    "test": "npm run test:deck-import && tsx src/lib/deckCode.test.ts && tsx src/lib/deckCostCurve.test.ts && tsx src/lib/deckAnalysis.test.ts && tsx src/lib/deckImageImport.test.ts && npm run test:deck-image-header && tsx src/lib/backup.test.ts && tsx src/lib/userDataStorage.test.ts && tsx electron/userDataPath.test.ts && tsx electron/cacheBundle.test.ts && tsx src/lib/cardData.test.ts && tsx src/lib/cardAssets.test.ts && tsx src/lib/cardFilters.test.ts && tsx src/lib/cardKeywords.test.tsx && tsx src/lib/pagination.test.ts && tsx src/lib/cardImages.test.ts && tsx src/lib/cardPacks.test.ts && tsx src/lib/packHistory.test.ts",
     "test:desktop": "node scripts/smoke-desktop.cjs",
     "app": "start \"\" \"release/win-unpacked/kards_toolbox.exe\""
   },
@@ -83,10 +83,22 @@
       "main": "dist-electron/main.cjs"
     },
     "extraFiles": [
-      { "from": "LICENSE", "to": "LICENSE.KARDS-Toolbox.txt" },
-      { "from": "THIRD_PARTY_NOTICES.md", "to": "THIRD_PARTY_NOTICES.md" },
-      { "from": "THIRD_PARTY_NOTICES_en.md", "to": "THIRD_PARTY_NOTICES_en.md" },
-      { "from": "dist/THIRD_PARTY_LICENSES.txt", "to": "THIRD_PARTY_LICENSES.txt" }
+      {
+        "from": "LICENSE",
+        "to": "LICENSE.KARDS-Toolbox.txt"
+      },
+      {
+        "from": "THIRD_PARTY_NOTICES.md",
+        "to": "THIRD_PARTY_NOTICES.md"
+      },
+      {
+        "from": "THIRD_PARTY_NOTICES_en.md",
+        "to": "THIRD_PARTY_NOTICES_en.md"
+      },
+      {
+        "from": "dist/THIRD_PARTY_LICENSES.txt",
+        "to": "THIRD_PARTY_LICENSES.txt"
+      }
     ],
     "win": {
       "executableName": "kards_toolbox",
