@@ -37,6 +37,7 @@ export interface HeadquartersAsset {
 export interface TableclothAsset {
   id: string;
   name: string;
+  description?: string;
   file: string;
   type: 'default' | 'wallpaper' | 'headquarters';
   headquartersId?: string;

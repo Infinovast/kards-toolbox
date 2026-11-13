@@ -8,7 +8,7 @@
 
 KARDS Toolbox is a local tool for KARDS players to browse cards, build and manage decks, and simulate opening card packs.
 
-Current version: **1.3.1**.
+Current version: **1.3.2**.
 
 ## Screenshots
 
@@ -42,6 +42,7 @@ The control names below are English descriptions of the Chinese interface shown 
 
 - Open **卡组生图** above the tablecloth button in the left sidebar. Enter a deck code or paste the full in-game deck text; a new valid code in the clipboard is filled automatically on entry and when the app regains focus.
 - Full and mini sharing images refresh automatically and can each be downloaded as PNG. Click either image to enlarge it over a blurred backdrop; click outside or press Esc to close. Saved decks with the same code retain their name, headquarters and card back; other codes use a name based on their nations.
+- **更换桌布**, to the left of **历史记录**, reuses the image preview's tablecloth picker, including default, wallpaper, headquarters and custom images. Selecting a tablecloth refreshes both previews without changing the application's tablecloth.
 - Full exports use a frosted background. The header includes a 0–7+ cost curve and a pie chart for army, air, orders and countermeasures, using the deck analysis colors and direct labels with bold counts. Headquarters are excluded.
 - **历史记录** opens a floating sidebar styled like deck details, listing local deck image caches, including images generated from deck details. Each entry shows full and mini thumbnails; missing mini images are generated automatically. Select an entry to fill its code and restore its cached image. These caches are included in user backups.
 
@@ -80,7 +81,7 @@ The control names below are English descriptions of the Chinese interface shown 
 - **Local cache** reports library size, full-size image coverage, and thumbnail coverage separately. Inspect cached, uncached, and failed items; download in batches, retry failures, delete images, or compact the cache to reclaim space.
 - User backups include decks, folders, settings, drafts, user images, and generated deck image caches. Ordinary card image caches and the card database are managed separately. Export a backup before upgrading or moving to another device.
 - If local data cannot be read, automatic saving stops. Retry the read, import a backup, or restore an automatic backup. Failed saves show a message with a retry option. Up to three distinct automatic backups are retained at startup and before imports; restore them under **Data backup** in settings. Automatic backups include user data and pack history, without duplicating deck images that can be regenerated. Backups are fully validated before restoration. An interrupted restore is rolled back, including any unfinished rollback detected at the next startup.
-- Choose tablecloths from the sidebar, including named defaults and wallpapers organized by nation and Chinese card name. Switch light and dark themes with the sun/moon button in the top bar. Settings are saved automatically. Headquarters-specific tablecloths appear temporarily only while selecting or editing the corresponding deck.
+- Choose tablecloths from the sidebar, including named defaults and wallpapers organized by nation and Chinese card name. Hover or focus a tablecloth to read its short description in a frosted-glass tooltip above or below the image; descriptions appear in full without scrolling. Switch light and dark themes with the sun/moon button in the top bar. Settings are saved automatically. Headquarters-specific tablecloths appear temporarily only while selecting or editing the corresponding deck.
 
 ## Keyboard shortcuts
 

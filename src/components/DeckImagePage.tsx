@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { Download, History, Image as ImageIcon, LoaderCircle, RotateCcw, X } from 'lucide-react';
+import { Download, History, Image as ImageIcon, LoaderCircle, Palette, RotateCcw, X } from 'lucide-react';
 import { factionLabel, type KardsCardRecord } from '../types/card';
 import { decodeDeckCode } from '../lib/deckCode';
 import { extractDeckCodeFromText, inferDeckTitleFromText } from '../lib/deckImport';
@@ -17,6 +17,7 @@ interface Props {
   cards: KardsCardRecord[];
   decks: ImageDeck[];
   tablecloth: string;
+  onOpenTableclothPicker: (current: string, onChoose: (tablecloth: string) => void) => void;
   customCategories: { backs: { id: string; url: string }[] }[];
 }
 interface Preview { image: string | null; loading: boolean; error: string }
@@ -26,18 +27,20 @@ const deckTitle = (code: string) => {
   return `${factionLabel(mainNation)}${mainNation === allyNation ? '' : factionLabel(allyNation)}卡组`;
 };
 
-function imageOptions(deck: ImageDeck, tablecloth: string, customCategories: Props['customCategories']) {
+function imageOptions(deck: ImageDeck, tablecloth: string, customCategories: Props['customCategories'], backgroundOverride?: string) {
   const decoded = decodeDeckCode(deck.code);
-  const background = tableclothForHeadquarters(headquartersForDeck(deck.headquartersId, decoded.mainNation)?.groupId) || tablecloth;
+  const background = backgroundOverride || tableclothForHeadquarters(headquartersForDeck(deck.headquartersId, decoded.mainNation)?.groupId) || tablecloth;
   const cardBackUrl = cardBackForDeck({ ...deck, ...decoded });
   const customBack = customCategories.flatMap(category => category.backs).find(back => back.url === cardBackUrl);
   const cardBackId = CARD_BACKS.find(back => back.file === cardBackUrl)?.id || (customBack ? `custom:${customBack.id}` : undefined);
   return { background, cardBackUrl, cardBackId };
 }
 
-export default function DeckImagePage({ cards, decks, tablecloth, customCategories }: Props) {
+export default function DeckImagePage({ cards, decks, tablecloth: defaultTablecloth, customCategories, onOpenTableclothPicker }: Props) {
   const reducedMotion = useReducedMotion();
   const cacheRevision = useCardImageCacheRevision();
+  const [tableclothOverride, setTableclothOverride] = useState<string>();
+  const tablecloth = tableclothOverride || defaultTablecloth;
   const [input, setInput] = useState<{ text: string; title?: string; history?: { tablecloth: string; revision: number; cards: KardsCardRecord[] } }>({ text: '' });
   const [previews, setPreviews] = useState({ full: emptyPreview(), mini: emptyPreview() });
   const [saveError, setSaveError] = useState('');
@@ -103,7 +106,7 @@ export default function DeckImagePage({ cards, decks, tablecloth, customCategori
       if (!cancelled) setPreviews(current => ({ ...current, [kind]: preview }));
     };
     const timer = window.setTimeout(() => {
-      const { background, cardBackUrl, cardBackId } = imageOptions(deck, tablecloth, customCategories);
+      const { background, cardBackUrl, cardBackId } = imageOptions(deck, tablecloth, customCategories, tableclothOverride);
       const restore = input.history?.tablecloth === tablecloth && input.history.revision === cacheRevision && input.history.cards === cards && retry === 0;
       const generate = async (kind: DeckImageKind, fullSaved?: Promise<boolean>): Promise<boolean> => {
         try {
@@ -134,7 +137,7 @@ export default function DeckImagePage({ cards, decks, tablecloth, customCategori
       void generate('mini', fullSaved);
     }, input.history ? 0 : 350);
     return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [parsed, input.history, cards, tablecloth, customCategories, cacheRevision, retry]);
+  }, [parsed, input.history, cards, tablecloth, tableclothOverride, customCategories, cacheRevision, retry]);
 
   useEffect(() => {
     if (!historyOpen) return;
@@ -163,6 +166,17 @@ export default function DeckImagePage({ cards, decks, tablecloth, customCategori
             aria-invalid={!!parsed.error} aria-describedby="deck-image-input-status"
             className="w-full rounded border border-kards-input-border bg-kards-input-bg px-3 py-2 text-sm text-kards-text placeholder:text-kards-text-muted focus:border-kards-text-muted focus:outline-none focus:ring-1 focus:ring-kards-text-muted" />
         </div>
+        <button type="button" disabled={!parsed.deck || previews.full.loading || previews.mini.loading}
+          onClick={() => {
+            if (!parsed.deck) return;
+            const { background } = imageOptions(parsed.deck, tablecloth, customCategories, tableclothOverride);
+            onOpenTableclothPicker(background, selected => {
+              setTableclothOverride(selected); setRetry(0);
+              setInput(current => ({ ...current, history: undefined }));
+            });
+          }} className="flex shrink-0 items-center gap-2 rounded border border-kards-border px-4 py-2 text-sm font-bold disabled:opacity-40">
+          <Palette className="h-4 w-4" />更换桌布
+        </button>
         <button ref={historyButton} type="button" aria-expanded={historyOpen} aria-controls="deck-image-history" onClick={() => setHistoryOpen(open => !open)}
           className={`flex shrink-0 items-center gap-2 rounded border px-3 py-2 text-sm hover:border-kards-gold ${historyOpen ? 'border-kards-gold text-kards-status' : 'border-kards-border text-kards-text'}`}>
           <History className="h-4 w-4" />历史记录
@@ -211,7 +225,7 @@ export default function DeckImagePage({ cards, decks, tablecloth, customCategori
                   <DeckImageHistoryItem code={code} name={decks.find(deck => deck.code === code)?.name || deckTitle(code)} selected={parsed.code === code} revision={historyRevision}
                     renderMini={async () => {
                       const deck = decks.find(deck => deck.code === code) || { code, name: deckTitle(code) };
-                      const { background, cardBackUrl, cardBackId } = imageOptions(deck, tablecloth, customCategories);
+                      const { background, cardBackUrl, cardBackId } = imageOptions(deck, tablecloth, customCategories, tableclothOverride);
                       return renderDeckMiniImage(code, cards, deck.name, background, deck.headquartersId, cardBackUrl, cardBackId);
                     }} onSelect={() => {
                     inputRevision.current++; setRetry(0);

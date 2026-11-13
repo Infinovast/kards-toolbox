@@ -8,7 +8,8 @@
       "type": "default",
       "previousFiles": [
         "/assets/tablecloths/default/1.jpeg"
-      ]
+      ],
+      "description": "一张结实的木头桌子，表面有些划痕。"
     },
     {
       "id": "default-2",
@@ -17,7 +18,8 @@
       "type": "default",
       "previousFiles": [
         "/assets/tablecloths/default/2.jpeg"
-      ]
+      ],
+      "description": "KARDS 中的经典桌布。"
     },
     {
       "id": "default-4",
@@ -26,7 +28,8 @@
       "type": "default",
       "previousFiles": [
         "/assets/tablecloths/default/4.jpeg"
-      ]
+      ],
+      "description": "一块狭长的松木板，只能放下三行卡牌。"
     },
     {
       "id": "default-5",
@@ -35,13 +38,15 @@
       "type": "default",
       "previousFiles": [
         "/assets/tablecloths/default/5.jpeg"
-      ]
+      ],
+      "description": "秋风扫落叶，满地尽黄昏。"
     },
     {
       "id": "default-starter-campaigns",
       "name": "新兵战役",
       "file": "/assets/tablecloths/default/starter_campaigns.png",
-      "type": "default"
+      "type": "default",
+      "description": "还记得你的第一场新兵战役吗？"
     },
     {
       "id": "wallpaper-britain-britain_deck_po2",
@@ -52,7 +57,8 @@
       "previousFiles": [
         "/assets/tablecloths/wallpaper/Britain/britain_deck_po2.png"
       ],
-      "cardId": "supply_shortage"
+      "cardId": "supply_shortage",
+      "description": "Ultra 情报行动使盟军能够解密轴心国的高层通信，掌握其向北非运输物资的时间与路线。盟军据此拦截并摧毁运输船队，使非洲军团缺乏燃料、装备和补给，成为北非战役取胜的关键因素之一。"
     },
     {
       "id": "wallpaper-britain-t_loading_britain_05",
@@ -63,7 +69,8 @@
       "previousFiles": [
         "/assets/tablecloths/wallpaper/Britain/t_loading_britain_05.png"
       ],
-      "cardId": "royal_west_kents"
+      "cardId": "royal_west_kents",
+      "description": "女王直属皇家西肯特步兵团是一支驻扎于肯特郡的英军步兵团。战争爆发时，它隶属位于法国的英国远征军，在敦刻尔克撤离行动中遭受了重创。1943 年突尼斯战役末期，再次损伤严重。1944 年，该团在意大利卡西诺山等地与德国部队作战。"
     },
     {
       "id": "wallpaper-britain-t_loading_britain_07",
@@ -74,7 +81,8 @@
       "previousFiles": [
         "/assets/tablecloths/wallpaper/Britain/t_loading_britain_07.png"
       ],
-      "cardId": "spitfire_mk_ia"
+      "cardId": "spitfire_mk_ia",
+      "description": "著名的超级马林喷火战斗机是英国及盟军在第二次世界大战期间及战后使用的一款英国战斗机。该机非常灵活，以牺牲航程换取速度和机动性。因此，这款飞机不适合用于进攻作战，不过它在防御作战中表现出色，尤是在不列颠之役期间。喷火式战斗机还衍生出了许多改型，是产量最多的英国飞机。"
     },
     {
       "id": "wallpaper-britain-t_loading_britain_c",
@@ -85,7 +93,8 @@
       "previousFiles": [
         "/assets/tablecloths/wallpaper/Britain/t_loading_britain_c.png"
       ],
-      "cardId": "escort_group"
+      "cardId": "escort_group",
+      "description": "二战期间，皇家海军以驱逐舰和护卫舰护送商船，利用雷达、声纳及目视观察发现德国 U 型潜艇，再以深水炸弹、火炮和鱼雷攻击。不断改进的护航战术、通信和反潜武器，有效降低了商船损失。"
     },
     {
       "id": "wallpaper-germany-german_campaign",
@@ -96,7 +105,8 @@
       "previousFiles": [
         "/assets/tablecloths/wallpaper/Germany/german_campaign.png"
       ],
-      "cardId": "tiger_ih"
+      "cardId": "tiger_ih",
+      "description": "虎 I 坦克 H 型（Tiger I-H）是二战德国重型坦克，搭载 5 名乘员，装备 88 毫米 KwK 36 坦克炮。它拥有出色的战斗能力，但制造和维护成本高昂，仅生产了 1,347 辆。"
     },
     {
       "id": "wallpaper-germany-t_loading_germany_05",
@@ -107,7 +117,8 @@
       "previousFiles": [
         "/assets/tablecloths/wallpaper/Germany/t_loading_germany_05.png"
       ],
-      "cardId": "me_bf_109_e"
+      "cardId": "me_bf_109_e",
+      "description": "梅塞施密特 Bf 109 是纳粹德国空军在二战期间主要使用的战斗机。Bf 109 最初在西班牙内战（1939）期间服役，直到二战结束时，德国和其轴心国盟友仍在使用这种机型。它是当时最为先进的一种战斗机，在整个二战期间的空中歼敌数超过其他任何一种飞机。"
     },
     {
       "id": "wallpaper-germany-t_loading_germany_07",
@@ -118,7 +129,8 @@
       "previousFiles": [
         "/assets/tablecloths/wallpaper/Germany/t_loading_germany_07.png"
       ],
-      "cardId": "from_the_deep"
+      "cardId": "from_the_deep",
+      "description": "德国 U 型潜艇是二战大西洋战场的主力。战争初期，潜艇有时会先警告船员弃船，再用甲板炮击沉商船；随着盟军商船武装化，攻击逐渐不再预警。整场战争中，德国 U 型潜艇击沉了约 5,000 艘盟军船只。"
     },
     {
       "id": "wallpaper-germany-t_loading_germany_c",
@@ -129,7 +141,8 @@
       "previousFiles": [
         "/assets/tablecloths/wallpaper/Germany/t_loading_germany_c.png"
       ],
-      "cardType": "infantry"
+      "cardType": "infantry",
+      "description": "战斗中的德军步兵。"
     },
     {
       "id": "wallpaper-japan-japan_campaign_po2",
@@ -140,7 +153,8 @@
       "previousFiles": [
         "/assets/tablecloths/wallpaper/Japan/japan_campaign_po2.png"
       ],
-      "cardId": "akita_regiment"
+      "cardId": "akita_regiment",
+      "description": "步兵第 17 联队（秋田）所效力的日本帝国陆军步兵第 2 师团（勇兵团）曾参与过诺门罕战役、爪哇战役、瓜达尔卡纳尔岛战役以及缅甸中部战役。当时，秋田县的首府秋田市建立了数支联队，这些联队后来在日本帝国陆军中曾经效命于多支师团。"
     },
     {
       "id": "wallpaper-japan-t_loading_Japan_05",
@@ -151,7 +165,8 @@
       "previousFiles": [
         "/assets/tablecloths/wallpaper/Japan/t_loading_Japan_05.png"
       ],
-      "cardId": "ijn_shinano"
+      "cardId": "ijn_shinano",
+      "description": "信浓号原计划作为第三艘大和级战列舰，建造中改装为航空母舰，满载排水量约 72,000 吨，是当时最大的航母。它于 1944 年 11 月首航，同月 29 日被美军潜艇射水鱼号击沉，未能发挥预期战力。"
     },
     {
       "id": "wallpaper-japan-t_loading_Japan_06",
@@ -162,7 +177,8 @@
       "previousFiles": [
         "/assets/tablecloths/wallpaper/Japan/t_loading_Japan_06.png"
       ],
-      "cardId": "dawn_operations"
+      "cardId": "dawn_operations",
+      "description": "黎明攻击兼具足够的能见度与出其不意的优势，因而常被指挥官采用。1939 年 9 月 1 日，第二次世界大战于波兰时间凌晨 5 点 20 分开始，正是这一战术传统的体现。"
     },
     {
       "id": "wallpaper-japan-t_loading_Japan_08",
@@ -173,7 +189,8 @@
       "previousFiles": [
         "/assets/tablecloths/wallpaper/Japan/t_loading_Japan_08.png"
       ],
-      "cardId": "ki44_tojo"
+      "cardId": "ki44_tojo",
+      "description": "中岛 Ki-44 二式战“钟馗”，盟军代号“Tojo”，于 1942 年投入使用。它以更高速度和更强火力承担拦截任务，但降落速度快、能见度与机动性较差；战争末期训练有素的飞行员不足，也限制了其表现。"
     },
     {
       "id": "wallpaper-soviet-soviet_deck_po2",
@@ -184,7 +201,8 @@
       "previousFiles": [
         "/assets/tablecloths/wallpaper/Soviet/soviet_deck_po2.png"
       ],
-      "cardId": "ot34"
+      "cardId": "ot34",
+      "description": "T-34 火焰喷射器坦克，也被称为 OT-34，配备内置火焰喷射器代替车体机枪。通常用 AT0-41 火焰喷射器改装 1941 型坦克，或用 AT0-42 改装 1942 型坦克。在二战期间，共生产了 1,172 辆 OT-34 坦克。"
     },
     {
       "id": "wallpaper-soviet-t_loading_soviet_07",
@@ -195,7 +213,8 @@
       "previousFiles": [
         "/assets/tablecloths/wallpaper/Soviet/t_loading_soviet_07.png"
       ],
-      "cardId": "little_cobra"
+      "cardId": "little_cobra",
+      "description": "贝尔 P-39 飞蛇采用中置发动机和前三点式起落架，高空性能不佳，却适合东线的低空作战。超过 4,700 架通过租借法案送往苏联，凭借耐用性和 37 毫米机炮，成为多位苏联王牌飞行员的座机。"
     },
     {
       "id": "wallpaper-soviet-t_loading_soviet_08",
@@ -206,7 +225,8 @@
       "previousFiles": [
         "/assets/tablecloths/wallpaper/Soviet/t_loading_soviet_08.png"
       ],
-      "cardId": "petlyakov_pe2"
+      "cardId": "petlyakov_pe2",
+      "description": "佩特利亚科夫 PE-2 是二战苏联的轻型轰炸机，速度快、机动性高，除对地攻击外，也执行侦察和夜间战斗等任务。它在欧洲及满洲战场服役，二战期间共生产 11,427 架。"
     },
     {
       "id": "wallpaper-soviet-t_loading_soviet_a",
@@ -217,7 +237,8 @@
       "previousFiles": [
         "/assets/tablecloths/wallpaper/Soviet/t_loading_soviet_a.png"
       ],
-      "cardId": "beriev_be4"
+      "cardId": "beriev_be4",
+      "description": "别里耶夫 Be-4 最初称为 KOR-2，是二战苏联用于海上侦察和轰炸的飞行艇。它采用双翼及中央浮筒设计，搭载 3 名乘员，可在陆地和水面起降。共生产 47 架，主要在黑海、波罗的海和北冰洋地区服役。"
     },
     {
       "id": "wallpaper-usa-t_loading_usa_05",
@@ -228,7 +249,8 @@
       "previousFiles": [
         "/assets/tablecloths/wallpaper/USA/t_loading_usa_05.png"
       ],
-      "cardId": "mass_deployment"
+      "cardId": "mass_deployment",
+      "description": "在参加二战的 1,600 多万美国人中，大约有 1,170 万人在海外服役。尽管美国在太平洋、亚洲和北非进行了许多战役，但他们最大的军事部署仍在欧洲。"
     },
     {
       "id": "wallpaper-usa-t_loading_usa_06",
@@ -239,7 +261,8 @@
       "previousFiles": [
         "/assets/tablecloths/wallpaper/USA/t_loading_usa_06.png"
       ],
-      "cardId": "strategic_planning"
+      "cardId": "strategic_planning",
+      "description": "1944 年 6 月，盟军登陆诺曼底，这是历史上最为复杂和艰巨的军事行动之一，涉及约三百万军事人员、7,000 艘船只以及 11,000 架飞机。十二个国家促成此次行动，主要包括美国、英国和加拿大军队。行动的成功离不开各方周密的筹划。"
     },
     {
       "id": "wallpaper-usa-t_loading_usa_08",
@@ -250,7 +273,8 @@
       "previousFiles": [
         "/assets/tablecloths/wallpaper/USA/t_loading_usa_08.png"
       ],
-      "cardId": "p51_mustang"
+      "cardId": "p51_mustang",
+      "description": "P-51 野马是二战盟军的远程单座战斗机，最初为英国皇家空军开发。后期改型改善了高空性能，英美空军广泛用它护航轰炸机及执行对地攻击，为盟军取得空中优势作出重要贡献。"
     },
     {
       "id": "wallpaper-usa-t_loading_usa_c",
@@ -261,31 +285,36 @@
       "previousFiles": [
         "/assets/tablecloths/wallpaper/USA/t_loading_usa_c.png"
       ],
-      "cardId": "101st_airborne"
-    },
-    {
-      "id": "wallpaper-common-NavalWarfare_keyart_still_noLogo",
-      "name": "海战",
-      "file": "/assets/tablecloths/wallpaper/Common/NavalWarfare_keyart_still_noLogo.png",
-      "type": "wallpaper"
-    },
-    {
-      "id": "wallpaper-common-WinterKeyart2021_still",
-      "name": "冬季战争",
-      "file": "/assets/tablecloths/wallpaper/Common/WinterKeyart2021_still.png",
-      "type": "wallpaper"
-    },
-    {
-      "id": "wallpaper-common-bloodAndIron_keyart_still_noLogo",
-      "name": "血与铁",
-      "file": "/assets/tablecloths/wallpaper/Common/bloodAndIron_keyart_still_noLogo.png",
-      "type": "wallpaper"
+      "cardId": "101st_airborne",
+      "description": "第 101 空降师，又称“呼啸群鹰”，是专为空袭行动训练的精锐步兵师。第二次世界大战期间，该师以霸王行动、市场花园行动、解放荷兰以及在突出部之役中保卫巴斯托涅城而闻名。"
     },
     {
       "id": "wallpaper-common-t_allegiance",
       "name": "忠诚",
       "file": "/assets/tablecloths/wallpaper/Common/t_allegiance.png",
-      "type": "wallpaper"
+      "type": "wallpaper",
+      "description": "KARDS 首个扩展包“忠诚”新增 150 张卡牌，带来 2 个全新同盟国家和多种新机制。已有的 5 个国家也补充了新卡，为不同国家与同盟组合拓展了战术选择。"
+    },
+    {
+      "id": "wallpaper-common-WinterKeyart2021_still",
+      "name": "冬季战争",
+      "file": "/assets/tablecloths/wallpaper/Common/WinterKeyart2021_still.png",
+      "type": "wallpaper",
+      "description": "“冬季战争”是 KARDS 第六个重大扩展包，引入盟国芬兰及“收缴”“抑制”两个关键词。扩展包新增 86 张可收集卡牌，其中 20 张属于芬兰，为主国与盟国补充了新的战术选择。"
+    },
+    {
+      "id": "wallpaper-common-bloodAndIron_keyart_still_noLogo",
+      "name": "血与铁",
+      "file": "/assets/tablecloths/wallpaper/Common/bloodAndIron_keyart_still_noLogo.png",
+      "type": "wallpaper",
+      "description": "“血与铁”是 KARDS 第八个大型扩展包，以 87 张全新卡牌和“冲击”机制聚焦装甲战。谢尔曼、T-34 和鼠式等坦克登场，各国以重型装甲、冲击步兵或强力单位展开前线争夺。"
+    },
+    {
+      "id": "wallpaper-common-NavalWarfare_keyart_still_noLogo",
+      "name": "海战",
+      "file": "/assets/tablecloths/wallpaper/Common/NavalWarfare_keyart_still_noLogo.png",
+      "type": "wallpaper",
+      "description": "“海战”是 KARDS 第九个大型扩展包，新增 87 张卡牌，首次引入海军子类别。全新关键词“转换”可在对局中变化卡牌，配合计划、生产和溃军三张中立衍生牌，为各国拓展海战与卡组互动。"
     },
     {
       "id": "hq-rangoon",

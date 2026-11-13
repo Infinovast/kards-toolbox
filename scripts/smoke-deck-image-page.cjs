@@ -86,6 +86,11 @@ async function main() {
     await page.getByRole('button', { name: '卡组生图', exact: true }).click();
     const input = page.getByLabel('卡组码', { exact: true });
     await expect(input).toHaveValue('');
+    const changeTablecloth = page.getByRole('button', { name: '更换桌布', exact: true });
+    await expect(changeTablecloth).toBeDisabled();
+    const changeBounds = await changeTablecloth.boundingBox();
+    const historyBounds = await page.getByRole('button', { name: '历史记录', exact: true }).boundingBox();
+    assert.ok(changeBounds.x + changeBounds.width <= historyBounds.x, 'change tablecloth sits to the left of history');
     await page.getByRole('button', { name: '历史记录', exact: true }).click();
     await expect(page.getByText('暂无生图记录', { exact: false })).toBeVisible();
     await page.keyboard.press('Escape');
@@ -159,6 +164,38 @@ async function main() {
     await history.getByRole('button').filter({ hasText: codeA }).click();
     await waitImages();
     assert.equal(await mini.getAttribute('src'), miniA);
+
+    // Reuse the image picker, including headquarters descriptions, without changing the app background.
+    const applicationTablecloth = await page.locator('[data-tablecloth]').getAttribute('data-tablecloth');
+    await changeTablecloth.click();
+    await expect(page.getByRole('heading', { name: '切换桌布', exact: true })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(changeTablecloth).toBeFocused();
+    assert.equal(await full.getAttribute('src'), imageA, 'cancel leaves the preview unchanged');
+    await changeTablecloth.click();
+    const hqTablecloth = require('../src/data/tablecloths.json').tablecloths.find(item => item.type === 'headquarters');
+    const headquarters = require('../src/data/headquarters.json').headquarters.find(item => item.groupId === hqTablecloth.headquartersId);
+    const headquartersChoice = page.getByRole('button', { name: `选择桌布 ${hqTablecloth.name}`, exact: true });
+    await headquartersChoice.hover();
+    await expect(page.getByRole('tooltip')).toHaveText(headquarters.brief);
+    await headquartersChoice.click();
+    await expect(page.getByRole('heading', { name: '切换桌布', exact: true })).toHaveCount(0);
+    await waitImages();
+    assert.notEqual(await full.getAttribute('src'), imageA, 'tablecloth changes the full image');
+    assert.notEqual(await mini.getAttribute('src'), miniA, 'tablecloth changes the mini image');
+    const changedFull = await full.getAttribute('src');
+    const changedMini = await mini.getAttribute('src');
+    await expect.poll(() => read(codeA)).toBe(changedFull);
+    await changeTablecloth.click();
+    await expect(headquartersChoice).toHaveAttribute('aria-pressed', 'true');
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('[data-tablecloth]').getAttribute('data-tablecloth'), applicationTablecloth);
+    await input.fill(codeB); await waitImages();
+    await page.getByRole('button', { name: '历史记录', exact: true }).click();
+    await history.getByRole('button').filter({ hasText: codeA }).click();
+    await waitImages();
+    assert.equal(await full.getAttribute('src'), changedFull, 'history restores the updated full image');
+    assert.equal(await mini.getAttribute('src'), changedMini, 'history restores the updated mini image');
 
     // Separate render failures and storage failures keep successful previews available.
     await page.evaluate(() => { window.__failMini = true; window.__failImageSave = true; });

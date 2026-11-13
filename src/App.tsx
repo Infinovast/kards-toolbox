@@ -46,6 +46,7 @@ import useDeckGridLayout from './lib/useDeckGridLayout';
 import CardPacks from './components/CardPacks';
 import { resetUsageTips } from './lib/usageTips';
 import TableclothBackground from './components/TableclothBackground';
+import TableclothChoice from './components/TableclothChoice';
 import CardDetailModal from './components/CardDetailModal';
 import type { CardDetailOrigin } from './lib/cardDetailOrigin';
 import { revealDetailItem, type CardDetailItem } from './lib/cardDetailPaging';
@@ -579,6 +580,7 @@ export default function App() {
   const [renameCollectionName, setRenameCollectionName] = useState('');
   const [deckImageModal, setDeckImageModal] = useState<{show: boolean, deck: Pick<Deck, 'name' | 'code' | 'headquartersId' | 'cardBackUrl' | 'allyNation'> | null, loading: boolean, miniLoading: boolean, imageUrl: string | null, miniImageUrl: string | null, view: 'full' | 'mini', error: string | null, tablecloth: string}>({show: false, deck: null, loading: false, miniLoading: false, imageUrl: null, miniImageUrl: null, view: 'full', error: null, tablecloth: DEFAULT_TABLECLOTH});
   const [tableclothPickerForImage, setTableclothPickerForImage] = useState(false);
+  const pageTableclothPicker = useRef<{ tablecloth: string; onChoose: (tablecloth: string) => void } | null>(null);
   const deckImageRequest = useRef(0);
   const closeDeckImage = () => { deckImageRequest.current++; setTableclothPickerForImage(false); setDeckImageModal(current => ({ ...current, show: false })); };
 
@@ -652,19 +654,25 @@ export default function App() {
       setDeckImageModal(current => ({ ...current, miniLoading: false })); setErrorStatus(error.message || '无法生成迷你分享图');
     }
   };
-  const openTableclothPicker = (forDeckImage = false) => {
+  const openTableclothPicker = (forDeckImage = false, pagePicker: typeof pageTableclothPicker.current = null) => {
+    pageTableclothPicker.current = pagePicker;
     setTableclothPickerForImage(forDeckImage);
     setShowTableclothModal(true);
   };
   const closeTableclothPicker = () => {
+    pageTableclothPicker.current = null;
     setShowTableclothModal(false);
     setTableclothPickerForImage(false);
   };
   const chooseTablecloth = (tablecloth: string) => {
-    if (tableclothPickerForImage) void chooseTableclothForDeckImage(tablecloth);
+    if (pageTableclothPicker.current) {
+      pageTableclothPicker.current.onChoose(tablecloth);
+      closeTableclothPicker();
+    }
+    else if (tableclothPickerForImage) return chooseTableclothForDeckImage(tablecloth);
     else setSelectedTablecloth(tablecloth);
   };
-  const activeTableclothChoice = tableclothPickerForImage ? deckImageModal.tablecloth : selectedTablecloth;
+  const activeTableclothChoice = pageTableclothPicker.current?.tablecloth || (tableclothPickerForImage ? deckImageModal.tablecloth : selectedTablecloth);
 
   const refreshAfterBackupImport = async () => {
     const loaded = await loadUserData();
@@ -1056,7 +1064,7 @@ export default function App() {
 
       if (currentCrop.type === 'tablecloth') {
         setCustomTablecloths(prev => [...prev, croppedImage]);
-        if (tableclothPickerForImage) await chooseTableclothForDeckImage(croppedImage);
+        if (tableclothPickerForImage) await chooseTablecloth(croppedImage);
         else setSelectedTablecloth(croppedImage);
       } else if (currentCrop.type === 'cardback' && currentCrop.category) {
         setCustomCategories(prev => {
@@ -1462,7 +1470,8 @@ export default function App() {
           <div ref={deckGrid.ref} className={`h-full w-full ${activeMenu === 'packs' || activeMenu === 'deck-image' ? 'overflow-hidden' : 'overflow-y-auto'} no-scrollbar relative z-10 flex flex-col items-center ${activeMenu === 'cards' || activeMenu === 'packs' || activeMenu === 'builder' || activeMenu === 'settings' || activeMenu === 'deck-image' ? '' : 'p-12'}`}>
             {activeMenu === 'deck-image' && (cardDatabaseLoading ? <p className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</p>
               : cardDatabaseError ? <p role="alert" className="p-6 text-red-400">{cardDatabaseError}</p>
-                : <DeckImagePage cards={cardDatabase} decks={decks} tablecloth={selectedTablecloth} customCategories={customCategories} />)}
+                : <DeckImagePage cards={cardDatabase} decks={decks} tablecloth={selectedTablecloth} customCategories={customCategories}
+                  onOpenTableclothPicker={(tablecloth, onChoose) => openTableclothPicker(true, { tablecloth, onChoose })} />)}
             {activeMenu === 'cards' && (
               cardDatabaseLoading ? <div className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</div>
                 : cardDatabaseError ? <div className="max-w-xl rounded border border-red-500/40 bg-red-500/10 p-6 text-red-300">{cardDatabaseError}</div>
@@ -1927,14 +1936,7 @@ export default function App() {
                   {(tableclothPickerForImage ? ['default', 'wallpaper', 'headquarters'] as const : ['default', 'wallpaper'] as const).map(type => <React.Fragment key={type}>
                     <h4 className="col-span-full pt-3 text-xs font-bold text-kards-text-muted">{type === 'default' ? '默认桌布' : type === 'headquarters' ? '总部专属桌布' : '壁纸'}</h4>
                     {(tableclothPickerForImage ? TABLECLOTHS : USER_TABLECLOTHS).filter(item => item.type === type).map(item => (
-                      <div key={item.id} onClick={() => chooseTablecloth(item.file)} title={item.name} role="button" tabIndex={0} aria-label={'选择桌布 ' + item.name}
-                        onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); chooseTablecloth(item.file); } }} className={`aspect-video military-border overflow-hidden cursor-pointer group relative ${activeTableclothChoice === item.file ? 'ring-2 ring-kards-gold' : 'hover:brightness-110 opacity-80 hover:opacity-100'}`}>
-                        <img src={item.file} className="w-full h-full object-cover" alt={item.name} />
-                        <span className="absolute bottom-0 left-0 right-0 truncate bg-black/65 px-2 py-1 text-[10px] text-white">{item.name}</span>
-                        <div className="absolute inset-0 bg-kards-gold/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <Check className={`w-6 h-6 text-kards-text ${activeTableclothChoice === item.file ? 'opacity-100' : 'opacity-0'}`} />
-                        </div>
-                      </div>
+                      <TableclothChoice key={item.id} item={item} selected={activeTableclothChoice === item.file} onChoose={chooseTablecloth} />
                     ))}
                   </React.Fragment>)}
                 </div>
