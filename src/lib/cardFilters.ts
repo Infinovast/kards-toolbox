@@ -84,7 +84,8 @@ function matchesStatus(card: KardsCardRecord, status: string) {
 
 export function matchesCardFilters(card: KardsCardRecord, filters: CardFilters) {
   return matchesCardSearch(card, filters.query)
-    && (!filters.factions.length || filters.factions.some(faction => faction.toLowerCase() === card.json.faction?.toLowerCase()))
+    && (!filters.factions.length || filters.factions.some(faction => [card.json.faction, card.json.exile]
+      .some(nation => typeof nation === 'string' && faction.toLowerCase() === nation.trim().toLowerCase())))
     && (!filters.cardType.length || filters.cardType.includes(card.json.type || ''))
     && (!filters.subtypes.length || filters.subtypes.some(subtype => cardHasSubtype(card.cardId, subtype)))
     && (!filters.keywords.length || (filters.keywordMode === 'and'

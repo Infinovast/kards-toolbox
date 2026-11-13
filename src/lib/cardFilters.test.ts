@@ -87,6 +87,28 @@ assert.ok(isInBuilderPool(changed({ rarity: 'Special', set: 'Base' }), 'Germany'
 for (const set of ['OnlySpawnable', 'Special']) assert.ok(!isInBuilderPool(changed({ set }), 'Germany', 'Soviet'));
 
 const cards: KardsCardRecord[] = JSON.parse(readFileSync('public/data/cards.json', 'utf8')).cards;
+const exileNations: Record<string, string> = {
+  orp_orze: 'Britain', agency_africa: 'Britain', battle_mk_i_pl: 'Britain', lysander_pl: 'Britain',
+  devils_brigade: 'Britain', hurricane_pl: 'Britain', m_s_406: 'Poland', orp_byskawica: 'Britain',
+  '2nd_infantry_regiment': 'Soviet', il2m_pl: 'Soviet', m4_sherman_pl: 'USA', t34_76_pl: 'Soviet',
+  yak_9_pl: 'Soviet', m4_firefly_pl: 'USA', '1st_grenadier_regiment': 'France', spitfire_mk_v_pl: 'Britain',
+};
+assert.equal(cards.filter(card => card.json.exile).length, Object.keys(exileNations).length);
+for (const [cardId, nation] of Object.entries(exileNations)) {
+  const card = cards.find(card => card.cardId === cardId)!;
+  assert.ok(card, `${cardId} exists in bundled data`);
+  assert.equal(card.json.exile, nation, `${cardId} has the expected exile nation`);
+  for (const faction of [card.json.faction!, nation, nation.toLowerCase()]) {
+    assert.ok(matchesCardFilters(card, { ...EMPTY_CARD_FILTERS, factions: [faction] }), `${cardId} matches ${faction}`);
+  }
+  assert.ok(matchesCardFilters(card, { ...EMPTY_CARD_FILTERS, factions: ['Germany', nation], keywords: ['exile'], cardType: [card.json.type!] }), 'exile nations compose with OR within nations and AND across filters');
+  assert.ok(!matchesCardFilters(card, { ...EMPTY_CARD_FILTERS, factions: ['Germany', 'Japan'] }), 'unrelated nations do not match');
+  assert.ok(!matchesCardFilters(card, { ...EMPTY_CARD_FILTERS, factions: [nation], cost: ['99'] }), 'exile nationality does not bypass other filters');
+}
+for (const exile of [undefined, null, false, 1, {}, []]) {
+  assert.ok(!matchesCardFilters(changed({ exile }), { ...EMPTY_CARD_FILTERS, factions: ['Britain'] }), 'absent or non-string exile metadata does not grant nationality');
+}
+assert.ok(matchesCardFilters(changed({ exile: ' britain ' }), { ...EMPTY_CARD_FILTERS, factions: ['BRITAIN'] }));
 for (const id of ['1st_signal_regiment', '158_nachschub']) {
   const card = cards.find(card => card.cardId === id)!;
   assert.ok(card, `${id} exists in bundled data`);

@@ -5,12 +5,13 @@ import { CardFace } from './CardFace';
 import { expansionLabel, FilterIcon } from './CardFilterSelects';
 import { cardRelations, cardStatusLabel } from '../lib/cardDetails';
 import { handleDialogKeys } from '../lib/dialogKeyboard';
-import { cardDisplayTitle, cardText, factionLabel, typeLabel, type CardLanguage, type KardsCardRecord } from '../types/card';
+import { cardDisplayTitle, cardText, typeLabel, type CardLanguage, type KardsCardRecord } from '../types/card';
 import ReservedBadge from './ReservedBadge';
 import { CardText } from './CardText';
 import type { HeadquartersAsset } from '../lib/cardAssets';
 import { captureCardDetailOrigin, type CardDetailOrigin } from '../lib/cardDetailOrigin';
-import { cardFactionIcon, SET_ICONS, TYPE_ICONS } from '../lib/assetCatalog';
+import { SET_ICONS, TYPE_ICONS } from '../lib/assetCatalog';
+import CardNationality from './CardNationality';
 import CardKeywordList from './CardKeywordList';
 import CardRarity from './CardRarity';
 import CardSubtypeInfo from './CardSubtypeInfo';
@@ -163,9 +164,9 @@ export default function CardDetailModal({ card: initialCard, headquarters: initi
       <button data-dialog-cancel aria-label="关闭卡牌详情" disabled={!arrived || isClosing} onClick={requestClose} className="card-detail-close"><X className="h-5 w-5" /></button>
       <div className="card-detail-layout">
         <aside inert={!arrived || isClosing} className="card-detail-panel custom-scrollbar">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <h2 className="flex shrink-0 items-center gap-3 text-lg font-bold"><span className="h-7 w-7">{card ? <FilterIcon src={TYPE_ICONS[type]} /> : <Shield className="h-7 w-7" />}</span>{card ? typeLabel(type) : '总部'}</h2>
-            <div className="flex shrink-0 items-center gap-2 text-sm"><span className="h-6 w-6"><FilterIcon src={cardFactionIcon(faction, type)} fullColor /></span>{factionLabel(faction)}</div>
+            <CardNationality faction={faction} exile={card?.json.exile} type={type} className="ml-auto" />
           </div>
           {keywords.length > 0 && <section className="card-detail-section">
             <h3 className="mb-3 font-bold">词条</h3>

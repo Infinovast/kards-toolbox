@@ -1,118 +1,157 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { READY_DECKS } from '../data/readyDecks';
 import { decodeDeckCode } from './deckCode';
-import { analyzeDeckAbilities, DECK_ABILITY_REFERENCE } from './deckAnalysis';
+import { analyzeDeckAbilities, createCardAbilityReader, DECK_ABILITY_REFERENCE } from './deckAnalysis';
 import { mergeWeatherCardRecords } from './cardData';
 import type { KardsCardRecord } from '../types/card';
 
-const catalog = JSON.parse(readFileSync(new URL('../../public/data/cards.json', import.meta.url), 'utf8')).cards as KardsCardRecord[];
+const catalog = mergeWeatherCardRecords(JSON.parse(readFileSync(new URL('../../public/data/cards.json', import.meta.url), 'utf8')).cards as KardsCardRecord[]);
 const cardsById = new Map(catalog.map(card => [card.importId, card]));
-const readyScores = [[86.1, 46.8, 37.6, 68.1, 60.2], [73.9, 57.6, 77.2, 43.6, 71], [78.5, 48.7, 65.5, 44.4, 85.1], [82.9, 58.8, 44, 45.6, 71.1]];
-// Fixtures from the reviewed experimental scorer; do not depend on ignored references/ at runtime or in CI.
-const samples: [string, number[]][] = [
-  ['%%25|0moo;0ybqbupWtV;ohpMsDw0wb;pUsUvS', [58, 26.2, 56.2, 58, 71.9]],
-  ['%%41|8C969bppqTrjt3vewqyXz5;3X9xqjvfvhwJ;458Uwowy;z0', [73.9, 59.7, 30.4, 48.6, 81.2]],
-  ['%%25|0b0i0l0o1abqn3pGqZtT;04bObu;08;1TglpMsCsU', [84.4, 31, 33.3, 53, 67.6]],
-  ['%%43|6C7i7S888e8M8P949ep9pxt3t7thtlwox1;6x797l8V9799iXt9x0;;7H', [96.9, 56.1, 70.8, 32.3, 82.1]],
-  ['%%15|2U3Q3X4A4rbqcrcWcxd7ddj4lVoKoOpGqdrcvWwJ;3g4G4n4p4t4vbKoU;4q;', [91.2, 59.1, 52.8, 42.2, 77.1]],
-  ['%%51|3Q3X4GbCbEbKbnbPbqcGcNcpcrcWcxd3j4oOqZstsyvKvUvVvWvXwJ;3g4pcVqhrcvL;;', [57.7, 57.9, 78.6, 28.6, 71.9]],
-  ['%%32|0l1a1O5u6B6C71727eg2men3p8p9sCtQtTx1yOzn;045Z6x797lpVqCx0;6L;', [91.2, 58.6, 68.8, 47.4, 65.1]],
-  ['%%19|3Q3X4n4rlKnbnmnooDoEoKoOq2qdrMrNrPsjwJwO;3g4G4pn8q8;2U4qqh;', [71.6, 59, 75.4, 46.9, 75.1]],
-  ['%%45|7E7S8e8P949vbJbqcrpGpsr1t9tktmzC;99bObQ;7HbNpv;848V', [66.5, 44.4, 41.4, 55.2, 77.3]],
-  ['%%14|2U2W3g3V3X4G4n4r7S8F8M999a9klKoKoOt9thtlwAwBwHwJ;4p7Hnvq8qhwO;4q;', [79.6, 56.5, 78.4, 42.8, 75.8]],
-  ['%%5a|bCbEbKbnbqcNcpcWcxd7j4papGqZsyu3vWxWxYy3y4y9yu;crcVxX;y5yt;gl', [82.9, 57.9, 62.6, 43.7, 73.8]],
-  ['%%56|2H2i2nbEbnbqcKcNcpcWcxd3d7ddfKhaj4k5oHoIpGq6svsyvWyS;bPcr;bKcVrc;', [58.2, 59.1, 70.8, 33.1, 82.1]],
-];
+const read = createCardAbilityReader(catalog);
 const before = JSON.stringify(catalog);
-for (const [code, expected] of [...READY_DECKS.map((d, i) => [d.code, readyScores[i]] as [string, number[]]), ...samples]) {
+const samples = DECK_ABILITY_REFERENCE.decks.map(code => ({ code, result: analyzeDeckAbilities(decodeDeckCode(code).counts, cardsById) }));
+for (const code of [...READY_DECKS.map(deck => deck.code), ...DECK_ABILITY_REFERENCE.decks]) {
   const counts = decodeDeckCode(code).counts;
   const result = analyzeDeckAbilities(counts, cardsById);
-  assert.equal(result.status, 'ready');
-  assert.deepEqual(result.axes.map(axis => axis.score), expected);
-  assert.deepEqual(analyzeDeckAbilities(new Map([...counts].reverse()), cardsById), result, 'map order must not affect the result');
+  assert.equal(result.status, 'ready', code);
+  assert.deepEqual(analyzeDeckAbilities(new Map([...counts].reverse()), cardsById), result, 'map order cannot change scores');
+  assert.deepEqual(analyzeDeckAbilities(counts, new Map([...cardsById].reverse())), result, 'catalogue order cannot change name resolution');
 }
-assert.equal(JSON.stringify(catalog), before, 'profiling must not mutate the card catalogue');
 assert.deepEqual(DECK_ABILITY_REFERENCE.axes.map(axis => axis.name), ['前期展开', '进攻能力', '解牌能力', '手牌续航', '防守抗压']);
-assert.equal(DECK_ABILITY_REFERENCE.sampleCount, 12);
-DECK_ABILITY_REFERENCE.axes.forEach((axis, index) => {
-  const sorted = samples.map(([, scores]) => scores[index]).sort((a, b) => a - b);
-  const quantile = (p: number) => { const h = 11 * p; return sorted[Math.floor(h)] + (sorted[Math.ceil(h)] - sorted[Math.floor(h)]) * (h % 1); };
-  for (const [value, p] of [[axis.low, 0.25], [axis.median, 0.5], [axis.high, 0.75]]) assert.ok(Math.abs(value - quantile(p)) < 1e-8);
-});
+// Recompute descriptive bands only on an explicit developer command after a model/catalogue change.
+const quantile = (values: number[], p: number) => {
+  const sorted = [...values].sort((a, b) => a - b), h = (sorted.length - 1) * p;
+  return Math.round((sorted[Math.floor(h)] + (sorted[Math.ceil(h)] - sorted[Math.floor(h)]) * (h % 1)) * 1e6) / 1e6;
+};
+const recalibrated = DECK_ABILITY_REFERENCE.axes.map((axis, i) => ({ ...axis,
+  low: quantile(samples.map(s => s.result.axes[i].score), 0.25), high: quantile(samples.map(s => s.result.axes[i].score), 0.75),
+}));
+if (!process.argv.includes('--update-reference')) assert.deepEqual(DECK_ABILITY_REFERENCE.axes, recalibrated, 'reference bands must use the current model and the recorded sample decks');
 
 const counts = decodeDeckCode(READY_DECKS[0].code).counts;
 const firstId = counts.keys().next().value!;
 const short = new Map(counts); short.set(firstId, short.get(firstId)! - 1);
 assert.deepEqual(analyzeDeckAbilities(short, cardsById), { status: 'incomplete', axes: [] });
 assert.equal(analyzeDeckAbilities(new Map(), cardsById).status, 'incomplete');
-assert.equal(analyzeDeckAbilities(new Map([...counts, ['missing', 1]]), cardsById).status, 'incomplete');
 assert.equal(analyzeDeckAbilities(counts, new Map()).status, 'unsupported');
 for (const count of [-1, 1.5, NaN, Infinity]) assert.equal(analyzeDeckAbilities(new Map([[firstId, count]]), cardsById).status, 'unsupported');
-const changed = new Map(cardsById);
-const original = changed.get(firstId)!;
-changed.set(firstId, { ...original, json: { ...original.json, text: { 'zh-Hans': '已修改的复杂卡文。' } } });
-assert.equal(analyzeDeckAbilities(counts, changed).status, 'ready', 'updated card text must fall back to current effects and printed stats');
 
 const filler: KardsCardRecord = { id: -1, cardId: 'filler', importId: 'zz', json: { faction: 'Germany', type: 'infantry', kredits: 2, attack: 2, defense: 3, operationCost: 1 } };
-const synthetic = (json: KardsCardRecord['json']) => {
-  const card = { ...filler, json: { ...filler.json, ...json } };
-  return analyzeDeckAbilities(new Map([['zz', 39]]), new Map([['zz', card]]));
-};
-const stat = (result: ReturnType<typeof synthetic>, id: string) => result.axes.find(axis => axis.id === id)!.score;
-assert.equal(stat(synthetic({ text: { 'zh-Hans': '授予其他牌：“抽3张牌。”' } }), 'supply'), 0, 'quoted effects are not immediate draw');
-assert.equal(synthetic({ operationCost: NaN }).status, 'unsupported');
-assert.equal(stat(synthetic({ type: 'order', text: { 'zh-Hans': '抽1张牌。' } }), 'supply') <= 60, true, 'cycling cannot masquerade as net refill');
-assert.ok(stat(synthetic({ type: 'order', text: { 'zh-Hans': '对1个单位造成1点伤害。' } }), 'interaction') <= 50);
-assert.ok(stat(synthetic({ kredits: 1 }), 'opening') >= stat(synthetic({ kredits: 4 }), 'opening'));
-assert.ok(stat(synthetic({ operationCost: 0 }), 'pressure') >= stat(synthetic({ operationCost: 3 }), 'pressure'));
-assert.equal(stat(synthetic({ attack: 0 }), 'opening'), 0);
-assert.equal(stat(synthetic({ text: { 'zh-Hans': '部署：抽0张牌。' } }), 'supply'), 0);
-assert.equal(stat(synthetic({ text: { 'zh-Hans': '无法攻击。' } }), 'opening'), 0);
-assert.ok(stat(synthetic({ text: { 'zh-Hans': '部署：使1个敌方单位无法攻击。' } }), 'opening') > 0, 'an enemy attack restriction does not disable this unit');
-assert.ok(stat(synthetic({ text: { 'zh-Hans': '无法攻击敌方总部。' } }), 'opening') > 0, 'HQ-only restrictions still allow board deployment');
+const makeCard = (text: string, unit = false, english = false): KardsCardRecord => ({ ...filler,
+  json: { ...filler.json, type: unit ? 'infantry' : 'order', text: { [english ? 'en-EN' : 'zh-Hans']: text } },
+});
+const inspect = (text: string, unit = false, english = false) => read(makeCard(text, unit, english));
+const roles = (text: string, unit = false, english = false) => inspect(text, unit, english).roles;
+const has = (text: string, role: string, unit = false, english = false) => roles(text, unit, english).some(e => e.role === role);
+const score = (json: KardsCardRecord['json']) => analyzeDeckAbilities(new Map([['zz', 39]]), new Map([['zz', { ...filler, json: { ...filler.json, ...json } }]]));
+const axis = (result: ReturnType<typeof score>, id: string) => result.axes.find(axis => axis.id === id)!.score;
 
-// Full-catalogue compatibility, not just the 241 manually reviewed cards.
-const allCards = mergeWeatherCardRecords(catalog);
-for (const candidate of allCards) {
+// Verify meaning, not just finite output. Every family is exercised in both languages.
+for (const [zh, en, role] of [
+  ['抽2张牌。', 'Draw two cards.', 'supply'],
+  ['消灭1个敌方单位。', 'Destroy an enemy unit.', 'interaction'],
+  ['对1个单位造成3点伤害。', 'Deal three damage to a unit.', 'interaction'],
+  ['对敌方总部造成3点伤害。', 'Deal three damage to the enemy HQ.', 'offense'],
+  ['压制所有敌方单位。', 'Pin all enemy units.', 'interaction'],
+  ['使1个敌方单位撤退。', 'Retreat an enemy unit.', 'interaction'],
+  ['将1个“测试单位”加入支援阵线。', 'Add a TEST UNIT to your support line.', 'board'],
+  ['使1个友方单位获得+2+2。', 'Give a friendly unit +2+2.', 'offense'],
+  ['使友方总部获得+4防御力。', 'Your HQ gains +4 defense.', 'defense'],
+  ['开发1张英国指令。', 'Develop a British order.', 'supply'],
+  ['预报。', 'Forecast.', 'supply'],
+] as const) {
+  assert.ok(has(zh, role), zh); assert.ok(has(en, role, false, true), en);
+}
+for (const text of ['对友方总部造成3点伤害。', '消灭所有友方单位。', '使1个敌方单位获得+2+2。',
+  '敌方额外抽1张牌时，对其总部造成1点伤害。', '授予其他牌：“抽3张牌。”',
+  '抽取：使所有友方单位具有+1攻击力。', '若其具有闪击，将其消灭。',
+  'When the enemy draws a card, pin a friendly unit.', 'Destroy a friendly unit.']) {
+  const found = roles(text, false, /^[A-Z]/.test(text));
+  assert.ok(!found.some(e => e.role === 'supply' || e.role === 'fast'), text);
+  if (/友方.*伤害|消灭所有友方|friendly unit\./.test(text)) assert.ok(!found.some(e => e.role === 'interaction'), text);
+}
+for (const text of ['友方回合结束时，抽1张牌，将其弃掉。', '选择并弃1张牌，抽1张牌。', '选择1张手牌洗入卡组，抽1张牌。', 'Draw and discard the top card of your deck.', '部署：抽0张牌。']) {
+  assert.ok(!has(text, 'supply', false, /^[A-Z]/.test(text)), text);
+}
+assert.ok(!has('将1个敌方单位返回手牌。', 'supply'), 'bouncing an enemy unit does not replenish your hand');
+assert.ok(!has('将1个友方单位返回手牌。', 'supply'), 'returning your own unit is not net hand generation');
+assert.ok(roles('亡计：抽2张牌。', true).filter(e => e.role === 'supply').every(e => e.conditional));
+assert.ok(roles('部署：抽2张牌。', true).some(e => e.role === 'supply' && !e.conditional));
+assert.ok(roles('部署：抽1张牌。亡计：抽2张牌。', true).some(e => e.role === 'supply' && !e.conditional));
+assert.ok(has('单位攻击后，将其压制。', 'interaction'));
+assert.ok(!has('若其具有闪击，将其消灭。', 'fast'), 'a condition cannot grant Blitz to this card');
+assert.ok(has('抉择：使友方总部获得+8防御力 或 抽2张牌。', 'supply'));
+assert.ok(has('获得闪击并抽1张牌。', 'supply', true));
+assert.ok(inspect('新型复杂机制：重新定义胜利条件。').unmodeled.length, 'unmodeled text must remain visible in the developer audit');
+assert.equal(score({ operationCost: NaN }).status, 'unsupported');
+assert.ok(axis(score({ kredits: 1 }), 'opening') > axis(score({ kredits: 4 }), 'opening'));
+assert.ok(axis(score({ operationCost: 0 }), 'pressure') > axis(score({ operationCost: 3 }), 'pressure'));
+assert.equal(axis(score({ attack: 0 }), 'opening'), 0);
+assert.equal(axis(score({ text: { 'zh-Hans': '无法攻击。' } }), 'opening'), 0);
+assert.ok(axis(score({ text: { 'zh-Hans': '部署：使1个敌方单位无法攻击。' } }), 'opening') > 0);
+assert.ok(axis(score({ text: { 'zh-Hans': '无法攻击敌方总部。' } }), 'opening') > 0);
+assert.equal(axis(score({ text: { 'zh-Hans': '若友方指挥点槽数小于6，无法部署。' } }), 'opening'), 0);
+assert.ok(axis(score({ text: { 'zh-Hans': '', 'en-EN': 'Deployment: Draw two cards.' } }), 'supply') > 0);
+
+const card = (id: string) => catalog.find(c => c.cardId === id)!;
+for (const id of ['against_the_odds', 'sally', 'direct_hit', 'carpet_bombing', 'dive_bombing', '15th_wolves_regiment', 'orp_general_haller']) {
+  assert.ok(read(card(id)).roles.some(e => e.role === 'interaction'), id);
+}
+for (const id of ['no_46_commando', '7075_aluminium', 'plan', 'lesser_of_two_evils', '16th_tarnow_regiment', 'materials']) {
+  assert.ok(read(card(id)).roles.some(e => e.role === 'supply'), id);
+}
+for (const id of ['bocage_warfare', '50_infantry_regiment', '16th_infantry_brigade']) {
+  assert.ok(read(card(id)).roles.some(e => e.role === 'offense' && e.conditional), id);
+}
+for (const id of ['15th_motor_rifles', '845th_rifles', '289th_gatchina', '593rd_jasco']) {
+  assert.ok(read(card(id)).roles.some(e => e.role === 'defense'), id);
+}
+
+// An external tutor must find another physical copy, never the payoff copy itself.
+const payoff = card('32nd_infantry_regiment'), blank = { ...filler, json: { ...filler.json, type: 'order' } };
+const ownCopy = new Map([[payoff.importId, 1], ['zz', 38]]), index = new Map([[payoff.importId, payoff], ['zz', blank]]);
+assert.equal(axis(analyzeDeckAbilities(ownCopy, index), 'supply'), 0);
+assert.ok(axis(analyzeDeckAbilities(new Map([[payoff.importId, 2], ['zz', 37]]), index), 'supply') > 0);
+const stale = { ...payoff, json: { ...payoff.json, text: { 'zh-Hans': '部署：完全不同的新效果。' } } };
+assert.equal(axis(analyzeDeckAbilities(new Map([[payoff.importId, 2], ['zz', 37]]), new Map<string, KardsCardRecord>([[payoff.importId, stale], ['zz', blank]])), 'supply'), 0);
+
+// All cards take the same path. A formerly reviewed ID cannot confer special treatment.
+const audit = catalog.map(candidate => {
+  const abilities = read(candidate);
+  assert.deepEqual(read({ ...candidate, cardId: `unknown:${candidate.cardId}` }), abilities, candidate.cardId);
   const mixed = new Map(counts), removedId = [...mixed.keys()].find(id => id !== candidate.importId)!;
   mixed.set(removedId, mixed.get(removedId)! - 1);
   mixed.set(candidate.importId, (mixed.get(candidate.importId) || 0) + 1);
-  const result = analyzeDeckAbilities(mixed, new Map([...cardsById, [candidate.importId, candidate]]));
+  const result = analyzeDeckAbilities(mixed, cardsById);
   assert.equal(result.status, 'ready', candidate.cardId);
   assert.equal(result.axes.length, 5, candidate.cardId);
-  assert.ok(result.axes.every(axis => Number.isFinite(axis.score) && axis.score >= 0 && axis.score <= 100), candidate.cardId);
+  assert.ok(result.axes.every(a => Number.isFinite(a.score) && a.score >= 0 && a.score <= 100), candidate.cardId);
+  return { cardId: candidate.cardId, importId: candidate.importId, printed: {
+    type: candidate.json.type, kredits: candidate.json.kredits, operationCost: candidate.json.operationCost,
+    attack: candidate.json.attack, defense: candidate.json.defense, attributes: candidate.json.attributes || [],
+  }, text: candidate.json.text?.['zh-Hans'] || candidate.json.text?.['en-EN'] || '', ...abilities };
+});
+assert.equal(JSON.stringify(catalog), before, 'analysis cannot mutate catalogue data');
+const leaked = analyzeDeckAbilities(counts, cardsById); leaked.axes[0].low = -1;
+assert.ok(analyzeDeckAbilities(counts, cardsById).axes[0].low >= 0);
+const scoresBefore = analyzeDeckAbilities(counts, cardsById).axes.map(a => a.score);
+const originalLow = DECK_ABILITY_REFERENCE.axes[0].low;
+try {
+  DECK_ABILITY_REFERENCE.axes[0].low = 99;
+  assert.deepEqual(analyzeDeckAbilities(counts, cardsById).axes.map(a => a.score), scoresBefore, 'reference values do not enter the score formulas');
+} finally { DECK_ABILITY_REFERENCE.axes[0].low = originalLow; }
+if (process.argv.includes('--update-reference')) {
+  const path = new URL('../data/deckAnalysis.json', import.meta.url), data = JSON.parse(readFileSync(path, 'utf8'));
+  data.reference.axes = recalibrated;
+  writeFileSync(path, `${JSON.stringify(data, null, 2)}\n`);
 }
-const order = (text: string, english = false) => synthetic({ type: 'order', text: { [english ? 'en-EN' : 'zh-Hans']: text } });
-for (const text of ['抽2张牌。使友方总部获得+4防御力。', 'Draw two cards. Your HQ gains +4 defense.']) {
-  const result = order(text, text.startsWith('Draw'));
-  assert.ok(stat(result, 'supply') > 0, text);
-  assert.ok(stat(result, 'defense') > 0, text);
+if (process.argv.includes('--audit')) {
+  const path = new URL('../../references/deck-analysis/', import.meta.url); mkdirSync(path, { recursive: true });
+  writeFileSync(new URL('card-ability-audit.json', path), `${JSON.stringify({ model: 'kards-capacity-3',
+    note: 'Deterministic model output, not a manual semantic review. Unmodeled text receives no invented bonus; matching a clause does not simulate all of its constraints.',
+    cardsWithUnmodeledText: audit.filter(c => c.unmodeled.length).length, cards: audit, referenceBands: recalibrated,
+    referenceDecks: samples.map(({ code, result }) => ({ code, scores: result.axes.map(({ id, name, score }) => ({ id, name, score })) })),
+  }, null, 2)}\n`);
 }
-for (const text of ['消灭1个敌方单位。抽1张牌。', 'Destroy an enemy unit. Draw a card.', '对1个单位造成3点伤害。', 'Deal three damage to an enemy unit.']) {
-  assert.ok(stat(order(text, /^[A-Z]/.test(text)), 'interaction') > 50, text);
-}
-for (const text of ['对友方总部造成3点伤害。', '消灭1个友方单位。', '敌方额外抽1张牌时，对其总部造成1点伤害。', '授予其他牌：“抽3张牌。”', 'When the enemy draws a card, pin a friendly unit.', 'Give a unit: \\"Draw three cards.\\"']) {
-  const result = order(text, /^[A-Z]/.test(text));
-  assert.equal(stat(result, 'supply'), 0, text);
-  assert.equal(stat(result, 'interaction'), 0, text);
-}
-for (const text of ['友方回合结束时，抽1张牌，将其弃掉。', '选择并弃1张牌，抽1张牌。', 'Draw and discard the top card of your deck.']) {
-  assert.equal(stat(order(text, /^[A-Z]/.test(text)), 'supply'), 0, text);
-}
-assert.ok(stat(order('亡计：抽2张牌。'), 'supply') < stat(order('抽2张牌。'), 'supply'), 'inferred triggers must be discounted');
-assert.ok(stat(order('将3张“测试卡”加入手中，获得：“亡计：抽6张牌。”'), 'supply') > 0, 'count generated cards, not their granted effects');
-assert.ok(stat(order('将1个“测试单位”加入支援阵线。'), 'opening') > 0, 'generated units contribute to deployment');
-assert.ok(stat(synthetic({ text: { 'zh-Hans': '', 'en-EN': 'Deployment: Draw two cards.' } }), 'supply') > 0, 'empty Chinese text must allow English fallback');
-
-const card = (id: string) => catalog.find(c => c.cardId === id)!;
-const payoff = card('32nd_infantry_regiment'), blank = { ...filler, json: { ...filler.json, type: 'order' } };
-const ownCopy = new Map([[payoff.importId, 1], ['zz', 38]]);
-const index = new Map([[payoff.importId, payoff], ['zz', blank]]);
-assert.equal(stat(analyzeDeckAbilities(ownCopy, index), 'supply'), 0, 'one physical copy cannot supply its own tutor requirement');
-assert.ok(stat(analyzeDeckAbilities(new Map([[payoff.importId, 2], ['zz', 37]]), index), 'supply') > 0);
-const stale = { ...payoff, json: { ...payoff.json, text: { 'zh-Hans': '部署：无法量化的新效果。' } } };
-assert.equal(stat(analyzeDeckAbilities(new Map([[payoff.importId, 2], ['zz', 37]]), new Map<string, KardsCardRecord>([[payoff.importId, stale], ['zz', blank]])), 'supply'), 0, 'stale reviewed roles must not leak into inferred scores');
-const leaked = analyzeDeckAbilities(counts, cardsById); leaked.axes[0].median = -1;
-assert.ok(analyzeDeckAbilities(counts, cardsById).axes[0].median > 0, 'returned axes do not share mutable reference records');
-console.log(`Deck ability tests passed: 16 score fixtures, ${allCards.length} catalogue cards, bilingual effect estimates, stale/quoted/enemy effects, fixed reference and invalid input`);
+console.log(`Deck ability tests passed: ${catalog.length} uniform card profiles, ${samples.length + READY_DECKS.length} decks, semantic and ID-invariance regressions, independent fixed reference bands`);

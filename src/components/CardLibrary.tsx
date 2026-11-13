@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Download, Search, X } from 'lucide-react';
 import { CardFace } from './CardFace';
-import { cardFactionIcon, SET_ICONS } from '../lib/assetCatalog';
+import { SET_ICONS } from '../lib/assetCatalog';
+import CardNationality from './CardNationality';
 import { startImageDownload, useImageDownload } from '../lib/imageDownloads';
 import { useDismissiblePanel } from '../lib/dialogKeyboard';
 import { CARD_SEARCH_HINT, EMPTY_CARD_FILTERS, hasCardFilterConditions, isGeneratedCard, matchesCardFilters, type CardFilters } from '../lib/cardFilters';
@@ -228,7 +229,7 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
               <CardKeywordList card={selectedCard} language={language} className="mt-2 text-sm text-kards-text" />
               {cardText(selectedCard, language) && <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-kards-text-muted"><CardText text={cardText(selectedCard, language)} /></p>}
               <dl className="mt-4 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-kards-border pt-4 text-sm text-kards-text">
-                <dt>阵营</dt><dd className="flex items-center gap-2"><img src={cardFactionIcon(selectedCard.json.faction, selectedCard.json.type)} alt="" className="h-5 w-5 object-contain" />{factionLabel(selectedCard.json.faction)}</dd><dt>类型</dt><dd>{typeLabel(selectedCard.json.type)}</dd>
+                <dt>阵营</dt><dd><CardNationality faction={selectedCard.json.faction} exile={selectedCard.json.exile} type={selectedCard.json.type} size="sm" /></dd><dt>类型</dt><dd>{typeLabel(selectedCard.json.type)}</dd>
                 <CardSubtypeInfo cardId={selectedCard.cardId} language={language} />
                 <dt>部署费用</dt><dd>{selectedCard.json.kredits ?? '—'} K</dd>
                 {!['order', 'countermeasure'].includes(selectedCard.json.type || '') && <><dt>行动费用</dt><dd>{selectedCard.json.operationCost ?? '—'} K</dd><dt>攻击 / 生命</dt><dd>{selectedCard.json.attack ?? '—'} / {selectedCard.json.defense ?? '—'}</dd></>}

@@ -30,14 +30,15 @@ Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴
 | `src/components/DeckBuilder.tsx` | 构筑会话、增减牌、规则、历史记录及保存 |
 | `src/components/DeckCardStrip.tsx` | 国家底色卡牌条、费用、缩略图、数量及悬浮预览 |
 | `src/components/CardDetailModal.tsx` | 卡牌详情、来源位置动画；`useCardDetailPaging.ts` 管理滚轮切卡与首尾回弹，`cardDetailPaging.ts` 同步来源定位 |
+| `src/components/CardNationality.tsx` | 详情浮窗与侧栏共用国家展示，读取 `json.exile` 显示本国到流亡国；两侧均按卡牌类型选择普通或空军标志 |
 | `src/components/TableclothBackground.tsx` | 桌布双层淡入淡出，保持工作区内容独立 |
 | `src/components/DeckCardMotion.tsx` | 构筑加减牌、撤回/重做的飞行动画和数字反馈 |
 | `src/components/CardDataUpdater.tsx` | 数据源选择、获取、差异预览、应用与回退 |
 | `src/components/CardCacheManager.tsx` | 缓存分类、覆盖统计、预览、重试与删除 |
 | `src/lib/cardData.ts`、`cardDatabase.ts`、`cardDataSync.ts` | 卡牌数据校验、持久化和跨页面同步任务 |
 | `src/lib/cardImages.ts`、`cardImageDownload.ts`、`imageDownloads.ts` | 图片缓存、下载校验及后台队列 |
-| `src/lib/deckCode.ts`、`deckImport.ts`、`deckRules.ts`、`deckAnalysis.ts` | 卡组码、导入、构筑规则及五项能力评分；`src/data/deckAnalysis.json` 保存审查数据与固定样本区间，未标注或卡文更新时使用印刷属性与常见效果估算 |
-| `src/lib/cardFilters.ts`、`cardPoolLayout.ts` | 共享筛选语义与自适应分页布局 |
+| `src/lib/deckCode.ts`、`deckImport.ts`、`deckRules.ts`、`deckAnalysis.ts` | 卡组码、导入、构筑规则及五项能力评分；全卡池共用中英文效果解析与属性规则，未建模文本保留供核验；`src/data/deckAnalysis.json` 仅保存典型区间及可复算的参照卡组码，不含单卡白名单，参照数据不参与原始分数计算 |
+| `src/lib/cardFilters.ts`、`cardPoolLayout.ts` | 共享筛选语义与自适应分页布局；阵营条件同时匹配 `json.faction` 与 `json.exile` |
 | `src/lib/useDeckGridLayout.ts` | 复用网格尺寸计算，以较窄的缩放范围适配卡组主页，保留纵向滚动及用户缩放设置 |
 | `src/lib/cardKeywords.ts`、`cardSort.ts` | 词条读取 `src/data/cardKeywords.json` 统一清单，派生 16 个属性词条、7 个战斗词条及全部文字强调；牌库主排序及费用、类型次级排序 |
 | `src/components/PageIndicator.tsx`、`src/lib/pagination.ts` | 共用首尾页、邻近页及省略号导航，支持点击与键盘；滚轮翻页由卡池区域负责 |

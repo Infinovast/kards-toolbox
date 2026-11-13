@@ -1778,12 +1778,12 @@ export default function App() {
                     type="text" 
                     value={importName || ''}
                     onChange={(e) => setImportName(e.target.value)}
-                    placeholder="输入卡组名称，留空则使用默认名称"
+                    placeholder="输入卡组名称，留空则默认以国家命名"
                     className="w-full bg-kards-input-bg border border-kards-border px-4 py-3 text-kards-text focus:outline-none focus:border-kards-gold transition-colors mb-4 rounded-md"
                   />
                   <DeckImageImport cards={cardDatabase} cancelRef={cancelImageImport} onBusyChange={setImportImageBusy} onError={setErrorStatus}
                     onRecognized={result => { setImportCode(result.code); setImportHeadquartersId(result.headquartersId); setImportCardBackId(result.cardBackId); if (result.name) setImportName(result.name); }} />
-                  <label className="block text-xs uppercase tracking-wider text-kards-text-muted mb-2 mt-4 font-bold">输入卡组码</label>
+                  <label className="block text-xs uppercase tracking-wider text-kards-text-muted mb-2 mt-4 font-bold">卡组码</label>
                   <textarea
                     value={importCode || ''}
                     disabled={importImageBusy}
@@ -1793,7 +1793,7 @@ export default function App() {
                       setImportCardBackId(undefined);
                       setErrorStatus(null);
                     }}
-                    placeholder="例如: %%53|5ucCbn;5W6L... 或直接粘贴游戏内复制的整段卡组列表"
+                    placeholder="如：%%53|5ucCbn;5W6L... 也可以直接粘贴游戏内复制的整段卡组列表"
                     className={`w-full min-h-32 resize-y bg-kards-input-bg border ${errorStatus ? 'border-red-500' : 'border-kards-border'} px-4 py-3 text-kards-gold font-mono focus:outline-none focus:border-kards-gold transition-colors rounded-md`}
                     autoFocus
                   />

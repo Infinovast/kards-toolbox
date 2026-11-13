@@ -8,7 +8,7 @@
 
 KARDS Toolbox is a local tool for KARDS players to browse cards, build and manage decks, and simulate opening card packs.
 
-Current version: **1.3.0**.
+Current version: **1.3.1**.
 
 ## Screenshots
 
@@ -35,7 +35,7 @@ The control names below are English descriptions of the Chinese interface shown 
 - **Import deck** accepts deck images. It first reads the deck name, headquarters, card back, and deck code from a QR code. If no usable QR code is found, the Windows desktop app attempts to recover the title and deck using local text recognition. Review the populated fields before confirming; text recognition may miss cards.
 - Click a deck to keep its details open on the right, or double-click to edit it. When no deck is selected, hovering shows a temporary preview. The details overlay does not shrink the deck grid; click outside it or press Esc to close it.
 - Deck details let you copy the code, generate a local PNG, and change the card back or headquarters. Changing the tablecloth in the image preview affects only that export. **Switch to mini sharing image** generates a high-resolution PNG styled like a ready-made deck cover: the preview is 342×242 and the exported image is 1368×968. It includes the card count, cost distribution, rarity counts, actual card back, and sharing QR code. You can switch back to the full deck image.
-- Hover over **Deck analysis**, to the right of **Change card back**, to view deck statistics. Five ability scores appear at the bottom as horizontal dots against typical ranges from 12 sample decks; unannotated or updated cards use estimates from printed attributes and common effects, while incomplete decks or missing data show a status instead. This preview closes when you move away and cannot be pinned by clicking.
+- Hover over **Deck analysis**, to the right of **Change card back**, to view deck statistics. Five ability scores appear at the bottom as horizontal dots against typical ranges from reference decks. Every card uses the same rules for current attributes and effects; complex sequences are not fully simulated, and reference samples do not affect raw scores. Incomplete decks or missing data show a status instead. This preview closes when you move away and cannot be pinned by clicking.
 - Generated images include a QR code in the upper-right corner containing the deck name, headquarters ID, card back ID, and deck code. Older images without card back information remain compatible. Custom card backs are restored by their local IDs; if the resource is unavailable, the main nation's default back is used. Recognition and image generation run locally.
 
 ## Deck image shortcut
@@ -54,6 +54,8 @@ The control names below are English descriptions of the Chinese interface shown 
 - Undo, redo, and **Save and exit** are available in the lower-right corner. When leaving a modified deck, choose whether to save or discard your changes.
 
 ### Cards
+
+- Nation filters match both the original and exile nations of Exile cards. Floating and sidebar details show both nations' icons and names with a right arrow; fighters and bombers use air-force icons for both nations.
 
 - Find cards by name, rules text, nation, type, subclass, keyword, cost, rarity, expansion, and status. Multilingual text is searchable. A period (`.`) matches any single character, as in `护.船队`. Chinese name searches ignore spaces and punctuation: `第13` matches `第 13 龙骑兵团`. For units, `x1404` matches deployment cost / operation cost / attack / defense; `x104` omits operation cost. Each specified value must be a single digit.
 - Nation, type, subclass, keyword, cost, and rarity filters support multiple selections. Keywords can match **OR** (any selected keyword) or **AND** (all selected keywords). Status uses five mutually exclusive options: **All**, **Active**, **Reserve**, **Permanent**, and **Generated**. The menu next to **Generated** supports multiple selections from Veteran, Weather, Research, Reprisal, and Other. Selecting some categories highlights only the menu button; selecting all also highlights **Generated**.
