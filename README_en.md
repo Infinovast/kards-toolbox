@@ -4,11 +4,11 @@
 
 # KARDS Toolbox
 
-[中文](README.md) | [English](README_en.md)
+[中文](README.md) | English
 
 KARDS Toolbox is a local tool for KARDS players to browse cards, build and manage decks, and simulate opening card packs.
 
-Current version: **1.3.2**.
+Current version: **1.3.3**.
 
 ## Screenshots
 
@@ -21,12 +21,50 @@ Current version: **1.3.2**.
 | <img src="docs/assets/05-card-detail.png" width="400" alt="Card details"> | <img src="docs/assets/06-pack-selection.png" width="400" alt="Pack selection"> |
 | **7. Pack opening simulation** | **8. Deck sharing image** |
 | <img src="docs/assets/07-pack-opening.png" width="400" alt="Pack opening simulation"> | <img src="docs/assets/08-deck-export.png" width="400" alt="Deck sharing image"> |
-| **9. Mini deck image** | **10. Data and cache management** |
-| <img src="docs/assets/09-deck-export-mini.png" width="400" alt="Mini deck image"> | <img src="docs/assets/10-data-and-cache.png" width="400" alt="Data and cache management"> |
+| **9. Mini deck image** | **10. Deck image shortcut** |
+| <img src="docs/assets/09-deck-export-mini.png" width="400" alt="Mini deck image"> | <img src="docs/assets/10-deck-image-shortcut.png" width="400" alt="Deck image shortcut"> |
+| **11. Custom tablecloth** | **12. Data and cache management** |
+| <img src="docs/assets/11-custom-tablecloth.png" width="400" alt="Custom tablecloth"> | <img src="docs/assets/12-data-and-cache.png" width="400" alt="Data and cache management"> |
 
 ## Usage
 
 The control names below are English descriptions of the Chinese interface shown in the screenshots.
+
+### Keyboard shortcuts
+
+| Action | Shortcut |
+| --- | --- |
+| Close a floating window or cancel the current action | Esc |
+| Confirm an action | Enter |
+| Save and exit the deck builder | Ctrl+Enter |
+| Undo in the deck builder | Ctrl+Z |
+| Redo in the deck builder | Ctrl+Y / Ctrl+Shift+Z |
+| Change card pool pages | Mouse wheel |
+| Switch cards in the details view | Mouse wheel |
+
+### How to read deck analysis
+
+**Where to find it:**
+
+| 1. Bottom-right of deck details | 2. Top-right of the deck builder |
+| :---: | :---: |
+| <img src="docs/assets/01-decks-marked.png" width="400" alt="Deck analysis button in deck details"> | <img src="docs/assets/02-deck-builder-marked.png" width="400" alt="Deck analysis button in the deck builder"> |
+
+**At a glance:**
+
+<img src="docs/assets/03-deck-analysis-marked.png" width="800" alt="Annotated deck analysis overview">
+
+**Ability scores:**
+
+Ability scores are the core of deck analysis. By estimating a deck's economy, control, effect chains, and net costs, the tool scores five capabilities to help players understand and improve their decks. Scores range from 0 to 100; a higher score indicates greater capacity in that dimension.
+
+1. **Development tempo**: Can the deck establish a board promptly, play cards in succession, and accelerate deployment through ramp and cost reductions?
+2. **Offense**: Can the deck keep threatening the enemy headquarters through unit attacks, stat growth, and direct damage?
+3. **Removal and control**: Can the deck handle enemy units through pinning, suppression, and taking control, while disrupting the opponent through forced discards, cost increases, and lockouts?
+4. **Hand sustain**: After accounting for costs such as discards and self-damage, can the deck keep replenishing playable cards and avoid running out of cards in hand?
+5. **Defense**: Can the deck withstand attacks and stay alive through board presence, trades, repairs, and protection such as immunity, Smokescreen, and Guard?
+
+## Feature details
 
 ### Decks
 
@@ -35,10 +73,10 @@ The control names below are English descriptions of the Chinese interface shown 
 - **Import deck** accepts deck images. It first reads the deck name, headquarters, card back, and deck code from a QR code. If no usable QR code is found, the Windows desktop app attempts to recover the title and deck using local text recognition. Review the populated fields before confirming; text recognition may miss cards.
 - Click a deck to keep its details open on the right, or double-click to edit it. When no deck is selected, hovering shows a temporary preview. The details overlay does not shrink the deck grid; click outside it or press Esc to close it.
 - Deck details let you copy the code, generate a local PNG, and change the card back or headquarters. Changing the tablecloth in the image preview affects only that export. **Switch to mini sharing image** generates a high-resolution PNG styled like a ready-made deck cover: the preview is 342×242 and the exported image is 1368×968. It includes the card count, cost distribution, rarity counts, actual card back, and sharing QR code. You can switch back to the full deck image.
-- Hover over **Deck analysis**, to the right of **Change card back**, to view deck statistics. Five ability scores appear at the bottom as horizontal dots against typical ranges from reference decks. Every card uses the same rules for current attributes and effects; complex sequences are not fully simulated, and reference samples do not affect raw scores. Incomplete decks or missing data show a status instead. This preview closes when you move away and cannot be pinned by clicking.
+- Hover over **Deck analysis**, to the right of **Change card back**, to view deck statistics. Five ability scores appear at the bottom as horizontal dots against typical ranges from reference decks. The five axes cover development tempo, offense, removal and control, hand sustain, and defense. Every card uses the same deck-context rules for economy, disruption, bounded chains, and net costs in a finite neutral scenario; this is not a full match simulation, and reference samples do not affect raw scores. Incomplete decks or missing data show a status instead. This preview closes when you move away and cannot be pinned by clicking.
 - Generated images include a QR code in the upper-right corner containing the deck name, headquarters ID, card back ID, and deck code. Older images without card back information remain compatible. Custom card backs are restored by their local IDs; if the resource is unavailable, the main nation's default back is used. Recognition and image generation run locally.
 
-## Deck image shortcut
+### Deck image shortcut
 
 - Open **卡组生图** above the tablecloth button in the left sidebar. Enter a deck code or paste the full in-game deck text; a new valid code in the clipboard is filled automatically on entry and when the app regains focus.
 - Full and mini sharing images refresh automatically and can each be downloaded as PNG. Click either image to enlarge it over a blurred backdrop; click outside or press Esc to close. Saved decks with the same code retain their name, headquarters and card back; other codes use a name based on their nations.
@@ -82,20 +120,6 @@ The control names below are English descriptions of the Chinese interface shown 
 - User backups include decks, folders, settings, drafts, user images, and generated deck image caches. Ordinary card image caches and the card database are managed separately. Export a backup before upgrading or moving to another device.
 - If local data cannot be read, automatic saving stops. Retry the read, import a backup, or restore an automatic backup. Failed saves show a message with a retry option. Up to three distinct automatic backups are retained at startup and before imports; restore them under **Data backup** in settings. Automatic backups include user data and pack history, without duplicating deck images that can be regenerated. Backups are fully validated before restoration. An interrupted restore is rolled back, including any unfinished rollback detected at the next startup.
 - Choose tablecloths from the sidebar, including named defaults and wallpapers organized by nation and Chinese card name. Hover or focus a tablecloth to read its short description in a frosted-glass tooltip above or below the image; descriptions appear in full without scrolling. Switch light and dark themes with the sun/moon button in the top bar. Settings are saved automatically. Headquarters-specific tablecloths appear temporarily only while selecting or editing the corresponding deck.
-
-## Keyboard shortcuts
-
-| Action | Shortcut |
-| --- | --- |
-| Close details or dialogs, or cancel the current action | Esc |
-| Confirm an action | Enter; multiline inputs keep their normal newline behavior |
-| Save and exit the deck builder | Ctrl+Enter |
-| Undo / redo in the deck builder | Ctrl+Z / Ctrl+Y or Ctrl+Shift+Z; text inputs keep normal editing behavior |
-| Previous / next card pool page | Scroll within the card pool, or use the page buttons |
-
-You can dismiss the scrolling hints below card details. Use the control to the right of **Data backup** in settings to show all usage tips again.
-
-In the floating card details view, scroll to move through cards. In sidebar mode, this works while the pointer is inside the details panel. Navigation follows the source pool or deck order and updates its page or card strip position. The final page shows only the remaining cards.
 
 ## Run from source
 

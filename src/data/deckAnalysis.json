@@ -1,5 +1,5 @@
 {
-  "model": "kards-capacity-3",
+  "model": "kards-capacity-4",
   "reference": {
     "decks": [
       "%%25|0moo;0ybqbupWtV;ohpMsDw0wb;pUsUvS",
@@ -44,33 +44,33 @@
     "axes": [
       {
         "id": "opening",
-        "name": "前期展开",
-        "low": 57.775,
-        "high": 86.725
+        "name": "展开节奏",
+        "low": 67.225,
+        "high": 90.275
       },
       {
         "id": "pressure",
         "name": "进攻能力",
-        "low": 48.225,
-        "high": 57.75
+        "low": 59.475,
+        "high": 68.375
       },
       {
         "id": "interaction",
-        "name": "解牌能力",
-        "low": 39.5,
-        "high": 71.175
+        "name": "解场控制",
+        "low": 48.125,
+        "high": 64.075
       },
       {
         "id": "supply",
         "name": "手牌续航",
-        "low": 41.225,
-        "high": 50.9
+        "low": 35.725,
+        "high": 57
       },
       {
         "id": "defense",
         "name": "防守抗压",
-        "low": 67.15,
-        "high": 79
+        "low": 71.725,
+        "high": 82.175
       }
     ]
   }

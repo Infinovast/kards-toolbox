@@ -37,7 +37,7 @@ Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴
 | `src/components/CardCacheManager.tsx` | 缓存分类、覆盖统计、预览、重试与删除 |
 | `src/lib/cardData.ts`、`cardDatabase.ts`、`cardDataSync.ts` | 卡牌数据校验、持久化和跨页面同步任务 |
 | `src/lib/cardImages.ts`、`cardImageDownload.ts`、`imageDownloads.ts` | 图片缓存、下载校验及后台队列 |
-| `src/lib/deckCode.ts`、`deckImport.ts`、`deckRules.ts`、`deckAnalysis.ts` | 卡组码、导入、构筑规则及五项能力评分；全卡池共用中英文效果解析与属性规则，未建模文本保留供核验；`src/data/deckAnalysis.json` 仅保存典型区间及可复算的参照卡组码，不含单卡白名单，参照数据不参与原始分数计算 |
+| `src/lib/deckCode.ts`、`deckImport.ts`、`deckRules.ts`、`deckAnalysis.ts` | 卡组码、导入、构筑规则及五项能力评分；全卡池共用中英文效果解析与属性规则；按卡组支撑、区域、有限触发及净代价估算，生成/授予链最多三层，未识别文本与近似假设分别保留供核验；`src/data/deckAnalysis.json` 仅保存典型区间及可复算的参照卡组码，不含单卡白名单，参照数据不参与原始分数计算 |
 | `src/lib/cardFilters.ts`、`cardPoolLayout.ts` | 共享筛选语义与自适应分页布局；阵营条件同时匹配 `json.faction` 与 `json.exile` |
 | `src/lib/useDeckGridLayout.ts` | 复用网格尺寸计算，以较窄的缩放范围适配卡组主页，保留纵向滚动及用户缩放设置 |
 | `src/lib/cardKeywords.ts`、`cardSort.ts` | 词条读取 `src/data/cardKeywords.json` 统一清单，派生 16 个属性词条、7 个战斗词条及全部文字强调；牌库主排序及费用、类型次级排序 |
