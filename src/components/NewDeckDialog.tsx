@@ -6,29 +6,32 @@ import { findCardsByImportId } from '../lib/deckCode';
 import type { KardsCardRecord } from '../types/card';
 import ReadyDeckCard from './ReadyDeckCard';
 
-export default function NewDeckDialog({ cards, onClose, onCreate, onImport, onPreset }: {
+export default function NewDeckDialog({ cards, onClose, onCreate, onImport, onPreset, initialMode = 'choices' }: {
   cards: KardsCardRecord[];
+  initialMode?: 'choices' | 'presets';
   onClose: () => void;
   onCreate: () => void;
   onImport: () => void;
   onPreset: (deck: ReadyDeck) => void;
 }) {
-  const [showPresets, setShowPresets] = useState(false);
+  const [showPresets, setShowPresets] = useState(initialMode === 'presets');
   const [selected, setSelected] = useState<ReadyDeck>(READY_DECKS[0]);
+  const [error, setError] = useState('');
   const cardsById = useMemo(() => findCardsByImportId(cards), [cards]);
-  const close = () => showPresets ? setShowPresets(false) : onClose();
+  const returnToChoices = showPresets && initialMode !== 'presets';
+  const close = () => returnToChoices ? setShowPresets(false) : onClose();
   return <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div onClick={onClose} className="absolute inset-0 bg-kards-modal-overlay backdrop-blur-sm" />
     <section role="dialog" aria-modal="true" aria-label={showPresets ? '战备卡组' : '新卡组'} tabIndex={-1} onKeyDown={handleDialogKeys} className={`glass-panel relative flex max-h-[calc(100dvh-32px)] w-full flex-col rounded-lg border border-kards-border p-6 shadow-2xl ${showPresets ? 'max-w-3xl' : 'max-w-xl'}`}>
       <div className="mb-5 flex items-center justify-between gap-3">
         <h2 className="text-xl font-bold text-kards-text">{showPresets ? '战备卡组' : '新卡组'}</h2>
-        <button data-dialog-cancel aria-label={showPresets ? '返回新卡组选项' : '关闭新卡组'} onClick={close} className="rounded p-1 text-kards-text-muted"><X className="h-5 w-5" /></button>
+        <button data-dialog-cancel aria-label={returnToChoices ? '返回新卡组选项' : showPresets ? '关闭战备卡组' : '关闭新卡组'} onClick={close} className="rounded p-1 text-kards-text-muted"><X className="h-5 w-5" /></button>
       </div>
       {showPresets ? <>
         <div className="custom-scrollbar min-h-0 overflow-y-auto pr-1">
           <div role="group" aria-label="战备卡组选择" className="ready-deck-grid">
             {READY_DECKS.map(deck => <ReadyDeckCard key={deck.name} deck={deck} cardsById={cardsById}
-              selected={selected === deck} onSelect={() => setSelected(deck)} />)}
+              selected={selected === deck} onSelect={() => { setSelected(deck); setError(''); }} />)}
           </div>
           <div className="mt-5 space-y-3" aria-label={`${selected.name}介绍`}>
             <h3 className="font-bold text-kards-text">{selected.name}</h3>
@@ -36,9 +39,13 @@ export default function NewDeckDialog({ cards, onClose, onCreate, onImport, onPr
             <p className="break-all rounded bg-kards-input-bg p-3 font-mono text-xs text-kards-status">{selected.code}</p>
           </div>
         </div>
+        {error && <p role="alert" className="mt-3 shrink-0 text-sm text-kards-text">{error}</p>}
         <div className="mt-5 flex shrink-0 items-center justify-between gap-3">
-          <button onClick={() => setShowPresets(false)} className="flex items-center gap-1 rounded border border-kards-border px-3 py-2 text-sm text-kards-text"><ArrowLeft className="h-4 w-4" />返回</button>
-          <button data-dialog-confirm onClick={() => onPreset(selected)} className="rounded bg-kards-accent px-4 py-2 text-sm font-bold text-white">添加到卡组</button>
+          <button onClick={close} className="flex items-center gap-1 rounded border border-kards-border px-3 py-2 text-sm text-kards-text"><ArrowLeft className="h-4 w-4" />返回</button>
+          <button data-dialog-confirm onClick={() => {
+            try { onPreset(selected); }
+            catch (cause) { setError(cause instanceof Error ? cause.message : '添加卡组失败，请重试。'); }
+          }} className="rounded bg-kards-accent px-4 py-2 text-sm font-bold text-white">添加到卡组</button>
         </div>
       </> : <div className="space-y-2">
         {[

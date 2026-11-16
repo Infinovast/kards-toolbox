@@ -28,6 +28,11 @@ async function main() {
     page.on('pageerror', (error) => errors.push(error.message));
     await page.route(/^https?:/, (route) => route.abort());
     await page.waitForURL('kards://app/index.html');
+    await expect(page.getByRole('heading', { name: '欢迎使用 KARDS 工具箱', exact: true })).toBeVisible();
+    const welcomePreference = page.getByRole('checkbox', { name: '显示欢迎页', exact: true });
+    await expect(welcomePreference).toBeChecked();
+    await welcomePreference.uncheck();
+    await page.getByRole('complementary', { name: '主导航' }).getByRole('button', { name: '卡组', exact: true }).click();
     await expect(page.getByRole('heading', { name: '卡组', exact: true })).toBeVisible();
     const info = await page.evaluate(() => window.kardsDesktop.getAppInfo());
     assert.equal(info.version, version);
@@ -262,7 +267,7 @@ async function main() {
     assert.deepEqual(errors, []);
     await fs.writeFile(path.join(output, 'result.json'), JSON.stringify({
       status: 'passed', packaged: info.packaged, version: info.version, url: page.url(), pageErrors: errors, imageInspection: !skipVisual,
-      checks: ['production kards protocol', 'bundled database', 'preload IPC', 'Node isolation',
+      checks: ['production kards protocol', 'welcome startup and persisted opt-out', 'bundled database', 'preload IPC', 'Node isolation',
         'offline PNG', ...(!skipVisual ? ['real artwork Sharp composition', 'small custom wallpaper'] : []), 'native theme icon switching',
         'IndexedDB reload', 'full-width settings', 'manual card-data preview/apply/rollback IPC (HTTP stubbed)', 'classified per-card paired cache inventory and download IPC (HTTP stubbed)', 'card-data/image/failure/batch backup boundary', 'native backup save/open (file dialogs stubbed)',
         'ready-deck import', 'production nation-row and reserve assets', 'hover preview portal', 'HQ row and inclusive total', 'country confirmation cancel/focus', 'clipboard IPC and persistent same-code suppression (reads stubbed)'],

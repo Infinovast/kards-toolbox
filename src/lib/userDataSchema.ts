@@ -53,6 +53,7 @@ export function validateUserDataValue(key: string, value: unknown) {
         && optional(value.displayMode, item => ['dark', 'light', 'system'].includes(item))
         && optional(value.cardDetailMode, item => ['modal', 'sidebar'].includes(item))
         && optional(value.showDeckFolders, item => typeof item === 'boolean')
+        && optional(value.showWelcomePage, item => typeof item === 'boolean')
         && optional(value.isDarkMode, item => typeof item === 'boolean')
         && optional(value.lightThemeColor, item => typeof item === 'string');
       break;

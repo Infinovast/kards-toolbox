@@ -35,10 +35,11 @@ import {
   type KardsCardRecord,
 } from '../types/card';
 
-export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
+export default function CardLibrary({ cards, detailMode, onDetailModeChange, autoFocusSearch = false }: {
   cards: KardsCardRecord[];
   detailMode: 'modal' | 'sidebar';
   onDetailModeChange: (mode: 'modal' | 'sidebar') => void;
+  autoFocusSearch?: boolean;
 }) {
   const [filters, setFilters] = useState<CardFilters>({ ...EMPTY_CARD_FILTERS });
   const expansions = useMemo(() => [...new Set(cards.map((card) => card.json.set).filter(Boolean))].sort(), [cards]);
@@ -60,6 +61,9 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange }: {
   const detailRef = useDismissiblePanel(detailMode === 'sidebar' && (!!selectedCard || !!selectedHeadquarters), closeDetails);
   const cardsByCardId = useMemo(() => new Map(cards.map(card => [card.cardId, card])), [cards]);
   const relations = selectedCard ? cardRelations(selectedCard) : [];
+  useEffect(() => {
+    if (autoFocusSearch) searchRef.current?.querySelector('input')?.focus();
+  }, [autoFocusSearch]);
   useLayoutEffect(() => {
     const measure = searchMeasureRef.current;
     if (!measure) return;

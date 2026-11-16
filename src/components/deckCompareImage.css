@@ -1,0 +1,9 @@
+.deck-compare-image { margin-top: 12px; }
+.deck-compare-image-frame { display: flex; min-height: 136px; align-items: center; justify-content: center; overflow: hidden; border: 1px solid var(--color-kards-border); border-radius: var(--radius-sm); background: rgba(var(--rgb-panel-overlay), .42); }
+.deck-compare-image-button { display: block; width: 100%; cursor: zoom-in; }
+.deck-compare-image-button img { display: block; width: 100%; height: auto; object-fit: contain; }
+.deck-compare-image-state { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 136px; padding: 16px; color: var(--color-kards-text-muted); font-size: 12px; text-align: center; }
+.deck-compare-image-state button { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; border-bottom: 1px solid currentColor; color: var(--color-kards-text); font-size: 12px; }
+.deck-compare-image-dialog { position: relative; display: flex; max-width: calc(100vw - 72px); max-height: calc(100dvh - 64px); align-items: center; justify-content: center; padding: 32px; }
+.deck-compare-image-dialog > button { position: absolute; top: 0; right: 0; z-index: 1; display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; color: var(--color-kards-text); }
+.deck-compare-image-dialog > img { display: block; max-width: 100%; max-height: calc(100dvh - 96px); width: auto; height: auto; object-fit: contain; }

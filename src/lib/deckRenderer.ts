@@ -5,6 +5,7 @@ import type { DeckRenderRequest } from './deckRenderTypes';
 import { BUNKER_HEADQUARTERS, DEFAULT_TABLECLOTH, headquartersForDeck } from './cardAssets';
 import { deckRenderCounterSvg } from './deckRenderCounter';
 import { deckQrSvg } from './deckImageCode';
+import { defaultDeckName } from './deckName';
 import { factionIcon, LOGOS, RARITY_ICONS } from './assetCatalog';
 import { summarizeDeckCosts } from './deckCostCurve';
 import { DECK_BACKGROUND_BLUR, DECK_BACKGROUND_TINT, DECK_STATISTICS_POSITION, deckHeaderTitle, deckStatisticsSvg } from './deckRenderHeader';
@@ -22,8 +23,9 @@ async function imageDataUrl(url: string): Promise<string> {
   });
 }
 
-export async function renderDeckImage(code: string, cards: KardsCardRecord[], title = 'KARDS 卡组', background?: string | null, headquartersId?: string, limit = 40, cardBackId?: string): Promise<string> {
+export async function renderDeckImage(code: string, cards: KardsCardRecord[], title = '', background?: string | null, headquartersId?: string, limit = 40, cardBackId?: string): Promise<string> {
   const deck = decodeDeckCode(code), index = findCardsByImportId(cards);
+  title = title.trim() || defaultDeckName(deck.mainNation, deck.allyNation);
   const desktop = !!window.kardsDesktop?.listCardImageKeys;
   const entries = [...deck.counts].sort(([a], [b]) => (index.get(a)?.json.kredits ?? 99) - (index.get(b)?.json.kredits ?? 99));
   if (background && !desktop) background = await imageDataUrl(background);

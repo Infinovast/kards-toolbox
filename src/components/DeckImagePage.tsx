@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Download, History, Image as ImageIcon, LoaderCircle, Palette, RotateCcw, X } from 'lucide-react';
-import { factionLabel, type KardsCardRecord } from '../types/card';
+import type { KardsCardRecord } from '../types/card';
 import { decodeDeckCode } from '../lib/deckCode';
 import { extractDeckCodeFromText, inferDeckTitleFromText } from '../lib/deckImport';
+import { defaultDeckName } from '../lib/deckName';
 import { CARD_BACKS, cardBackForDeck, headquartersForDeck, tableclothForHeadquarters } from '../lib/cardAssets';
 import { renderDeckImage, renderDeckMiniImage, downloadDeckImage } from '../lib/deckRenderer';
 import { listDeckImageCodes, readDeckImage, saveDeckImage, type DeckImageKind } from '../lib/deckImageCache';
@@ -24,7 +25,7 @@ interface Preview { image: string | null; loading: boolean; error: string }
 const emptyPreview = (): Preview => ({ image: null, loading: false, error: '' });
 const deckTitle = (code: string) => {
   const { mainNation, allyNation } = decodeDeckCode(code);
-  return `${factionLabel(mainNation)}${mainNation === allyNation ? '' : factionLabel(allyNation)}卡组`;
+  return defaultDeckName(mainNation, allyNation);
 };
 
 function imageOptions(deck: ImageDeck, tablecloth: string, customCategories: Props['customCategories'], backgroundOverride?: string) {

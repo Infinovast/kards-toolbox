@@ -5,6 +5,7 @@ import { findCardsByImportId } from './deckCode';
 import { summarizeDeckCover } from './deckCover';
 import { deckQrSvg } from './deckImageCode';
 import { getCachedCardImage } from './cardImages';
+import { defaultDeckName } from './deckName';
 
 const WIDTH = 342, HEIGHT = 242, RESOLUTION = 4;
 
@@ -41,7 +42,7 @@ export async function renderDeckMiniImage(code: string, cards: KardsCardRecord[]
   ctx.fillStyle = 'rgba(0, 0, 0, 0.24)'; ctx.fillRect(0, 0, 342, 242);
   contain(await load(factionIcon(summary.mainNation)), 16, 14, 32, 32);
   ctx.fillStyle = '#fff9e8'; ctx.font = '700 18px Microsoft YaHei, sans-serif';
-  const fullTitle = title.trim() || 'KARDS 卡组';
+  const fullTitle = title.trim() || defaultDeckName(summary.mainNation, summary.allyNation);
   let fittedTitle = fullTitle;
   while (ctx.measureText(fittedTitle).width > 178 && fittedTitle.length > 1) fittedTitle = fittedTitle.slice(0, -1);
   ctx.fillText(fittedTitle === fullTitle ? fittedTitle : `${fittedTitle}…`, 60, 36);

@@ -25,6 +25,7 @@ import DeckCostChart from './DeckCostChart';
 import DeckCardMotion, { useDeckCardMotion } from './DeckCardMotion';
 import { CARD_SEARCH_HINT, EMPTY_CARD_FILTERS, isGeneratedCard, isInBuilderPool, matchesCardFilters, type CardFilters } from '../lib/cardFilters';
 import { deckBuilderReducer, type DeckBuilderState } from '../lib/deckBuilderHistory';
+import { defaultDeckName } from '../lib/deckName';
 
 export interface BuilderDeck {
   id?: string;
@@ -57,7 +58,7 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
     past: [], future: [], present: {
       mainNation: 'Germany', allyNation: 'Soviet',
       headquartersId: defaultHeadquartersForNation('Germany')?.groupId || '',
-      entries: new Map<string, number>(), deckName: '新卡组', deckId: undefined,
+      entries: new Map<string, number>(), deckName: defaultDeckName('Germany', 'Soviet'), deckId: undefined,
     },
   }));
   const initialState = useRef<DeckBuilderState | null>(null);
@@ -124,7 +125,7 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
       const value = {
         mainNation: decoded.mainNation, allyNation: decoded.allyNation, entries: decoded.counts,
         headquartersId: initialDeck.headquartersId && initialDeck.headquartersId !== 'default' ? initialDeck.headquartersId : defaultHeadquartersForNation(decoded.mainNation)?.groupId || '',
-        deckName: initialDeck.name, deckId: initialDeck.id,
+        deckName: initialDeck.name || defaultDeckName(decoded.mainNation, decoded.allyNation), deckId: initialDeck.id,
       };
       rememberInitial(value); dispatch({ type: 'reset', value });
       setMessage('');
@@ -233,7 +234,7 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
     const saveWarnings = validateDeck(entries, cardsById, mainNation, allyNation, rules);
     savingLock.current = true; setSaving(true);
     try {
-      await onSave({ id: deckId, code: encodeDeckCode(mainNation, allyNation, entries), name: deckName.trim() || '新卡组', ruleSet, headquartersId: headquartersId || defaultHeadquartersForNation(mainNation)?.groupId }, saveWarnings);
+      await onSave({ id: deckId, code: encodeDeckCode(mainNation, allyNation, entries), name: deckName.trim() || defaultDeckName(mainNation, allyNation), ruleSet, headquartersId: headquartersId || defaultHeadquartersForNation(mainNation)?.groupId }, saveWarnings);
       afterLeave.current?.(); afterLeave.current = undefined;
     } catch (error) {
       setMessage(`卡组保存失败：${error instanceof Error ? error.message : '请检查本地存储空间'}。请重试保存。`);
@@ -354,9 +355,14 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
         <div className="mt-5 flex justify-center gap-3">
           <button data-dialog-cancel onClick={() => setPendingNation(null)} className="rounded border border-kards-border px-4 py-2 text-sm text-kards-text">取消</button>
           <button data-dialog-confirm onClick={() => {
-            dispatch({ type: 'edit', update: pendingNation.field === 'main'
-              ? { mainNation: pendingNation.value, headquartersId: defaultHeadquartersForNation(pendingNation.value)?.groupId || '' }
-              : { allyNation: pendingNation.value } });
+            dispatch({ type: 'edit', update: current => {
+              const main = pendingNation.field === 'main' ? pendingNation.value : current.mainNation;
+              const ally = pendingNation.field === 'ally' ? pendingNation.value : current.allyNation;
+              return {
+                ...(pendingNation.field === 'main' ? { mainNation: main, headquartersId: defaultHeadquartersForNation(main)?.groupId || '' } : { allyNation: ally }),
+                ...(current.deckName === defaultDeckName(current.mainNation, current.allyNation) ? { deckName: defaultDeckName(main, ally) } : {}),
+              };
+            } });
             setPendingNation(null);
           }} className="rounded bg-kards-accent px-4 py-2 text-sm font-bold text-white">确认更换</button>
         </div>

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { decodeDeckCode, encodeDeckCode, findCardsByImportId } from './deckCode';
+import { decodeDeckCode, deckCardSignature, encodeDeckCode, findCardsByImportId, findDuplicateDeck } from './deckCode';
 import { DEFAULT_DECK_RULES, deckModeLabel, deckRuleSet, validateDeck } from './deckRules';
 import type { KardsCardRecord } from '../types/card';
 
@@ -12,6 +12,19 @@ assert.equal(decoded.mainNation, 'Japan');
 assert.equal(decoded.allyNation, 'Germany');
 assert.equal([...decoded.counts.values()].reduce((a, b) => a + b), 39);
 assert.deepEqual(decodeDeckCode(encodeDeckCode(decoded.mainNation, decoded.allyNation, decoded.counts)), decoded);
+const reordered = encodeDeckCode('Soviet', 'USA', new Map([...decoded.counts].reverse()));
+assert.equal(deckCardSignature(sample), deckCardSignature(reordered), 'Nation header and card order do not affect duplicate detection');
+const existingDeck = { code: sample, name: '原卡组', headquartersId: 'original-hq', cardBackId: 'original-back' };
+assert.equal(findDuplicateDeck(`新名称\nHQ: Other HQ\n${reordered}`, [existingDeck]), existingDeck);
+assert.equal(deckCardSignature('%%11|aa;aa;;'), deckCardSignature('%%53|;;aa;'), 'Equivalent quantity encoding is normalized');
+assert.notEqual(deckCardSignature('%%11|aa;bb;;'), deckCardSignature('%%11|bb;aa;;'), 'Card quantities are part of identity');
+assert.equal(findDuplicateDeck('%%11|aa;;;', [existingDeck]), undefined);
+const changed = new Map(decoded.counts);
+const first = changed.keys().next().value!;
+changed.set(first, changed.get(first)! - 1);
+if (!changed.get(first)) changed.delete(first);
+changed.set('ZZ', 1);
+assert.equal(findDuplicateDeck(encodeDeckCode('Japan', 'Germany', changed), [existingDeck]), undefined, 'Same total with a changed card is a different deck');
 for (const quantity of [1, 2, 3, 4, 5, 8, 9, 99]) {
   assert.equal(decodeDeckCode(encodeDeckCode('Germany', 'Anzac', new Map([['rV', quantity]]))).counts.get('rV'), quantity);
 }

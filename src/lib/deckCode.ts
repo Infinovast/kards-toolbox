@@ -61,3 +61,13 @@ export function encodeDeckCode(mainNation: string, allyNation: string, counts: M
 export function findCardsByImportId(cards: KardsCardRecord[]): Map<string, KardsCardRecord> {
   return new Map(cards.map((card) => [card.importId, card]));
 }
+
+// Headquarters and other deck metadata are not part of the playable-card multiset.
+export function deckCardSignature(code: string): string {
+  return JSON.stringify([...decodeDeckCode(code).counts].sort(([left], [right]) => left.localeCompare(right)));
+}
+
+export function findDuplicateDeck<T extends { code: string }>(code: string, decks: readonly T[]): T | undefined {
+  const signature = deckCardSignature(code);
+  return decks.find(deck => deckCardSignature(deck.code) === signature);
+}

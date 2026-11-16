@@ -8,23 +8,25 @@
 
 KARDS Toolbox 是面向 Kards 玩家的卡牌、卡组和卡包本地管理工具。
 
-当前版本：**1.3.3**。
+当前版本：**1.3.4**。
 
 ## 界面概览
 
-| 1. 卡组管理 | 2. 卡组构筑 |
+| 1. 欢迎页 | 2. 卡组管理 |
 | :---: | :---: |
-| <img src="docs/assets/01-decks.png" width="400" alt="卡组管理"> | <img src="docs/assets/02-deck-builder.png" width="400" alt="卡组构筑"> |
-| **3. 卡组分析** | **4. 卡牌资料库** |
-| <img src="docs/assets/03-deck-analysis.png" width="400" alt="卡组分析"> | <img src="docs/assets/04-card-library.png" width="400" alt="卡牌资料库"> |
-| **5. 卡牌详情** | **6. 卡包选择** |
-| <img src="docs/assets/05-card-detail.png" width="400" alt="卡牌详情"> | <img src="docs/assets/06-pack-selection.png" width="400" alt="卡包选择"> |
-| **7. 模拟开包** | **8. 卡组分享图** |
-| <img src="docs/assets/07-pack-opening.png" width="400" alt="模拟开包"> | <img src="docs/assets/08-deck-export.png" width="400" alt="卡组分享图"> |
-| **9. 卡组迷你图** | **10. 一键卡组生图** |
-| <img src="docs/assets/09-deck-export-mini.png" width="400" alt="卡组迷你图"> | <img src="docs/assets/10-deck-image-shortcut.png" width="400" alt="一键卡组生图"> |
-| **11. 自定义桌布** | **12. 数据与缓存管理** |
-| <img src="docs/assets/11-custom-tablecloth.png" width="400" alt="自定义桌布"> | <img src="docs/assets/12-data-and-cache.png" width="400" alt="数据与缓存管理"> |
+| <img src="docs/assets/01-welcome.png" width="400" alt="欢迎页"> | <img src="docs/assets/02-decks.png" width="400" alt="卡组管理"> |
+| **3. 卡组构筑** | **4. 卡组分析** |
+| <img src="docs/assets/03-deck-builder.png" width="400" alt="卡组构筑"> | <img src="docs/assets/04-deck-analysis.png" width="400" alt="卡组分析"> |
+| **5. 卡牌资料库** | **6. 卡牌详情** |
+| <img src="docs/assets/05-card-library.png" width="400" alt="卡牌资料库"> | <img src="docs/assets/06-card-detail.png" width="400" alt="卡牌详情"> |
+| **7. 卡包选择** | **8. 模拟开包** |
+| <img src="docs/assets/07-pack-selection.png" width="400" alt="卡包选择"> | <img src="docs/assets/08-pack-opening.png" width="400" alt="模拟开包"> |
+| **9. 卡组对比** | **10. 卡组分享图** |
+| <img src="docs/assets/09-deck-comparison.png" width="400" alt="卡组对比"> | <img src="docs/assets/10-deck-export.png" width="400" alt="卡组分享图"> |
+| **11. 卡组迷你图** | **12. 一键卡组生图** |
+| <img src="docs/assets/11-deck-export-mini.png" width="400" alt="卡组迷你图"> | <img src="docs/assets/12-deck-image-shortcut.png" width="400" alt="一键卡组生图"> |
+| **13. 自定义桌布** | **14. 数据与缓存管理** |
+| <img src="docs/assets/13-custom-tablecloth.png" width="400" alt="自定义桌布"> | <img src="docs/assets/14-data-and-cache.png" width="400" alt="数据与缓存管理"> |
 
 ## 使用说明
 
@@ -39,18 +41,19 @@ KARDS Toolbox 是面向 Kards 玩家的卡牌、卡组和卡包本地管理工�
 | 卡组构筑重做 | Ctrl+Y / Ctrl+Shift+Z |
 | 卡池翻页 | 鼠标滚轮 |
 | 卡牌详情切换 | 鼠标滚轮 |
+| 卡包类型切换 | 鼠标滚轮（左/右半屏不同） |
 
-### 卡组分析怎么看？
+### 卡组分析/卡组对比怎么看？
 
 **卡组分析入口**：
 
 | 1. 卡组详情右下角 | 2. 卡组构筑右上角 |
 | :---: | :---: |
-| <img src="docs/assets/01-decks-marked.png" width="400"> | <img src="docs/assets/02-deck-builder-marked.png" width="400"> |
+| <img src="docs/assets/1-decks-marked.png" width="400"> | <img src="docs/assets/2-deck-builder-marked.png" width="400"> |
 
 **一图流**：
 
-<img src="docs/assets/03-deck-analysis-marked.png" width="800">
+<img src="docs/assets/3-deck-analysis-marked.png" width="800">
 
 **卡组评分**：
 
@@ -64,15 +67,31 @@ KARDS Toolbox 是面向 Kards 玩家的卡牌、卡组和卡包本地管理工�
 
 ## 功能详情
 
+### 欢迎页
+
+- 首次打开默认显示欢迎页，左上角 Logo 可随时返回。构筑中点击 Logo 时，仍会先处理未保存的修改。
+- 欢迎页提供导入卡组、新建空白卡组、新建战备卡组、对比两个卡组、卡组快速生图，以及搜索卡牌、探索卡牌库和模拟开包入口。点击“搜索卡牌”后直接聚焦牌库搜索框。
+- 底部“显示欢迎页”默认勾选，选择会自动保存；取消后，下次启动直接进入卡组页，仍可通过 Logo 打开欢迎页。
+
 ### 卡组
 
 - “新卡组”提供新建、战备卡组和卡组码导入。可为卡组设置名称、收藏、标签及收藏夹；打开“收藏夹显示”后按文件夹展开浏览。
+- 未指定名称的卡组统一按主国与盟国的国家首字命名，例如“苏德卡组”；主盟国相同时只使用一个首字。自行填写或分享文本中的名称优先保留。
+- 卡组码、分享文本、图片、剪贴板和战备卡组在导入前统一按可用牌的种类与数量判重，忽略名称、总部、卡背和牌序，已有相同卡组时提示其名称并阻止重复添加；对比页仍显示分析结果。
 - 战备卡组以国家配色的缩略卡片展示主盟国、费用曲线、稀有度数量和叠放卡图；预览及添加后均使用预设的非默认主国卡背。选中后查看介绍，再添加到卡组。
 - “导入卡组”可选择卡组图片，优先读取二维码中的卡组名、总部、卡背和卡组码；没有可用二维码时，Windows 桌面版使用本机文字识别尝试还原标题及卡组。识别结果先填入窗口，核对后确认导入；文字识别可能遗漏卡牌。
 - 单击卡组固定打开右侧详情，双击进入构筑；未选中卡组时，悬停可临时预览。详情浮层不挤压卡组网格，点击外部空白或按 Esc 关闭。
 - 详情中可复制卡组码、生成本地 PNG，以及更换卡背和总部。图片预览中的“更换桌布”只影响本次生图；“切换到迷你分享图”生成战备封面风格的高清 PNG，预览保持 342×242，导出分辨率为 1368×968，包含牌数、费用分布、稀有度、实际卡背和分享二维码，可切回完整卡组图。
 - 悬停“更换卡背”右侧的“卡组分析”按钮可查看卡组统计，底部用横向点图对照五项能力评分与参照卡组样本的典型区间；五项为展开节奏、进攻能力、解场控制、手牌续航、防守抗压；所有卡牌统一按卡组构成与有限中性场景估算经济、控制、连锁及净代价，仍非完整对局模拟，样本不参与原始评分。不足39张或资料缺失时显示状态。移开即关闭，此处不支持点击固定。
 - 生成图右上角包含卡组名、总部、卡背标识和卡组码的二维码，兼容不含卡背信息的旧图片。自定义卡背按本地标识恢复，资源不存在时使用主国默认卡背；识别与生成均在本地完成。
+
+### 卡组对比
+
+- 从欢迎页“对比两个卡组”、左侧栏“卡组对比”或卡组页顶栏进入。离开后再次进入时保留本次运行中的输入、分析结果和滚动位置。分别输入卡组码、完整分享文本，或点击“选择现有卡组”填入本地卡组并自动仅分析，同时禁用两个分析按钮；手动修改输入后恢复按钮。选择列表左侧显示卡组名及预备卡标记，右侧显示主国、盟国的彩色标志。没有已保存卡组时选择按钮禁用。卡组码输入框默认与名称输入框同高，内容增多时自动扩展，两侧分析区保持对齐。
+- “仅分析”生成完整分析结果而不保存卡组；“导入并分析”显示相同结果，并额外保存到卡组列表。
+- 卡组名下展示完整卡组大图，点击可放大，点击空白或按 Esc 关闭。两侧保留使用共同刻度的部署与行动费用柱状图；下方固定宽度表格按卡组名对照卡牌分类、平均费用、单位/指令比和稀有度数量。分类与稀有度加粗较大值，平均费用加粗较小值，加粗值及对应差距使用该卡组的主题色；差距以不带正负号的绝对值胶囊显示，单位/指令比不计算差距。
+- 五项能力评分合并在居中的同一张图中，与对比表等宽：左侧卡组用红色圆形，右侧卡组用蓝色三角形，分数紧随对应标记，右端以较高分一方的主题色显示差距胶囊（同分为中性色 +0.0），每行左侧名称与本行胶囊同色。图例显示实际卡组名和典型区间图案，区间与现有卡组分析一致。输入框、卡组标题和表头使用相同的左右配色；工作区不另设页头，可通过左上角 Logo 或 Esc 返回欢迎页。
+- 可用卡牌数量不为 39 张或资料缺失时保留对应提示；能力评分是卡组构成估算，不代表对战胜率。
 
 ### 卡组生图
 
@@ -119,7 +138,7 @@ KARDS Toolbox 是面向 Kards 玩家的卡牌、卡组和卡包本地管理工�
 
 ## 从源码运行
 
-需要 Windows 10/11 x64、Node.js 22 和 npm。源码仓库不包含游戏静态素材；桌面运行前需要按 [资源准备](docs/build-and-run.md#静态资源与源码仓库) 自行准备有权使用的资源或兼容资源包。在项目目录执行：
+需要 Windows 10/11 x64、Node.js 22 和 npm。源码仓库不包含游戏静态素材，桌面运行前需要按 [资源准备](docs/build-and-run.md#静态资源与源码仓库) 自行准备有权使用的资源或兼容资源包。在项目目录执行：
 
 ```powershell
 npm ci

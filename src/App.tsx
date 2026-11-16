@@ -36,9 +36,10 @@ import type { CardPackKind } from './lib/assetCatalog';
 import UserDataSaveStatus from './components/UserDataSaveStatus';
 import { generateLightModeColors } from './lib/colorUtils';
 import { renderDeckImage, renderDeckMiniImage, downloadDeckImage } from './lib/deckRenderer';
-import { decodeDeckCode, findCardsByImportId } from './lib/deckCode';
+import { decodeDeckCode, findCardsByImportId, findDuplicateDeck } from './lib/deckCode';
 import { DEFAULT_DECK_RULES, deckModeLabel, deckRuleSet, validateDeck, type DeckRuleSet } from './lib/deckRules';
 import { extractDeckCodeFromText, inferDeckTitleFromText } from './lib/deckImport';
+import { defaultDeckName } from './lib/deckName';
 import ImageDownloadProgress from './components/ImageDownloadProgress';
 import { handleDialogKeys, useDismissiblePanel, useModalFocus } from './lib/dialogKeyboard';
 import CardLibrary from './components/CardLibrary';
@@ -62,6 +63,8 @@ import DeckImagePage from './components/DeckImagePage';
 import { saveDeckImage } from './lib/deckImageCache';
 import DeckFolders from './components/DeckFolders';
 import AboutPage from './components/AboutPage';
+import WelcomePage, { type WelcomeAction } from './components/WelcomePage';
+import DeckComparePage, { type ComparedDeck } from './components/DeckComparePage';
 import CardDataUpdater from './components/CardDataUpdater';
 import CardCacheManager from './components/CardCacheManager';
 import CustomSelect from './components/CustomSelect';
@@ -72,6 +75,7 @@ import { factionAsset, factionIcon, LOGOS } from './lib/assetCatalog';
 
 // --- Types ---
 type Nation = 'Germany' | 'Soviet' | 'USA' | 'Japan' | 'Britain' | 'Finland' | 'Italy' | 'France' | 'Poland' | 'Anzac';
+type AppPage = 'welcome' | 'decks' | 'cards' | 'packs' | 'builder' | 'about' | 'settings' | 'deck-image' | 'deck-compare';
 
 interface Deck {
   id: string;
@@ -126,6 +130,7 @@ interface AppSettings {
   uiScale: number;
   deckGap: number;
   showDeckFolders: boolean;
+  showWelcomePage: boolean;
   cardDetailMode: 'modal' | 'sidebar';
 }
 
@@ -145,6 +150,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   uiScale: 1.0,
   deckGap: 0.5,
   showDeckFolders: false,
+  showWelcomePage: true,
   cardDetailMode: 'modal'
 };
 
@@ -218,7 +224,7 @@ const parseDeck = (code: string) => {
   const totalCards = [...decoded.counts.values()].reduce((sum, count) => sum + count, 0);
   const warnings = totalCards === 39 ? [] : [`卡组当前 ${totalCards + 1} 张，默认要求 40 张（含总部）`];
   if (!NATION_DATA[mainNation].isMainAllowed) warnings.push('所选主国不在五个主要国家中');
-  const defaultName = `${NATION_DATA[mainNation].label}${mainNation === allyNation ? '' : NATION_DATA[allyNation].label}卡组`;
+  const defaultName = defaultDeckName(mainNation, allyNation);
   return { mainNation, allyNation, totalCards, warnings, defaultName };
 };
 
@@ -261,6 +267,8 @@ export default function App() {
   const deckHoverCloseTimer = useRef<number | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showNewDeckModal, setShowNewDeckModal] = useState(false);
+  const [newDeckInitialMode, setNewDeckInitialMode] = useState<'choices' | 'presets'>('choices');
+  const [autoFocusCardSearch, setAutoFocusCardSearch] = useState(false);
   const [importCode, setImportCode] = useState('');
   const [importHeadquartersId, setImportHeadquartersId] = useState<string | undefined>();
   const [importCardBackId, setImportCardBackId] = useState<string | undefined>();
@@ -270,10 +278,12 @@ export default function App() {
   const [clipboardDeckCandidate, setClipboardDeckCandidate] = useState<ClipboardDeckCandidate | null>(null);
   const lastClipboardPromptRef = useRef<string | null>(null);
   const [backupStatus, setBackupStatus] = useState<string | null>(null);
-  const [activeMenu, setActiveMenu] = useState<'decks' | 'cards' | 'packs' | 'builder' | 'about' | 'settings' | 'deck-image'>('decks');
+  const [activeMenu, setActiveMenu] = useState<AppPage>('welcome');
+  const [deckCompareOpened, setDeckCompareOpened] = useState(false);
   const deckGrid = useDeckGridLayout(dataLoaded && activeMenu === 'decks' && !settings.showDeckFolders, settings.uiScale, settings.deckGap);
-  const [aboutReturnMenu, setAboutReturnMenu] = useState<'decks' | 'cards' | 'packs' | 'builder' | 'settings' | 'deck-image'>('decks');
-  const [settingsReturnMenu, setSettingsReturnMenu] = useState<'decks' | 'cards' | 'packs' | 'builder' | 'about' | 'deck-image'>('decks');
+  const [aboutReturnMenu, setAboutReturnMenu] = useState<AppPage>('decks');
+  const [settingsReturnMenu, setSettingsReturnMenu] = useState<AppPage>('decks');
+  const initialPageSelected = useRef(false);
   const settingsPageRef = useRef<HTMLElement>(null);
   useEffect(() => { if (activeMenu === 'settings') settingsPageRef.current?.focus(); }, [activeMenu]);
   const [builderDeck, setBuilderDeck] = useState<BuilderDeck | null>(null);
@@ -370,7 +380,7 @@ export default function App() {
   const [customCategories, setCustomCategories] = useState<{id: string, name: string, backs: {id: string, url: string, name: string}[]}[]>([]);
 
   useEffect(() => {
-    if (activeMenu === 'deck-image') return;
+    if (activeMenu === 'deck-image' || activeMenu === 'deck-compare') return;
     let detecting = false;
     let cancelled = false;
     const readClipboardText = async () => {
@@ -445,7 +455,12 @@ export default function App() {
         setCustomCategories(loadedCategories);
         setSelectedTablecloth(resolveSelectedTablecloth(loadedSelectedTablecloth, loadedCustomTablecloths));
         setCustomTablecloths(loadedCustomTablecloths);
-        setSettings({ ...DEFAULT_SETTINGS, ...loadedSettingsRaw });
+        const loadedSettings = { ...DEFAULT_SETTINGS, ...loadedSettingsRaw };
+        setSettings(loadedSettings);
+        if (!initialPageSelected.current) {
+          setActiveMenu(loadedSettings.showWelcomePage ? 'welcome' : 'decks');
+          initialPageSelected.current = true;
+        }
         setPackHistory((loaded.kards_pack_history_v1 || emptyPackHistory()) as PackHistory);
         setDataLoadError(null);
         setDataLoaded(true);
@@ -924,7 +939,7 @@ export default function App() {
     setClipboardDeckCandidate(null);
   };
 
-  const addDeckFromCode = (sourceText: string, name: string, headquartersId?: string, cardBackId?: string) => {
+  const createDeckFromCode = (sourceText: string, name: string, headquartersId?: string, cardBackId?: string): Deck => {
       const deckCode = extractDeckCodeFromText(sourceText);
       const inferredName = inferDeckTitleFromText(sourceText, deckCode);
       const { mainNation, allyNation, totalCards, defaultName } = parseDeck(deckCode);
@@ -948,7 +963,13 @@ export default function App() {
         warnings: validateDeck(entries, index, mainNation, allyNation, DEFAULT_DECK_RULES[ruleSet]),
         ruleSet, isArena: ruleSet === 'arena'
       };
-      
+      return newDeck;
+  };
+
+  const addDeckFromCode = (sourceText: string, name: string, headquartersId?: string, cardBackId?: string) => {
+      const duplicate = findDuplicateDeck(sourceText, decks);
+      if (duplicate) throw new Error(`卡组已存在：“${duplicate.name}”。请直接使用现有卡组。`);
+      const newDeck = createDeckFromCode(sourceText, name, headquartersId, cardBackId);
       setDecks(current => [...current, newDeck]);
       setSelectedDeckId(newDeck.id);
       setImportCode('');
@@ -957,6 +978,7 @@ export default function App() {
       setImportCardBackId(undefined);
       setShowImportModal(false);
       setShowNewDeckModal(false);
+      setActiveMenu(current => current === 'welcome' ? 'decks' : current);
       setErrorStatus(null);
       
       // Reset filters so the newly added deck is visible
@@ -966,12 +988,69 @@ export default function App() {
       setFilterTag('All');
   };
 
+  const importComparedDeck = async (deck: ComparedDeck) => {
+    await flushUserData();
+    const known = findDuplicateDeck(deck.code, decks);
+    if (known) return { imported: false, name: known.name };
+    const newDeck = createDeckFromCode(deck.code, deck.name, deck.headquartersId, deck.cardBackId);
+    let result = { imported: true, name: newDeck.name };
+    const updated = await updateUserData<Deck[]>('kards_decks', current => {
+      const saved = current || [];
+      const duplicate = findDuplicateDeck(deck.code, saved);
+      if (duplicate) result = { imported: false, name: duplicate.name };
+      return duplicate ? saved : [...saved, newDeck];
+    });
+    setDecks(updated);
+    return result;
+  };
+
+  const existingCompareDecks = React.useMemo(() => decks.map(deck => {
+    const customBack = customCategories.flatMap(category => category.backs).find(back => back.url === deck.cardBackUrl);
+    return { id: deck.id, code: deck.code, name: deck.name, mainNation: deck.mainNation, allyNation: deck.allyNation,
+      hasReserved: reservedDeckIds.has(deck.id), headquartersId: deck.headquartersId,
+      cardBackId: CARD_BACKS.find(back => back.file === deck.cardBackUrl)?.id || (customBack ? `custom:${customBack.id}` : undefined) };
+  }), [decks, customCategories, reservedDeckIds]);
+
   const handleAddDeck = () => {
     if (!importCode.trim() || importImageBusy) return;
     try {
       addDeckFromCode(importCode, importName, importHeadquartersId, importCardBackId);
     } catch (e: any) {
       setErrorStatus(ERROR_LOCALE[e.message] || e.message || '格式错误');
+    }
+  };
+
+  const createBlankDeck = () => {
+    setShowNewDeckModal(false);
+    setBuilderDeck({ name: defaultDeckName('Germany', 'Soviet'), code: '%%14|;;;' });
+    setBuilderRevision(revision => revision + 1);
+    setActiveMenu('builder');
+  };
+
+  const openWelcomePage = () => {
+    const open = () => { closeDeckDetails(); setActiveMenu('welcome'); };
+    if (activeMenu === 'builder' && builderExitRequest.current) builderExitRequest.current(open);
+    else {
+      if (activeMenu === 'builder') setBuilderDeck(null);
+      open();
+    }
+  };
+
+  const openDeckCompare = () => {
+    setClipboardDeckCandidate(null); setDeckCompareOpened(true); setActiveMenu('deck-compare');
+  };
+
+  const handleWelcomeAction = (action: WelcomeAction) => {
+    switch (action) {
+      case 'import': setErrorStatus(null); setShowImportModal(true); break;
+      case 'create': createBlankDeck(); break;
+      case 'ready': setNewDeckInitialMode('presets'); setShowNewDeckModal(true); break;
+      case 'compare': openDeckCompare(); break;
+      case 'image': setClipboardDeckCandidate(null); setActiveMenu('deck-image'); break;
+      case 'search': setAutoFocusCardSearch(true); setActiveMenu('cards'); break;
+      case 'cards': setAutoFocusCardSearch(false); setActiveMenu('cards'); break;
+      case 'packs': setActiveMenu('packs'); break;
+      case 'decks': setActiveMenu('decks'); break;
     }
   };
 
@@ -1349,8 +1428,8 @@ export default function App() {
       {automaticBackupDialog}
       {/* --- Top Bar --- */}
       <header className="h-14 bg-kards-gray flex items-center justify-between px-6 border-b border-kards-border z-20 transition-colors duration-300">
-        <div className="flex items-center gap-8">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center gap-8 max-xl:gap-3">
+          <button type="button" onClick={openWelcomePage} aria-label="打开欢迎页" title="欢迎页" className="flex items-center gap-3 rounded hover:opacity-80">
             <img 
               src={effectiveIsDarkMode ? LOGOS.brand.white : LOGOS.brand.black}
               alt="KARDS Logo" 
@@ -1358,10 +1437,10 @@ export default function App() {
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
             />
             <span className="text-xl font-bold tracking-widest text-kards-text sr-only">KARDS Toolbox · KARDS 工具箱</span>
-          </div>
-          <nav className="flex items-center gap-6">
-            <h1 className="text-kards-text font-bold border-l border-kards-border pl-6 cursor-default tracking-widest">
-              {activeMenu === 'cards' ? '卡牌' : activeMenu === 'packs' ? '卡包' : activeMenu === 'deck-image' ? '卡组生图' : activeMenu === 'builder' ? '卡组构筑' : activeMenu === 'about' ? '关于' : activeMenu === 'settings' ? '设置' : '卡组'}
+          </button>
+          <nav className="flex items-center gap-6 max-xl:gap-3">
+            <h1 className="shrink-0 whitespace-nowrap text-kards-text font-bold border-l border-kards-border pl-6 cursor-default tracking-widest">
+              {activeMenu === 'welcome' ? '欢迎' : activeMenu === 'deck-compare' ? '卡组对比' : activeMenu === 'cards' ? '卡牌' : activeMenu === 'packs' ? '卡包' : activeMenu === 'deck-image' ? '卡组生图' : activeMenu === 'builder' ? '卡组构筑' : activeMenu === 'about' ? '关于' : activeMenu === 'settings' ? '设置' : '卡组'}
             </h1>
             <div className="flex items-center gap-3">
               {activeMenu === 'decks' && <>
@@ -1371,9 +1450,10 @@ export default function App() {
                 placeholder="搜索卡组..."
                 value={searchQuery || ''}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="bg-kards-gray-alt border border-kards-border text-kards-text text-sm pl-3 pr-9 py-1.5 focus:outline-none focus:border-kards-gold min-w-[200px] rounded transition-colors"
+                className="bg-kards-gray-alt border border-kards-border text-kards-text text-sm pl-3 pr-9 py-1.5 focus:outline-none focus:border-kards-gold w-[200px] max-xl:w-[180px] rounded transition-colors"
               /><SearchClearButton label="清除卡组搜索" value={searchQuery || ''} onClear={() => setSearchQuery('')} /></div>
               <button type="button" aria-pressed={settings.showDeckFolders} onClick={() => setSettings(current => ({ ...current, showDeckFolders: !current.showDeckFolders }))} className="builder-reserved-toggle">显示收藏夹</button>
+              <button type="button" aria-label="卡组对比" title="卡组对比" onClick={openDeckCompare} className="builder-reserved-toggle gap-2"><ArrowRightLeft className="h-4 w-4" aria-hidden="true" /><span className="max-xl:hidden">卡组对比</span></button>
                 <>
                   <CustomSelect label="卡组主国筛选" value={filterMainNation || 'All'} onChange={value => setFilterMainNation(value as Nation | 'All')} options={[{ value: 'All', label: '主国：全部' }, ...nationOptions().filter(option => NATION_DATA[option.value as Nation]?.isMainAllowed)]} />
                   <CustomSelect label="卡组盟国筛选" value={filterAllyNation || 'All'} onChange={value => setFilterAllyNation(value as Nation | 'All')} options={[{ value: 'All', label: '盟国：全部' }, ...nationOptions().filter(option => option.value !== 'Neutral')]} />
@@ -1410,9 +1490,10 @@ export default function App() {
         {/* Left Sidebar */}
         {activeMenu !== 'builder' && <aside aria-label="主导航" className="glass-panel w-[72px] shrink-0 flex flex-col gap-1 p-1 z-10 border-r border-kards-border transition-colors duration-300">
           <SidebarButton active={activeMenu === 'decks'} onClick={() => setActiveMenu('decks')} icon={<Library className="w-8 h-8" />} label="卡组" />
-          <SidebarButton active={activeMenu === 'cards'} onClick={() => setActiveMenu('cards')} icon={<img src={effectiveIsDarkMode ? LOGOS.cards.beige : LOGOS.cards.black} alt="" className="h-8 w-8 object-contain" />} label="卡牌" />
+          <SidebarButton active={activeMenu === 'cards'} onClick={() => { setAutoFocusCardSearch(false); setActiveMenu('cards'); }} icon={<img src={effectiveIsDarkMode ? LOGOS.cards.beige : LOGOS.cards.black} alt="" className="h-8 w-8 object-contain" />} label="卡牌" />
           <SidebarButton active={activeMenu === 'packs'} onClick={() => setActiveMenu('packs')} icon={<img src={LOGOS.pack} alt="" className="pack-navigation-icon h-8 w-8 object-contain" />} label="卡包" />
           <div aria-label="应用工具" className="mt-auto flex flex-col gap-1 border-t border-kards-border pt-1">
+            <SidebarButton active={activeMenu === 'deck-compare'} onClick={openDeckCompare} icon={<ArrowRightLeft className="w-6 h-6" />} label="卡组对比" />
             <SidebarButton active={activeMenu === 'deck-image'} onClick={() => { setClipboardDeckCandidate(null); setActiveMenu('deck-image'); }} icon={<ImageIcon className="w-6 h-6" />} label="卡组生图" />
             <SidebarButton active={showTableclothModal} onClick={() => openTableclothPicker()} icon={<Palette className="w-6 h-6" />} label="桌布" />
             <SidebarButton active={activeMenu === 'settings'} onClick={() => { if (activeMenu !== 'settings') setSettingsReturnMenu(activeMenu); setActiveMenu('settings'); }} icon={<Settings className="w-6 h-6" />} label="设置" />
@@ -1467,7 +1548,13 @@ export default function App() {
           </div>
 
           {/* Scrollable Content Container */}
-          <div ref={deckGrid.ref} className={`h-full w-full ${activeMenu === 'packs' || activeMenu === 'deck-image' ? 'overflow-hidden' : 'overflow-y-auto'} no-scrollbar relative z-10 flex flex-col items-center ${activeMenu === 'cards' || activeMenu === 'packs' || activeMenu === 'builder' || activeMenu === 'settings' || activeMenu === 'deck-image' ? '' : 'p-12'}`}>
+          <div ref={deckGrid.ref} className={`h-full w-full ${activeMenu === 'packs' || activeMenu === 'deck-image' ? 'overflow-hidden' : 'overflow-y-auto'} no-scrollbar relative z-10 flex flex-col items-center ${['welcome', 'deck-compare', 'cards', 'packs', 'builder', 'settings', 'deck-image'].includes(activeMenu) ? '' : 'p-12'}`}>
+            {activeMenu === 'welcome' && <WelcomePage showWelcomePage={settings.showWelcomePage} onShowWelcomePageChange={showWelcomePage => setSettings(current => ({ ...current, showWelcomePage }))} onAction={handleWelcomeAction} />}
+            {activeMenu === 'deck-compare' && cardDatabaseLoading && <p className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</p>}
+            {activeMenu === 'deck-compare' && cardDatabaseError && <p role="alert" className="p-6 text-red-400">{cardDatabaseError}</p>}
+            {deckCompareOpened && !cardDatabaseLoading && !cardDatabaseError && <div className={`h-full w-full shrink-0 ${activeMenu === 'deck-compare' ? '' : 'hidden'}`}>
+              <DeckComparePage active={activeMenu === 'deck-compare'} cards={cardDatabase} existingDecks={existingCompareDecks} tablecloth={selectedTablecloth} onImportDeck={importComparedDeck} onBack={openWelcomePage} />
+            </div>}
             {activeMenu === 'deck-image' && (cardDatabaseLoading ? <p className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</p>
               : cardDatabaseError ? <p role="alert" className="p-6 text-red-400">{cardDatabaseError}</p>
                 : <DeckImagePage cards={cardDatabase} decks={decks} tablecloth={selectedTablecloth} customCategories={customCategories}
@@ -1475,7 +1562,7 @@ export default function App() {
             {activeMenu === 'cards' && (
               cardDatabaseLoading ? <div className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</div>
                 : cardDatabaseError ? <div className="max-w-xl rounded border border-red-500/40 bg-red-500/10 p-6 text-red-300">{cardDatabaseError}</div>
-                  : <div className="h-full w-full max-w-[1800px]"><CardLibrary cards={cardDatabase} detailMode={settings.cardDetailMode} onDetailModeChange={cardDetailMode => setSettings(current => ({ ...current, cardDetailMode }))} /></div>
+                  : <div className="h-full w-full max-w-[1800px]"><CardLibrary cards={cardDatabase} autoFocusSearch={autoFocusCardSearch} detailMode={settings.cardDetailMode} onDetailModeChange={cardDetailMode => setSettings(current => ({ ...current, cardDetailMode }))} /></div>
             )}
             {activeMenu === 'builder' && cardDatabaseLoading && <p className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</p>}
             {activeMenu === 'packs' && (cardDatabaseLoading ? <p className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</p>
@@ -1486,7 +1573,7 @@ export default function App() {
             {activeMenu === 'settings' && settingsPage}
             {activeMenu === 'about' && <AboutPage isDarkMode={effectiveIsDarkMode} onBack={() => setActiveMenu(aboutReturnMenu)} />}
             {activeMenu === 'decks' && settings.showDeckFolders && <div className="mb-6 flex w-full max-w-7xl flex-wrap items-center justify-between gap-3">
-              <button onClick={() => setShowNewDeckModal(true)} className="flex items-center gap-2 rounded bg-kards-accent px-3 py-2 text-sm font-bold text-white"><Plus className="h-4 w-4" />新卡组</button>
+              <button onClick={() => { setNewDeckInitialMode('choices'); setShowNewDeckModal(true); }} className="flex items-center gap-2 rounded bg-kards-accent px-3 py-2 text-sm font-bold text-white"><Plus className="h-4 w-4" />新卡组</button>
             </div>}
             {activeMenu === 'decks' && !settings.showDeckFolders && (
               <div data-testid="deck-grid"
@@ -1509,7 +1596,7 @@ export default function App() {
 
                 {/* Add Deck Placeholder */}
                 <button 
-                  onClick={() => setShowNewDeckModal(true)}
+                  onClick={() => { setNewDeckInitialMode('choices'); setShowNewDeckModal(true); }}
                   className="flex min-w-0 flex-col items-center group flex-shrink-0"
                 >
                   <div 
@@ -1675,7 +1762,7 @@ export default function App() {
 
       {/* --- Clipboard Import Prompt --- */}
       <AnimatePresence>
-        {clipboardDeckCandidate && !showImportModal && activeMenu !== 'deck-image' && (
+        {clipboardDeckCandidate && !showImportModal && activeMenu !== 'deck-image' && activeMenu !== 'deck-compare' && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
@@ -1738,13 +1825,9 @@ export default function App() {
       {/* --- Import Modal --- */}
       {showNewDeckModal && <NewDeckDialog
         cards={cardDatabase}
+        initialMode={newDeckInitialMode}
         onClose={() => setShowNewDeckModal(false)}
-        onCreate={() => {
-          setShowNewDeckModal(false);
-          setBuilderDeck({ name: '新卡组', code: '%%14|;;;' });
-          setBuilderRevision(revision => revision + 1);
-          setActiveMenu('builder');
-        }}
+        onCreate={createBlankDeck}
         onImport={() => { setShowNewDeckModal(false); setErrorStatus(null); setShowImportModal(true); }}
         onPreset={preset => addDeckFromCode(preset.code, preset.name, undefined, preset.cardBackId)}
       />}
@@ -1807,7 +1890,7 @@ export default function App() {
                     autoFocus
                   />
                   {errorStatus && (
-                    <p className="text-red-500 text-xs mt-2 font-bold flex items-center gap-1">
+                    <p role="alert" className="text-red-500 text-xs mt-2 font-bold flex items-center gap-1">
                       <Zap className="w-3 h-3" /> {errorStatus}
                     </p>
                   )}

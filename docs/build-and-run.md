@@ -36,6 +36,7 @@ npm run dev:desktop
 | 可选本地 Web 服务 | `npm run dev` | 默认端口 3000，桌面开发无需运行 |
 | 类型检查 | `npm run lint` | TypeScript 检查 |
 | 核心逻辑检查 | `npm test` | 单元测试 |
+| 欢迎页与对比交互检查 | `python scripts/smoke-welcome.py` | 先执行 `npm run dev:renderer -- --port 5189`；需要 Python Playwright 和 Edge，检查启动偏好、三处对比入口、透明面板、构筑退出保护、现有卡组列表及自动分析、离开后状态保留、跨入口及并发判重、仅分析/导入保存、大图放大、统计表配色与绝对差距、评分名称与胶囊同色及最小窗口 |
 | 全卡池评分核验 | `npx tsx src/lib/deckAnalysis.test.ts --audit` | 在 `references/deck-analysis/card-ability-audit.json` 记录当前全卡池的能力提取、未识别文本与近似假设；算法变动后可加 `--update-reference` 显式重算样本区间 |
 | 生图快捷页交互检查 | `node scripts/smoke-deck-image-page.cjs` | 先在 5189 端口启动渲染端；也可在桌面构建后加 `--desktop` 检查本地协议与 Sharp |
 | 仅构建桌面资源 | `npm run build:desktop` | `dist/` 与 `dist-electron/`，不生成 EXE |

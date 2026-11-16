@@ -8,23 +8,25 @@
 
 KARDS Toolbox is a local tool for KARDS players to browse cards, build and manage decks, and simulate opening card packs.
 
-Current version: **1.3.3**.
+Current version: **1.3.4**.
 
 ## Screenshots
 
-| 1. Deck management | 2. Deck builder |
+| 1. Welcome page | 2. Deck management |
 | :---: | :---: |
-| <img src="docs/assets/01-decks.png" width="400" alt="Deck management"> | <img src="docs/assets/02-deck-builder.png" width="400" alt="Deck builder"> |
-| **3. Deck analysis** | **4. Card library** |
-| <img src="docs/assets/03-deck-analysis.png" width="400" alt="Deck analysis"> | <img src="docs/assets/04-card-library.png" width="400" alt="Card library"> |
-| **5. Card details** | **6. Pack selection** |
-| <img src="docs/assets/05-card-detail.png" width="400" alt="Card details"> | <img src="docs/assets/06-pack-selection.png" width="400" alt="Pack selection"> |
-| **7. Pack opening simulation** | **8. Deck sharing image** |
-| <img src="docs/assets/07-pack-opening.png" width="400" alt="Pack opening simulation"> | <img src="docs/assets/08-deck-export.png" width="400" alt="Deck sharing image"> |
-| **9. Mini deck image** | **10. Deck image shortcut** |
-| <img src="docs/assets/09-deck-export-mini.png" width="400" alt="Mini deck image"> | <img src="docs/assets/10-deck-image-shortcut.png" width="400" alt="Deck image shortcut"> |
-| **11. Custom tablecloth** | **12. Data and cache management** |
-| <img src="docs/assets/11-custom-tablecloth.png" width="400" alt="Custom tablecloth"> | <img src="docs/assets/12-data-and-cache.png" width="400" alt="Data and cache management"> |
+| <img src="docs/assets/01-welcome.png" width="400" alt="Welcome page"> | <img src="docs/assets/02-decks.png" width="400" alt="Deck management"> |
+| **3. Deck building** | **4. Deck analysis** |
+| <img src="docs/assets/03-deck-builder.png" width="400" alt="Deck building"> | <img src="docs/assets/04-deck-analysis.png" width="400" alt="Deck analysis"> |
+| **5. Card library** | **6. Card details** |
+| <img src="docs/assets/05-card-library.png" width="400" alt="Card library"> | <img src="docs/assets/06-card-detail.png" width="400" alt="Card details"> |
+| **7. Pack selection** | **8. Pack opening simulation** |
+| <img src="docs/assets/07-pack-selection.png" width="400" alt="Pack selection"> | <img src="docs/assets/08-pack-opening.png" width="400" alt="Pack opening simulation"> |
+| **9. Deck comparison** | **10. Deck sharing image** |
+| <img src="docs/assets/09-deck-comparison.png" width="400" alt="Deck comparison"> | <img src="docs/assets/10-deck-export.png" width="400" alt="Deck sharing image"> |
+| **11. Mini deck image** | **12. Deck image shortcut** |
+| <img src="docs/assets/11-deck-export-mini.png" width="400" alt="Mini deck image"> | <img src="docs/assets/12-deck-image-shortcut.png" width="400" alt="Deck image shortcut"> |
+| **13. Custom tablecloth** | **14. Data and cache management** |
+| <img src="docs/assets/13-custom-tablecloth.png" width="400" alt="Custom tablecloth"> | <img src="docs/assets/14-data-and-cache.png" width="400" alt="Data and cache management"> |
 
 ## Usage
 
@@ -41,18 +43,19 @@ The control names below are English descriptions of the Chinese interface shown 
 | Redo in the deck builder | Ctrl+Y / Ctrl+Shift+Z |
 | Change card pool pages | Mouse wheel |
 | Switch cards in the details view | Mouse wheel |
+| Switch pack types | Mouse wheel (different halves of the window) |
 
-### How to read deck analysis
+### How to read deck analysis or deck comparison?
 
 **Where to find it:**
 
 | 1. Bottom-right of deck details | 2. Top-right of the deck builder |
 | :---: | :---: |
-| <img src="docs/assets/01-decks-marked.png" width="400" alt="Deck analysis button in deck details"> | <img src="docs/assets/02-deck-builder-marked.png" width="400" alt="Deck analysis button in the deck builder"> |
+| <img src="docs/assets/1-decks-marked.png" width="400" alt="Deck analysis button in deck details"> | <img src="docs/assets/2-deck-builder-marked.png" width="400" alt="Deck analysis button in the deck builder"> |
 
 **At a glance:**
 
-<img src="docs/assets/03-deck-analysis-marked.png" width="800" alt="Annotated deck analysis overview">
+<img src="docs/assets/3-deck-analysis-marked.png" width="800" alt="Annotated deck analysis overview">
 
 **Ability scores:**
 
@@ -66,15 +69,31 @@ Ability scores are the core of deck analysis. By estimating a deck's economy, co
 
 ## Feature details
 
+### Welcome page
+
+- The welcome page appears by default on first launch. Click the top-left logo to return at any time; leaving the deck builder still asks you to handle unsaved changes.
+- Shortcuts cover importing a deck, creating a blank or ready-made deck, comparing two decks, generating deck images, searching cards, exploring the card library, and opening packs. **Search cards** opens the library with its search field focused.
+- **显示欢迎页** (Show welcome page) at the bottom is checked by default and saved automatically. Uncheck it to start on the decks page next time; the logo still opens the welcome page.
+
 ### Decks
 
 - **New deck** lets you create a deck, choose a ready-made deck, or import a deck code. Set a name, mark favorites, add tags, and organize decks into folders. Enable the folder view to browse decks by folder.
+- Unnamed decks use the first Chinese character of each nation followed by 卡组, for example 苏德卡组. A single character is used when both nations are the same. Custom names and names from sharing text take priority.
+- Code, sharing-text, image, clipboard, and ready-made deck imports check for existing decks by playable-card identities and quantities, ignoring names, headquarters, card backs, and card order. A matching deck is identified by name and is not added again; comparison results still appear.
 - Ready-made decks appear as compact cards in their nation's colors, with main and allied nations, a cost curve, rarity counts, and stacked card artwork. Previews and added decks use the preset non-default card back for the main nation. Select a deck to read its description before adding it.
 - **Import deck** accepts deck images. It first reads the deck name, headquarters, card back, and deck code from a QR code. If no usable QR code is found, the Windows desktop app attempts to recover the title and deck using local text recognition. Review the populated fields before confirming; text recognition may miss cards.
 - Click a deck to keep its details open on the right, or double-click to edit it. When no deck is selected, hovering shows a temporary preview. The details overlay does not shrink the deck grid; click outside it or press Esc to close it.
 - Deck details let you copy the code, generate a local PNG, and change the card back or headquarters. Changing the tablecloth in the image preview affects only that export. **Switch to mini sharing image** generates a high-resolution PNG styled like a ready-made deck cover: the preview is 342×242 and the exported image is 1368×968. It includes the card count, cost distribution, rarity counts, actual card back, and sharing QR code. You can switch back to the full deck image.
 - Hover over **Deck analysis**, to the right of **Change card back**, to view deck statistics. Five ability scores appear at the bottom as horizontal dots against typical ranges from reference decks. The five axes cover development tempo, offense, removal and control, hand sustain, and defense. Every card uses the same deck-context rules for economy, disruption, bounded chains, and net costs in a finite neutral scenario; this is not a full match simulation, and reference samples do not affect raw scores. Incomplete decks or missing data show a status instead. This preview closes when you move away and cannot be pinned by clicking.
 - Generated images include a QR code in the upper-right corner containing the deck name, headquarters ID, card back ID, and deck code. Older images without card back information remain compatible. Custom card backs are restored by their local IDs; if the resource is unavailable, the main nation's default back is used. Recognition and image generation run locally.
+
+### Deck comparison
+
+- Open **对比两个卡组** (Compare two decks) from the welcome page, **卡组对比** from the sidebar, or the comparison button in the decks toolbar. Inputs, results, and scroll position are retained when you leave and return during the current app session. Enter deck codes or full sharing texts, or use **选择现有卡组** (Choose an existing deck) to fill and automatically analyze a saved deck. Both analysis buttons remain disabled until the input is manually edited. Picker rows show the deck name and reserved-card badge on the left and full-color main/allied nation icons on the right. The chooser is disabled when no decks are saved. Code fields start at the same height as name fields and expand to fit longer content while both analysis sections remain aligned.
+- **仅分析** (Analyze only) shows the full results without saving the deck; **导入并分析** (Import and analyze) produces the same results and also saves the deck to your deck list.
+- A full deck image appears beneath each deck name. Click it to enlarge; click outside or press Esc to close. Deployment and operation curves remain side by side on a shared scale. A fixed-width table below compares categories, average costs, the unit-to-order ratio, and rarity counts. Higher category and rarity counts and lower average costs appear in bold using their deck's color, as do the corresponding unsigned absolute difference pills. No difference is calculated for the unit-to-order ratio.
+- Five ability scores share one centered chart, matching the table width: red circles represent the left deck and blue triangles represent the right deck, with scores beside their markers. Gap pills at the right use the higher-scoring deck's color; ties show a neutral +0.0. Each ability name matches its row's gap pill color. The legend shows actual deck names and a visible reference-range swatch. Inputs, result names, and table headings use the same deck colors. The workspace has no additional header; use the top-left logo or Esc to return to the welcome page.
+- Decks without exactly 39 available cards or with missing data retain the corresponding status messages. Ability scores estimate deck composition; they do not predict matchup win rates.
 
 ### Deck image shortcut
 

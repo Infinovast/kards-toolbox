@@ -6,12 +6,12 @@ import KreditLabel from './KreditLabel';
 import DeckRaritySummary from './DeckRaritySummary';
 import { handleDialogKeys } from '../lib/dialogKeyboard';
 import { DECK_COST_CATEGORIES, summarizeDeckCosts } from '../lib/deckCostCurve';
-import { analyzeDeckAbilities } from '../lib/deckAnalysis';
+import { analyzeDeckAbilities, type DeckAbilityResult } from '../lib/deckAnalysis';
 import type { KardsCardRecord } from '../types/card';
 
 const ABILITY_HUES = [6, 30, 54, 114]; // Red → orange → yellow → green.
 const abilityColor = (hue: number) => `hsl(${hue} 55% 62%)`;
-function abilityPointColor(score: number, low: number, high: number) {
+export function abilityPointColor(score: number, low: number, high: number) {
   const width = Math.max(1, high - low);
   // Lower edge: orange; band midpoint: yellow; upper edge and beyond: green.
   const position = score < low ? Math.max(0, 1 + (score - low) / Math.max(10, width))
@@ -72,27 +72,20 @@ export default function DeckCostChart({ entries, cardsById, active, hoverOnly = 
         tabIndex={pinned ? -1 : undefined} onKeyDown={pinned ? handleDialogKeys : undefined} className="deck-cost-dialog">
         {pinned && <button type="button" data-dialog-cancel onClick={close} aria-label="关闭卡组分析" className="deck-cost-close"><X className="h-5 w-5" /></button>}
         <h2>卡组分析</h2>
-        <div className="deck-cost-columns">
-          {curve.buckets.map((bucket, cost) => {
-            const operation = curve.operationBuckets[cost];
-            const split = operation.total > 0;
-            const distributions = [{ label: '部署', bucket }, ...(split ? [{ label: '行动', bucket: operation }] : [])];
-            const costLabel = `${cost}K${cost === 7 ? '+' : ''}`;
-            return <div key={cost} role="img" className="deck-cost-column"
-            aria-label={`${costLabel}：${distributions.map(item => `${item.label}（${DECK_COST_CATEGORIES.filter(({ key }) => item.label === '部署' || key === 'army' || key === 'air').map(({ key, label }) => `${label} ${item.bucket[key]} 张`).join('，')}，共 ${item.bucket.total} 张）`).join('；')}`}>
-            <div className={`deck-cost-quantity${split ? ' is-split' : ''}`} aria-hidden="true">
-              {distributions.map(item => <span key={item.label}>×{item.bucket.total}</span>)}
-            </div>
-            <div className="deck-cost-frame" aria-hidden="true">
-              <div className="deck-cost-bars">
-                {distributions.map(item => <div key={item.label} className="deck-cost-stack" data-distribution={item.label === '部署' ? 'deployment' : 'operation'} title={`${costLabel} ${item.label}：${item.bucket.total} 张`}>
-                  {DECK_COST_CATEGORIES.map(({ key, color }) => <span key={key} className={`deck-cost-segment is-${key}`} style={{ backgroundColor: color, height: `${item.bucket[key] / curve.max * 100}%` }} />)}
-                </div>)}
-              </div>
-              <div className="deck-cost-kredit"><KreditLabel cost={cost} /></div>
-            </div>
-          </div>; })}
-        </div>
+        <DeckAnalysisContent curve={curve} abilities={abilities} />
+      </section>
+    </motion.div>}
+    </AnimatePresence>, document.body)}
+  </>;
+}
+
+export function DeckAnalysisContent({ curve, abilities, costMax = curve.max }: {
+  curve: ReturnType<typeof summarizeDeckCosts>;
+  abilities: DeckAbilityResult | null;
+  costMax?: number;
+}) {
+  return <>
+        <DeckCostColumns curve={curve} costMax={costMax} />
         <div className="deck-cost-legend">
           {DECK_COST_CATEGORIES.map(({ key, label, color }) => <div key={key}><span aria-hidden="true" className={`deck-cost-swatch is-${key}`} style={{ backgroundColor: color }} /><span>{label}：<strong>{curve.totals[key]}</strong></span></div>)}
         </div>
@@ -126,8 +119,34 @@ export default function DeckCostChart({ entries, cardsById, active, hoverOnly = 
           </> : <p className="deck-ability-unavailable" role="status">{abilities?.status === 'incomplete'
             ? '构筑满39张后显示能力评分' : '部分卡牌资料缺失或数值无效，无法计算评分'}</p>}
         </div>
-      </section>
-    </motion.div>}
-    </AnimatePresence>, document.body)}
   </>;
+}
+
+export function DeckCostColumns({ curve, costMax = curve.max }: {
+  curve: ReturnType<typeof summarizeDeckCosts>;
+  costMax?: number;
+}) {
+  return (
+    <div className="deck-cost-columns">
+          {curve.buckets.map((bucket, cost) => {
+            const operation = curve.operationBuckets[cost];
+            const split = operation.total > 0;
+            const distributions = [{ label: '部署', bucket }, ...(split ? [{ label: '行动', bucket: operation }] : [])];
+            const costLabel = `${cost}K${cost === 7 ? '+' : ''}`;
+            return <div key={cost} role="img" className="deck-cost-column"
+            aria-label={`${costLabel}：${distributions.map(item => `${item.label}（${DECK_COST_CATEGORIES.filter(({ key }) => item.label === '部署' || key === 'army' || key === 'air').map(({ key, label }) => `${label} ${item.bucket[key]} 张`).join('，')}，共 ${item.bucket.total} 张）`).join('；')}`}>
+            <div className={`deck-cost-quantity${split ? ' is-split' : ''}`} aria-hidden="true">
+              {distributions.map(item => <span key={item.label}>×{item.bucket.total}</span>)}
+            </div>
+            <div className="deck-cost-frame" aria-hidden="true">
+              <div className="deck-cost-bars">
+                {distributions.map(item => <div key={item.label} className="deck-cost-stack" data-distribution={item.label === '部署' ? 'deployment' : 'operation'} title={`${costLabel} ${item.label}：${item.bucket.total} 张`}>
+                  {DECK_COST_CATEGORIES.map(({ key, color }) => <span key={key} className={`deck-cost-segment is-${key}`} style={{ backgroundColor: color, height: `${item.bucket[key] / costMax * 100}%` }} />)}
+                </div>)}
+              </div>
+              <div className="deck-cost-kredit"><KreditLabel cost={cost} /></div>
+            </div>
+          </div>; })}
+        </div>
+  );
 }
