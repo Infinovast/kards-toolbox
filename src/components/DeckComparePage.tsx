@@ -37,8 +37,9 @@ export interface ExistingCompareDeck {
 }
 
 type ImportComparedDeck = (deck: ComparedDeck) => Promise<{ imported: boolean; name: string }>;
+export interface DeckCompareSelectionRequest { deck: ExistingCompareDeck; revision: number }
 
-function CompareDeckInput({ slot, cards, cardsById, existingDecks, deck, costMax, tablecloth, onAnalyze, onInvalidate, onImportDeck }: {
+function CompareDeckInput({ slot, cards, cardsById, existingDecks, deck, costMax, tablecloth, onAnalyze, onInvalidate, onImportDeck, selectionRequest }: {
   slot: 'A' | 'B';
   cards: KardsCardRecord[];
   cardsById: Map<string, KardsCardRecord>;
@@ -49,6 +50,7 @@ function CompareDeckInput({ slot, cards, cardsById, existingDecks, deck, costMax
   onAnalyze: (deck: ComparedDeck) => void;
   onInvalidate: () => void;
   onImportDeck: ImportComparedDeck;
+  selectionRequest?: DeckCompareSelectionRequest;
 }) {
   const [text, setText] = useState('');
   const [name, setName] = useState('');
@@ -116,6 +118,16 @@ function CompareDeckInput({ slot, cards, cardsById, existingDecks, deck, costMax
     onAnalyze(parsed);
   };
 
+  const selectExistingDeck = (item: ExistingCompareDeck) => {
+    setText(item.code); setName(item.name); setMetadata({ headquartersId: item.headquartersId, cardBackId: item.cardBackId });
+    setSelectedExistingId(item.id); onInvalidate(); setPickerOpen(false); void analyze(false, item);
+  };
+  useEffect(() => {
+    if (!selectionRequest) return;
+    if (slot === 'A') selectExistingDeck(selectionRequest.deck);
+    else setPickerOpen(true);
+  }, [selectionRequest]);
+
   return <section className={`deck-compare-column is-${slot === 'A' ? 'left' : 'right'} glass-panel`} aria-label={`${slot === 'A' ? '左' : '右'}侧卡组`}>
     <form onSubmit={event => { event.preventDefault(); void analyze(false); }}>
       <label htmlFor={`${id}-name`}>卡组名称<span>（选填）</span></label>
@@ -144,10 +156,7 @@ function CompareDeckInput({ slot, cards, cardsById, existingDecks, deck, costMax
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setPickerOpen(false)} />
       <section role="dialog" aria-modal="true" aria-label="选择现有卡组" tabIndex={-1} onKeyDown={handleDialogKeys} className="deck-compare-picker glass-panel">
         <header><h2>选择现有卡组</h2><button type="button" data-dialog-cancel aria-label="关闭现有卡组选择" onClick={() => setPickerOpen(false)}><X className="h-5 w-5" /></button></header>
-        <ul className="custom-scrollbar">{existingDecks.map(item => <li key={item.id}><button type="button" onClick={() => {
-          setText(item.code); setName(item.name); setMetadata({ headquartersId: item.headquartersId, cardBackId: item.cardBackId });
-          setSelectedExistingId(item.id); onInvalidate(); setPickerOpen(false); void analyze(false, item);
-        }}><span className="deck-compare-picker-name"><span>{item.name}</span>{item.hasReserved && <ReservedBadge label="卡组含预备卡" />}</span>
+        <ul className="custom-scrollbar">{existingDecks.map(item => <li key={item.id}><button type="button" onClick={() => selectExistingDeck(item)}><span className="deck-compare-picker-name"><span>{item.name}</span>{item.hasReserved && <ReservedBadge label="卡组含预备卡" />}</span>
           <span className="deck-compare-picker-nations">{[item.mainNation, ...(item.allyNation && item.allyNation !== item.mainNation ? [item.allyNation] : [])].map((nation, index) => <img key={nation} src={factionIcon(nation)} alt={`${index === 0 ? '主国' : '盟国'}：${factionLabel(nation)}`} title={`${index === 0 ? '主国' : '盟国'}：${factionLabel(nation)}`} />)}</span>
         </button></li>)}</ul>
       </section>
@@ -217,13 +226,14 @@ function CombinedAbilityChart({ left, right }: { left: ComparedDeck | null; righ
   </section>;
 }
 
-export default function DeckComparePage({ active, cards, existingDecks, onBack, tablecloth, onImportDeck }: {
+export default function DeckComparePage({ active, cards, existingDecks, onBack, tablecloth, onImportDeck, selectionRequest }: {
   active: boolean;
   cards: KardsCardRecord[];
   existingDecks: ExistingCompareDeck[];
   onBack: () => void;
   tablecloth?: string;
   onImportDeck: ImportComparedDeck;
+  selectionRequest?: DeckCompareSelectionRequest;
 }) {
   const cardsById = useMemo(() => findCardsByImportId(cards), [cards]);
   const [left, setLeft] = useState<ComparedDeck | null>(null);
@@ -241,8 +251,8 @@ export default function DeckComparePage({ active, cards, existingDecks, onBack, 
   return <section className="deck-compare-page" aria-label="卡组对比">
     <div className="deck-compare-scroll custom-scrollbar">
       <div className="deck-compare-grid">
-        <CompareDeckInput slot="A" cards={cards} cardsById={cardsById} existingDecks={existingDecks} deck={left} costMax={costMax} tablecloth={tablecloth} onAnalyze={setLeft} onInvalidate={() => setLeft(null)} onImportDeck={onImportDeck} />
-        <CompareDeckInput slot="B" cards={cards} cardsById={cardsById} existingDecks={existingDecks} deck={right} costMax={costMax} tablecloth={tablecloth} onAnalyze={setRight} onInvalidate={() => setRight(null)} onImportDeck={onImportDeck} />
+        <CompareDeckInput slot="A" cards={cards} cardsById={cardsById} existingDecks={existingDecks} deck={left} costMax={costMax} tablecloth={tablecloth} onAnalyze={setLeft} onInvalidate={() => setLeft(null)} onImportDeck={onImportDeck} selectionRequest={selectionRequest} />
+        <CompareDeckInput slot="B" cards={cards} cardsById={cardsById} existingDecks={existingDecks} deck={right} costMax={costMax} tablecloth={tablecloth} onAnalyze={setRight} onInvalidate={() => setRight(null)} onImportDeck={onImportDeck} selectionRequest={selectionRequest} />
       </div>
       {(left || right) && <><ComparisonTable left={left} right={right} /><CombinedAbilityChart left={left} right={right} /></>}
     </div>

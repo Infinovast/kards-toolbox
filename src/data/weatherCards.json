@@ -485,13 +485,12 @@
   {
     "id": 94938,
     "cardId": "temp_cyclone_1",
-    "importId": "aa",
+    "importId": "",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E6%97%8B%E9%A3%8E.png",
     "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/cyclone.avif",
     "json": {
       "id": "temp_cyclone_1",
-      "import_id": "aa",
       "set": "OnlySpawnable",
       "title": {
         "de-DE": "ZYKLON",
@@ -524,13 +523,12 @@
   {
     "id": 94939,
     "cardId": "temp_cyclone_2",
-    "importId": "ab",
+    "importId": "",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E6%97%8B%E9%A3%8E2.png",
     "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/cyclone.avif",
     "json": {
       "id": "temp_cyclone_2",
-      "import_id": "ab",
       "set": "OnlySpawnable",
       "title": {
         "de-DE": "ZYKLON",
@@ -563,13 +561,12 @@
   {
     "id": 94940,
     "cardId": "temp_deluge_1",
-    "importId": "ac",
+    "importId": "",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E6%9A%B4%E9%9B%A8.png",
     "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/deluge.avif",
     "json": {
       "id": "temp_deluge_1",
-      "import_id": "ac",
       "set": "OnlySpawnable",
       "title": {
         "de-DE": "WOLKENBRUCH",
@@ -602,13 +599,12 @@
   {
     "id": 94941,
     "cardId": "temp_deluge_2",
-    "importId": "ad",
+    "importId": "",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E6%9A%B4%E9%9B%A82.png",
     "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/deluge.avif",
     "json": {
       "id": "temp_deluge_2",
-      "import_id": "ad",
       "set": "OnlySpawnable",
       "title": {
         "de-DE": "WOLKENBRUCH",
@@ -641,13 +637,12 @@
   {
     "id": 94942,
     "cardId": "temp_heatwave_1",
-    "importId": "ae",
+    "importId": "",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E7%83%AD%E6%B5%AA.png",
     "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/heatwave.avif",
     "json": {
       "id": "temp_heatwave_1",
-      "import_id": "ae",
       "set": "OnlySpawnable",
       "title": {
         "de-DE": "HITZEWELLE",
@@ -680,13 +675,12 @@
   {
     "id": 94943,
     "cardId": "temp_heatwave_2",
-    "importId": "af",
+    "importId": "",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E7%83%AD%E6%B5%AA2.png",
     "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/heatwave.avif",
     "json": {
       "id": "temp_heatwave_2",
-      "import_id": "af",
       "set": "OnlySpawnable",
       "title": {
         "de-DE": "HITZEWELLE",
@@ -719,13 +713,12 @@
   {
     "id": 94944,
     "cardId": "temp_jungle_fever_1",
-    "importId": "ag",
+    "importId": "",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E4%B8%9B%E6%9E%97%E7%83%AD.png",
     "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/jungle_fever.avif",
     "json": {
       "id": "temp_jungle_fever_1",
-      "import_id": "ag",
       "set": "OnlySpawnable",
       "title": {
         "de-DE": "DSCHUNGELFIEBER",
@@ -758,13 +751,12 @@
   {
     "id": 94945,
     "cardId": "temp_jungle_fever_2",
-    "importId": "ah",
+    "importId": "",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E4%B8%9B%E6%9E%97%E7%83%AD2.png",
     "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/jungle_fever.avif",
     "json": {
       "id": "temp_jungle_fever_2",
-      "import_id": "ah",
       "set": "OnlySpawnable",
       "title": {
         "de-DE": "DSCHUNGELFIEBER",
@@ -797,13 +789,12 @@
   {
     "id": 94946,
     "cardId": "temp_monsoon_rain_1",
-    "importId": "ai",
+    "importId": "",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E5%AD%A3%E9%A3%8E%E9%9B%A8.png",
     "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/monsoon_rain.avif",
     "json": {
       "id": "temp_monsoon_rain_1",
-      "import_id": "ai",
       "set": "OnlySpawnable",
       "title": {
         "de-DE": "MONSUNREGEN",
@@ -836,13 +827,12 @@
   {
     "id": 94947,
     "cardId": "temp_monsoon_rain_2",
-    "importId": "aj",
+    "importId": "",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E5%AD%A3%E9%A3%8E%E9%9B%A82.png",
     "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/monsoon_rain.avif",
     "json": {
       "id": "temp_monsoon_rain_2",
-      "import_id": "aj",
       "set": "OnlySpawnable",
       "title": {
         "de-DE": "MONSUNREGEN",
@@ -875,13 +865,12 @@
   {
     "id": 94948,
     "cardId": "temp_scorching_sun_1",
-    "importId": "ak",
+    "importId": "",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E9%AA%84%E9%98%B3.png",
     "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/scorching_sun.avif",
     "json": {
       "id": "temp_scorching_sun_1",
-      "import_id": "ak",
       "set": "OnlySpawnable",
       "title": {
         "de-DE": "GLÜHENDE SONNE",
@@ -914,13 +903,12 @@
   {
     "id": 94949,
     "cardId": "temp_scorching_sun_2",
-    "importId": "al",
+    "importId": "",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E9%AA%84%E9%98%B32.png",
     "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/scorching_sun.avif",
     "json": {
       "id": "temp_scorching_sun_2",
-      "import_id": "al",
       "set": "OnlySpawnable",
       "title": {
         "de-DE": "GLÜHENDE SONNE",
@@ -953,13 +941,12 @@
   {
     "id": 94950,
     "cardId": "temp_thunderstorm_1",
-    "importId": "am",
+    "importId": "",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E9%9B%B7%E6%9A%B4.png",
     "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/thunderstorm.avif",
     "json": {
       "id": "temp_thunderstorm_1",
-      "import_id": "am",
       "set": "OnlySpawnable",
       "title": {
         "de-DE": "GEWITTER",
@@ -992,13 +979,12 @@
   {
     "id": 94951,
     "cardId": "temp_thunderstorm_2",
-    "importId": "an",
+    "importId": "",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E9%9B%B7%E6%9A%B42.png",
     "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/thunderstorm.avif",
     "json": {
       "id": "temp_thunderstorm_2",
-      "import_id": "an",
       "set": "OnlySpawnable",
       "title": {
         "de-DE": "GEWITTER",
@@ -1031,13 +1017,12 @@
   {
     "id": 94952,
     "cardId": "temp_torrential_rain_1",
-    "importId": "ao",
+    "importId": "",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E9%AA%A4%E9%9B%A8.png",
     "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/torrential_rain.avif",
     "json": {
       "id": "temp_torrential_rain_1",
-      "import_id": "ao",
       "set": "OnlySpawnable",
       "title": {
         "de-DE": "STRÖMENDER REGEN",
@@ -1070,13 +1055,12 @@
   {
     "id": 94953,
     "cardId": "temp_torrential_rain_2",
-    "importId": "ap",
+    "importId": "",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E9%AA%A4%E9%9B%A82.png",
     "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/torrential_rain.avif",
     "json": {
       "id": "temp_torrential_rain_2",
-      "import_id": "ap",
       "set": "OnlySpawnable",
       "title": {
         "de-DE": "STRÖMENDER REGEN",
@@ -1109,13 +1093,12 @@
   {
     "id": 94954,
     "cardId": "temp_tropical_storm_1",
-    "importId": "aq",
+    "importId": "",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E7%83%AD%E5%B8%A6%E9%A3%8E%E6%9A%B4.png",
     "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/tropical_storm.avif",
     "json": {
       "id": "temp_tropical_storm_1",
-      "import_id": "aq",
       "set": "OnlySpawnable",
       "title": {
         "de-DE": "TROPISCHER STURM",
@@ -1148,13 +1131,12 @@
   {
     "id": 94955,
     "cardId": "temp_tropical_storm_2",
-    "importId": "ar",
+    "importId": "",
     "reserved": false,
     "imageUrl": "https://kards-assets.kardsdecker.com/CardImgs/temporary_weathers/%E7%83%AD%E5%B8%A6%E9%A3%8E%E6%9A%B42.png",
     "thumbUrl": "https://www.kardsplayer.com/images/card/v53/zh-Hans/thumb/tropical_storm.avif",
     "json": {
       "id": "temp_tropical_storm_2",
-      "import_id": "ar",
       "set": "OnlySpawnable",
       "title": {
         "de-DE": "TROPISCHER STURM",

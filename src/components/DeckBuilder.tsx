@@ -13,7 +13,7 @@ import { captureCardDetailOrigin, type CardDetailOrigin } from '../lib/cardDetai
 import CardDetailModal from './CardDetailModal';
 import { revealDetailItem, type CardDetailItem } from '../lib/cardDetailPaging';
 import { nationOptions } from './CardFilterSelects';
-import BuilderFilters from './BuilderFilters';
+import BuilderFilters, { BuilderExpansionFilter } from './BuilderFilters';
 import { decodeDeckCode, encodeDeckCode, findCardsByImportId } from '../lib/deckCode';
 import { DEFAULT_DECK_RULES, deckRuleSet, validateDeck, type DeckRuleSet } from '../lib/deckRules';
 import { defaultHeadquartersForNation, headquartersForDeck, type HeadquartersAsset } from '../lib/cardAssets';
@@ -26,6 +26,7 @@ import DeckCardMotion, { useDeckCardMotion } from './DeckCardMotion';
 import { CARD_SEARCH_HINT, EMPTY_CARD_FILTERS, isGeneratedCard, isInBuilderPool, matchesCardFilters, type CardFilters } from '../lib/cardFilters';
 import { deckBuilderReducer, type DeckBuilderState } from '../lib/deckBuilderHistory';
 import { defaultDeckName } from '../lib/deckName';
+import useSearchContentWidth from '../lib/useSearchContentWidth';
 
 export interface BuilderDeck {
   id?: string;
@@ -65,6 +66,7 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
   const afterLeave = useRef<(() => void) | undefined>(undefined);
   const { mainNation, allyNation, headquartersId, entries, deckName, deckId } = history.present;
   const [filters, setFilters] = useState<CardFilters>({ ...EMPTY_CARD_FILTERS, status: ['active'] });
+  const { searchRef, measureRef: searchMeasureRef } = useSearchContentWidth(66);
   const setFilter = <K extends keyof CardFilters,>(key: K, value: CardFilters[K]) => setFilters(current => ({ ...current, [key]: value }));
   const [page, setPage] = useState(1);
   useEffect(() => setPage(1), [filters, mainNation, allyNation, cards]);
@@ -113,6 +115,7 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
         headquartersId: draft.headquartersId && draft.headquartersId !== 'default' ? draft.headquartersId : defaultHeadquartersForNation(draft.mainNation)?.groupId || '',
       };
       rememberInitial(value); dispatch({ type: 'reset', value });
+      if (draft.entries.some(([id, count]) => count > 0 && cards.some(card => card.importId === id && card.reserved))) setFilters(current => ({ ...current, status: [] }));
       setDraftLoaded(true); setMessage('');
     }).catch(() => { if (!disposed) setMessage('构筑草稿读取失败，已停止自动保存'); });
     return () => { disposed = true; };
@@ -128,6 +131,7 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
         deckName: initialDeck.name || defaultDeckName(decoded.mainNation, decoded.allyNation), deckId: initialDeck.id,
       };
       rememberInitial(value); dispatch({ type: 'reset', value });
+      setFilters(current => ({ ...current, status: cards.some(card => card.reserved && (decoded.counts.get(card.importId) || 0) > 0) ? [] : ['active'] }));
       setMessage('');
     } catch (error) { setMessage(String(error)); }
   }, [initialDeck, draftLoaded]);
@@ -285,13 +289,14 @@ export default function DeckBuilder({ cards, initialDeck, onSave, onBack, active
       }
     }
   }} className="flex h-full min-h-0 flex-col gap-3 p-4 outline-none">
-    <BuilderFilters filters={filters} onChange={setFilters} expansions={expansions} mainNation={mainNation} allyNation={allyNation}
+    <BuilderFilters filters={filters} onChange={setFilters} mainNation={mainNation} allyNation={allyNation}
       costChart={<DeckCostChart entries={entries} cardsById={cardsById} active={active} />} />
     <div className="flex min-h-0 flex-1 gap-4">
     <section className="flex min-w-0 flex-1 flex-col gap-3 overflow-hidden">
       <div className="builder-pool-toolbar">
-        <div className="builder-search relative"><Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-kards-text-muted" /><input title={CARD_SEARCH_HINT} aria-label="构筑搜索卡牌" value={filters.query} onChange={(e) => setFilter('query', e.target.value)} onKeyDown={event => { if (event.key === 'Escape' && filters.query && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); setFilter('query', ''); } }} placeholder="搜索" className={`${inputClass} w-full !pl-7 !pr-9`} /><SearchClearButton label="清除构筑搜索" value={filters.query} onClear={() => setFilter('query', '')} /></div>
+        <div ref={searchRef} className="builder-search relative"><span ref={searchMeasureRef} aria-hidden="true" className="library-search-measure">{filters.query || '搜索'}</span><Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-kards-text-muted" /><input title={CARD_SEARCH_HINT} aria-label="构筑搜索卡牌" value={filters.query} onChange={(e) => setFilter('query', e.target.value)} onKeyDown={event => { if (event.key === 'Escape' && filters.query && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); setFilter('query', ''); } }} placeholder="搜索" className={`${inputClass} w-full !pl-7 !pr-9`} /><SearchClearButton label="清除构筑搜索" value={filters.query} onClear={() => setFilter('query', '')} /></div>
         <button type="button" aria-pressed={!filters.status.includes('active')} className="builder-reserved-toggle" onClick={() => setFilter('status', filters.status.includes('active') ? [] : ['active'])}>含预备</button>
+        <BuilderExpansionFilter value={filters.expansion} onChange={expansion => setFilter('expansion', expansion)} expansions={expansions} />
         <p className="builder-result-count">找到 <strong>{matchingCards.length}</strong> 张</p>
       </div>
       <div ref={pool.ref} style={pool.style} data-testid="builder-grid" data-capacity={pool.capacity} onDragOver={event => { if (hasDragType(event, DECK_CARD_DRAG_TYPE)) { event.preventDefault(); setDragOverZone('pool'); } }} onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragOverZone(null); }} onDrop={handleDropToPool} className={`card-gallery card-gallery-builder min-h-0 flex-1 rounded ${dragOverZone === 'pool' ? 'ring-2 ring-kards-gold/70' : ''}`}>

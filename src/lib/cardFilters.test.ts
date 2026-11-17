@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { EMPTY_CARD_FILTERS, hasCardFilterConditions, isGeneratedCard, isInBuilderPool, matchesCardFilters } from './cardFilters';
+import { EMPTY_CARD_FILTERS, hasCardFilterConditions, isGeneratedCard, isInBuilderPool, matchesCardFilters, selectCardFilterKeywords } from './cardFilters';
 import { mergeWeatherCardRecords } from './cardData';
 import { CARD_SUBTYPES, cardSubtypeLabels } from './cardSubtypes';
 import { CARD_KEYWORDS, CARD_TEXT_KEYWORDS, cardHasKeyword, cardKeywords } from './cardKeywords';
@@ -119,6 +119,8 @@ const weatherCards: KardsCardRecord[] = JSON.parse(readFileSync('src/data/weathe
 assert.equal(weatherCards.length, 30);
 assert.ok(weatherCards.every(card => matchesCardFilters(card, { ...EMPTY_CARD_FILTERS, status: ['weather'] })));
 const mergedCatalog = mergeWeatherCardRecords(cards);
+assert.deepEqual(mergedCatalog.filter(card => matchesCardFilters(card, { ...EMPTY_CARD_FILTERS, keywords: ['control'] })).map(card => card.cardId).sort(),
+  ['confusion', '39th_rifle_regiment', 'partisans', 'minority_recruits'].sort(), 'Control returns exactly the four cards whose descriptions contain 控制 1 个');
 assert.equal(mergedCatalog.filter(card => matchesCardFilters(card, { ...EMPTY_CARD_FILTERS, status: ['permanent'] })).length, 410);
 const generatedCatalog = mergedCatalog.filter(isGeneratedCard);
 assert.equal(generatedCatalog.length, 147);
@@ -154,8 +156,8 @@ for (const card of cards.filter(card => isInBuilderPool(card, 'Japan', 'Germany'
 }
 // Keyword groups use OR; other filters still use AND. Metadata is not an ability.
 const withKeywords = changed({ attributes: ['shock', 'bond', 'heavyArmor2', 'intel3', 'covert', 'VeteranOf:original', 'OnlySpawnable'] });
-assert.deepEqual(cardKeywords(withKeywords, 'zh-Hans'), ['冲击', '协力', '重甲 2', '情报 3', '隐蔽', '老兵']);
-assert.deepEqual(cardKeywords(withKeywords, 'en-EN'), ['Shock', 'Bond', 'Heavy Armor 2', 'Intel 3', 'Covert', 'Veteran']);
+assert.deepEqual(cardKeywords(withKeywords, 'zh-Hans'), ['老兵', '协力', '冲击', '重甲 2', '情报 3', '隐蔽']);
+assert.deepEqual(cardKeywords(withKeywords, 'en-EN'), ['Veteran', 'Bond', 'Shock', 'Heavy Armor 2', 'Intel 3', 'Covert']);
 assert.ok(matchesCardFilters(withKeywords, { ...EMPTY_CARD_FILTERS, keywords: ['ambush', 'covert'] }));
 assert.ok(!matchesCardFilters(withKeywords, { ...EMPTY_CARD_FILTERS, keywords: ['ambush', 'guard'] }));
 assert.ok(!matchesCardFilters(withKeywords, { ...EMPTY_CARD_FILTERS, keywords: ['covert'], cardType: ['tank'] }));
@@ -168,8 +170,13 @@ assert.ok(!matchesCardFilters(withKeywords, { ...EMPTY_CARD_FILTERS, keywordMode
 assert.ok(!matchesCardFilters(withKeywords, { ...EMPTY_CARD_FILTERS, keywordMode: 'and', keywords: ['none', 'shock'] }));
 assert.ok(matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, keywordMode: 'and', keywords: ['none'] }));
 assert.ok(matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, keywordMode: 'and' }), 'an empty keyword selection never restricts cards');
+assert.ok(matchesCardFilters(withKeywords, { ...EMPTY_CARD_FILTERS, keywordMode: 'not', keywords: ['guard', 'ambush'] }));
+assert.ok(!matchesCardFilters(withKeywords, { ...EMPTY_CARD_FILTERS, keywordMode: 'not', keywords: ['guard', 'shock'] }), 'NOT excludes a card if any selected keyword matches');
+assert.ok(!matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, keywordMode: 'not', keywords: ['none'] }));
+assert.ok(matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, keywordMode: 'not' }), 'NOT with no keywords leaves the pool unchanged');
+assert.ok(!matchesCardFilters(withKeywords, { ...EMPTY_CARD_FILTERS, keywordMode: 'not', keywords: ['guard'], cardType: ['tank'] }), 'NOT still combines with other filters using AND');
 assert.ok(!hasCardFilterConditions({ ...EMPTY_CARD_FILTERS, query: 'search', keywordMode: 'and' }), 'text and an unused keyword mode are not restrictive filters');
-for (const condition of [{ factions: ['Germany'] }, { cardType: ['tank'] }, { subtypes: ['t-34'] }, { keywords: ['guard'] }, { cost: ['2'] }, { rarity: ['Elite'] }, { expansion: 'Base' }, { status: ['weather'] }]) {
+for (const condition of [{ factions: ['Germany'] }, { cardType: ['tank'] }, { subtypes: ['t-34'] }, { keywords: ['guard'] }, { keywordCount: 2 as const }, { cost: ['2'] }, { rarity: ['Elite'] }, { expansion: 'Base' }, { status: ['weather'] }]) {
   assert.ok(hasCardFilterConditions({ ...EMPTY_CARD_FILTERS, ...condition }), JSON.stringify(condition));
 }
 for (const attribute of ['VeteranOf:base', 'BecomesVeteran:vet']) {
@@ -177,11 +184,29 @@ for (const attribute of ['VeteranOf:base', 'BecomesVeteran:vet']) {
   assert.deepEqual(cardKeywords(changed({ attributes: [attribute] }), 'zh-Hans'), attribute.startsWith('VeteranOf:') ? ['老兵'] : []);
 }
 assert.deepEqual(cardKeywords(changed({ attributes: ['guard', 'BecomesVeteran:vet', 'shock'] }), 'zh-Hans'), ['守护', '冲击'], 'veteran potential stays filterable but is not a displayed keyword');
-assert.deepEqual(cardKeywords(changed({ attributes: ['blitz', 'BecomesVeteran:vet', 'VeteranOf:base', 'guard'] }), 'zh-Hans'), ['闪击', '老兵', '守护'], 'preserve attribute order and deduplicate semantic keywords');
+assert.deepEqual(cardKeywords(changed({ attributes: ['blitz', 'BecomesVeteran:vet', 'VeteranOf:base', 'guard'] }), 'zh-Hans'), ['老兵', '闪击', '守护'], 'use manifest display order and deduplicate semantic keywords');
 assert.ok(cardHasKeyword(changed({ exile: 'Britain' }), 'exile'), 'official exile metadata participates in keyword filtering');
 assert.ok(!cardHasKeyword(changed({ exile: 'Britain' }), 'none'));
-assert.deepEqual(cardKeywords(changed({ attributes: ['futureAbility'] }), 'zh-Hans'), ['futureAbility'], 'unknown future abilities remain visible');
+assert.deepEqual(cardKeywords(changed({ attributes: ['futureAbility'] }), 'zh-Hans'), [], 'keywords without a configured order stay hidden');
 assert.equal(CARD_KEYWORDS.length, 16);
+assert.equal(EMPTY_CARD_FILTERS.keywordMode, 'or');
+assert.equal(EMPTY_CARD_FILTERS.keywordCount, 0);
+assert.deepEqual(selectCardFilterKeywords(['guard', 'veteran', 'deployment', 'pin'], ['guard', 'veteran', 'deployment', 'pin', 'none']), ['deployment', 'pin', 'none']);
+assert.deepEqual(selectCardFilterKeywords(['none', 'pin'], ['none', 'pin', 'guard']), ['pin', 'guard'], 'selecting an ability clears No keywords');
+assert.deepEqual(selectCardFilterKeywords(['none'], ['none', 'deployment']), ['none', 'deployment'], 'extended and special selections can coexist with No keywords');
+assert.deepEqual(selectCardFilterKeywords(['none', 'guard'], []), [], 'clearing selections stays empty');
+for (const keywordCount of [1, 2, 3] as const) {
+  const counted = changed({ attributes: ['guard', 'blitz', 'heavyArmor2'].slice(0, keywordCount) });
+  assert.ok(matchesCardFilters(counted, { ...EMPTY_CARD_FILTERS, keywordCount }));
+  assert.ok(!matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, keywordCount }));
+  assert.ok(!matchesCardFilters(counted, { ...EMPTY_CARD_FILTERS, keywordCount, keywords: ['ambush'] }), 'keyword count combines with keyword selections');
+}
+assert.ok(matchesCardFilters(changed({ attributes: ['guard', 'guard', 'BecomesVeteran:vet', 'OnlySpawnable'] }), { ...EMPTY_CARD_FILTERS, keywordCount: 1 }), 'counts match the deduplicated detail row and ignore metadata');
+assert.ok(matchesCardFilters(changed({ attributes: ['guard', 'pincer', 'futureAbility'] }), { ...EMPTY_CARD_FILTERS, keywordCount: 1 }), 'keywords without order values do not count');
+assert.ok(matchesCardFilters(changed({ exile: 'Britain', attributes: ['guard'] }), { ...EMPTY_CARD_FILTERS, keywordCount: 2 }), 'separate exile metadata is a displayed keyword');
+assert.ok(matchesCardFilters(withKeywords, { ...EMPTY_CARD_FILTERS, keywordCount: 0 }), 'unlimited includes cards with more than three keywords');
+assert.ok(!matchesCardFilters(withKeywords, { ...EMPTY_CARD_FILTERS, keywordCount: 3 }), 'three means exactly three');
+assert.ok(matchesCardFilters(changed({ attributes: ['guard', 'blitz'] }), { ...EMPTY_CARD_FILTERS, keywordCount: 2, keywordMode: 'not', keywords: ['ambush'] }), 'count and NOT both apply');
 for (const card of cards) {
   const keywords = cardKeywords(card, 'zh-Hans');
   assert.ok(keywords.every(keyword => !/^[a-z]|VeteranOf:|BecomesVeteran:|OnlySpawnable/.test(keyword)), `every catalog attribute is translated: ${card.cardId}`);

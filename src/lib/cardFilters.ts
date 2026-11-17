@@ -1,6 +1,6 @@
 import { isVeteranCard, type KardsCardRecord } from '../types/card';
 import { cardHasSubtype } from './cardSubtypes';
-import { cardHasKeyword } from './cardKeywords';
+import { cardHasKeyword, cardKeywordItems, KEYWORD_FILTER_GROUPS } from './cardKeywords';
 import cardStatusGroups from '../data/cardStatusGroups.json';
 
 export interface CardFilters {
@@ -9,14 +9,24 @@ export interface CardFilters {
   cardType: string[];
   subtypes: string[];
   keywords: string[];
-  keywordMode: 'or' | 'and';
+  keywordMode: 'or' | 'and' | 'not';
+  keywordCount: 0 | 1 | 2 | 3;
   cost: string[];
   rarity: string[];
   expansion: string;
   status: string[];
 }
 
-export const EMPTY_CARD_FILTERS: CardFilters = { query: '', factions: [], cardType: [], subtypes: [], keywords: [], keywordMode: 'or', cost: [], rarity: [], expansion: 'All', status: [] };
+export const EMPTY_CARD_FILTERS: CardFilters = { query: '', factions: [], cardType: [], subtypes: [], keywords: [], keywordMode: 'or', keywordCount: 0, cost: [], rarity: [], expansion: 'All', status: [] };
+
+const abilityKeywordIds = new Set(KEYWORD_FILTER_GROUPS.filter(group => group.id === 'combat' || group.id === 'independent')
+  .flatMap(group => group.keywords.map(keyword => keyword.id)));
+
+export function selectCardFilterKeywords(previous: string[], selected: string[]) {
+  if (selected.includes('none') && !previous.includes('none')) return selected.filter(keyword => !abilityKeywordIds.has(keyword));
+  if (selected.some(keyword => abilityKeywordIds.has(keyword))) return selected.filter(keyword => keyword !== 'none');
+  return selected;
+}
 export const CARD_SEARCH_HINT = '中文名忽略空格和符号；“.”匹配 1 个任意字符；x1404：部署/行动/攻击/防御，x104：部署/攻击/防御';
 
 let lastSearchTerm = '';
@@ -53,7 +63,7 @@ function matchesCardSearch(card: KardsCardRecord, query: string) {
 }
 
 export function hasCardFilterConditions(filters: CardFilters) {
-  return !!(filters.factions.length || filters.cardType.length || filters.subtypes.length || filters.keywords.length
+  return !!(filters.factions.length || filters.cardType.length || filters.subtypes.length || filters.keywords.length || filters.keywordCount
     || filters.cost.length || filters.rarity.length || filters.status.length || filters.expansion !== 'All');
 }
 
@@ -88,9 +98,12 @@ export function matchesCardFilters(card: KardsCardRecord, filters: CardFilters) 
       .some(nation => typeof nation === 'string' && faction.toLowerCase() === nation.trim().toLowerCase())))
     && (!filters.cardType.length || filters.cardType.includes(card.json.type || ''))
     && (!filters.subtypes.length || filters.subtypes.some(subtype => cardHasSubtype(card.cardId, subtype)))
+    && (!filters.keywordCount || cardKeywordItems(card, 'zh-Hans').length === filters.keywordCount)
     && (!filters.keywords.length || (filters.keywordMode === 'and'
       ? filters.keywords.every(keyword => cardHasKeyword(card, keyword))
-      : filters.keywords.some(keyword => cardHasKeyword(card, keyword))))
+      : filters.keywordMode === 'not'
+        ? !filters.keywords.some(keyword => cardHasKeyword(card, keyword))
+        : filters.keywords.some(keyword => cardHasKeyword(card, keyword))))
     && (!filters.rarity.length || filters.rarity.includes(card.json.rarity || ''))
     && (!filters.cost.length || filters.cost.some(cost => cost === '7' ? (card.json.kredits ?? 0) >= 7 : String(card.json.kredits ?? 0) === cost))
     && (filters.expansion === 'All' || card.json.set === filters.expansion)

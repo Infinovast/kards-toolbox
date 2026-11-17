@@ -190,7 +190,7 @@ export default function CardDetailModal({ card: initialCard, headquarters: initi
             <dt>部署费用</dt><dd>{card.json.kredits ?? '—'} K</dd>
             {isUnit && <><dt>行动费用</dt><dd>{card.json.operationCost ?? '—'} K</dd><dt>攻击 / 生命</dt><dd>{card.json.attack ?? '—'} / {card.json.defense ?? '—'}</dd></>}
             {card.json.set && card.json.set !== 'OnlySpawnable' && <><dt>扩展包</dt><dd className="flex items-center gap-1"><span className="h-5 w-5 shrink-0"><FilterIcon src={SET_ICONS[card.json.set] || SET_ICONS.All} /></span>{setName}</dd></>}
-            <dt>卡组码 ID</dt><dd>{card.importId}</dd>
+            <dt>卡组码 ID</dt><dd>{card.importId || '无'}</dd>
             <dt>卡牌 ID</dt><dd className="break-all">{card.cardId}</dd>
           </dl>}
           {!card && headquarters?.brief && <p className="mt-4 text-sm leading-7">{headquarters.brief}</p>}

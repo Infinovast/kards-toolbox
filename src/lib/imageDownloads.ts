@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 import { cacheCardImage, cachedImageByteLength, getCachedCardImage, getCardImageFailureAttempts, recordImageCacheBatch } from './cardImages';
 import { cardDisplayTitle, type CardImageKind, type KardsCardRecord } from '../types/card';
 
-interface CurrentDownload { importId: string; title: string; kinds: CardImageKind[] }
+interface CurrentDownload { cardId: string; title: string; kinds: CardImageKind[] }
 export interface ImageDownload {
   status: 'idle' | 'running' | 'paused' | 'done' | 'canceled'; total: number; completed: number;
   cached: number; downloaded: number; failed: number; bytes: number; startedAt: number; endedAt: number;
@@ -41,7 +41,7 @@ const activeTime = () => Date.now() - state.pausedMs - (paused ? Date.now() - st
 export async function startImageDownload(cards: KardsCardRecord[], retry = false) {
   if (state.status === 'running' || state.status === 'paused' || !cards.length) return;
   canceled = false; paused = false;
-  const queue = [...new Map(cards.map(card => [card.importId, card])).values()];
+  const queue = [...new Map(cards.map(card => [card.cardId, card])).values()];
   publish({ status: 'running', total: queue.length, completed: 0, cached: 0, downloaded: 0, failed: 0, bytes: 0, startedAt: Date.now(), endedAt: 0, pausedAt: 0, pausedMs: 0, failedCards: [], current: [] });
   if (!retry) await recordImageCacheBatch(queue);
   const jobs = new Set<Promise<void>>();
@@ -58,12 +58,12 @@ export async function startImageDownload(cards: KardsCardRecord[], retry = false
   };
   const download = async (card: KardsCardRecord, cached: (string | null)[]) => {
     const missing = kinds.filter((_, index) => !cached[index]);
-    publish({ current: [...state.current, { importId: card.importId, title: cardDisplayTitle(card, 'zh-Hans'), kinds: missing }] });
+    publish({ current: [...state.current, { cardId: card.cardId, title: cardDisplayTitle(card, 'zh-Hans'), kinds: missing }] });
     try {
       const results = await Promise.allSettled(missing.map(async kind => {
         try { return await cacheCardImage(card, kind, false); }
         finally { publish({ current: state.current.flatMap(item => {
-          if (item.importId !== card.importId) return [item];
+          if (item.cardId !== card.cardId) return [item];
           const remaining = item.kinds.filter(value => value !== kind);
           return remaining.length ? [{ ...item, kinds: remaining }] : [];
         }) }); }
@@ -75,7 +75,7 @@ export async function startImageDownload(cards: KardsCardRecord[], retry = false
         failureStreak = Math.max(failureStreak, await getCardImageFailureAttempts(card).catch(() => failureStreak));
       } else { failureStreak = 0; publish({ downloaded: state.downloaded + 1 }); }
     } finally {
-      publish({ completed: state.completed + 1, current: state.current.filter(item => item.importId !== card.importId) });
+      publish({ completed: state.completed + 1, current: state.current.filter(item => item.cardId !== card.cardId) });
     }
   };
   while (cursor < queue.length || jobs.size) {

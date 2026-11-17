@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { CARD_DATA_URL, KARDS_COM_DATA_URL, collectCardData, compareCardData, fetchKardsComCardPage, fetchKardsplayerCardPage, mergeWeatherCardRecords, normalizeCardRecord, parseCardDataPage, validateCardRecords } from './cardData';
+import { findCardsByImportId } from './deckCode';
 
 const records = JSON.parse(readFileSync('public/data/cards.json', 'utf8')).cards;
 const veteranRecords = records.filter(card => card.json.attributes?.some(attribute => attribute.startsWith('VeteranOf:')));
@@ -24,9 +25,17 @@ assert.equal(temporaryDeluge.json.text?.['zh-Hans'], '抑制 1 个单位，抽 1
 assert.equal(temporaryDeluge.json.title?.['ja-JP'], mergedWeather.find(card => card.cardId === 'deluge')?.json.title?.['ja-JP'], 'variants inherit translated base-card names');
 assert.ok(temporaryDeluge.imageUrl?.includes('kards-assets.kardsdecker.com/CardImgs/temporary_weathers/'));
 for (const variant of mergedWeather.filter(card => card.cardId.startsWith('temp_'))) {
+  assert.equal(variant.importId, '', 'temporary weather has no deck-code ID');
+  assert.equal(variant.json.import_id, undefined);
   const base = mergedWeather.find(card => card.cardId === variant.cardId.replace(/^temp_/, '').replace(/_[12]$/, ''))!;
   assert.equal(variant.thumbUrl, base.thumbUrl, `${variant.cardId} reuses the original weather thumbnail`);
 }
+assert.ok(!findCardsByImportId(mergedWeather).has(''), 'ID-less weather cannot enter the deck-code index');
+assert.equal(compareCardData(mergedWeather, structuredClone(mergedWeather)).length, 0, 'all ID-less weather records remain distinct in data comparison');
+const changedTemporary = mergedWeather.map(card => card.cardId === 'temp_deluge_2' ? { ...card, json: { ...card.json, kredits: 3 } } : card);
+assert.deepEqual(compareCardData(mergedWeather, changedTemporary).map(change => change.cardId), ['temp_deluge_2']);
+const legacyTemporary = mergedWeather.map(card => card.cardId.startsWith('temp_') ? { ...card, importId: 'zz', json: { ...card.json, import_id: 'zz' } } : card);
+assert.deepEqual(mergeWeatherCardRecords(legacyTemporary), mergedWeather, 'previously allocated temporary IDs are cleared before duplicate validation');
 const baseWeather = mergedWeather.filter(card => ['blue_sky', 'gale', 'mist', 'cyclone', 'deluge', 'heatwave', 'jungle_fever', 'monsoon_rain', 'scorching_sun', 'thunderstorm', 'torrential_rain', 'tropical_storm'].includes(card.cardId));
 assert.equal(baseWeather.length, 12);
 for (const card of baseWeather) {

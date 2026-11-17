@@ -37,6 +37,7 @@ export interface CardDataStorage {
 }
 export interface CardFieldChange { field: string; before: unknown; after: unknown }
 export interface CardDataChange {
+  cardId: string;
   importId: string;
   kind: 'added' | 'changed' | 'removed';
   before?: KardsCardRecord;
@@ -46,9 +47,10 @@ export interface CardDataChange {
 
 export function normalizeCardRecord(value: unknown, source: CardDataSource = 'kardsplayer'): KardsCardRecord {
   const card = value as KardsCardRecord;
+  const temporaryWeather = !!weatherCardFamily(card?.cardId)?.variant;
   if (!card || (typeof card.id !== 'number' && typeof card.id !== 'string') || !String(card.id)
     || typeof card.cardId !== 'string' || !card.cardId
-    || typeof card.importId !== 'string' || !card.importId || !card.json || Array.isArray(card.json) || typeof card.json !== 'object') {
+    || (!temporaryWeather && (typeof card.importId !== 'string' || !card.importId)) || !card.json || Array.isArray(card.json) || typeof card.json !== 'object') {
     throw new Error('卡牌数据格式无效，已停止更新');
   }
   const json = { ...card.json };
@@ -70,6 +72,7 @@ export function normalizeCardRecord(value: unknown, source: CardDataSource = 'ka
   if (typeof reserved !== 'boolean') throw new Error(`卡牌 ${card.importId} 的预备状态无效`);
   // The official API duplicates this flag inside json; our bundled snapshot does not.
   delete json.reserved;
+  if (temporaryWeather) delete json.import_id;
   const images: Partial<Pick<KardsCardRecord, 'imageUrl' | 'thumbUrl'>> = {};
   for (const field of ['imageUrl', 'thumbUrl'] as const) {
     if (card[field] === undefined) continue; // Existing offline snapshots remain readable.
@@ -83,7 +86,7 @@ export function normalizeCardRecord(value: unknown, source: CardDataSource = 'ka
     images[field] = url.href;
   }
   const recordId = Number(card.id);
-  return { id: Number.isInteger(recordId) ? recordId : 0, cardId: card.cardId, importId: card.importId, reserved, ...images, json };
+  return { id: Number.isInteger(recordId) ? recordId : 0, cardId: card.cardId, importId: temporaryWeather ? '' : card.importId, reserved, ...images, json };
 }
 
 export function validateCardRecords(values: unknown, source: CardDataSource = 'kardsplayer'): KardsCardRecord[] {
@@ -92,8 +95,8 @@ export function validateCardRecords(values: unknown, source: CardDataSource = 'k
   const seenCardIds = new Set<string>();
   const cards = values.map(value => {
     const card = normalizeCardRecord(value, source);
-    if (seen.has(card.importId) || seenCardIds.has(card.cardId)) throw new Error(`牌库存在重复卡牌 ${card.importId}，请重新获取`);
-    seen.add(card.importId);
+    if ((card.importId && seen.has(card.importId)) || seenCardIds.has(card.cardId)) throw new Error(`牌库存在重复卡牌 ${card.importId || card.cardId}，请重新获取`);
+    if (card.importId) seen.add(card.importId);
     seenCardIds.add(card.cardId);
     return card;
   });
@@ -140,8 +143,8 @@ export function mergeWeatherCardRecords(values: unknown, source: CardDataSource 
       thumbUrl: restoredUrl(original.thumbUrl, supplement.thumbUrl),
       json: { ...supplement.json, ...original.json, can_create: [...new Set([...(original.json.can_create || []), ...(supplement.json.can_create || [])])] },
     } : supplement;
-    const importId = usedImportIds.has(card.importId) ? allocateImportId() : card.importId;
-    usedImportIds.add(importId);
+    const importId = card.importId && usedImportIds.has(card.importId) ? allocateImportId() : card.importId;
+    if (importId) usedImportIds.add(importId);
     merged.set(card.cardId, importId === card.importId ? card : {
       ...card,
       importId,
@@ -231,17 +234,17 @@ function fieldChanges(before: unknown, after: unknown, prefix = ''): CardFieldCh
 }
 
 export function compareCardData(local: KardsCardRecord[], remote: KardsCardRecord[]): CardDataChange[] {
-  const oldCards = new Map((local.length ? validateCardRecords(local) : []).map(card => [card.importId, card]));
-  const newCards = new Map(validateCardRecords(remote).map(card => [card.importId, card]));
+  const oldCards = new Map((local.length ? validateCardRecords(local) : []).map(card => [card.importId || card.cardId, card]));
+  const newCards = new Map(validateCardRecords(remote).map(card => [card.importId || card.cardId, card]));
   const changes: CardDataChange[] = [];
   for (const [importId, after] of newCards) {
     const before = oldCards.get(importId);
     // Numeric API record IDs are transport metadata, not gameplay changes.
     const fields = fieldChanges(before && comparableCard(before), comparableCard(after));
-    if (!before || fields.length) changes.push({ importId, kind: before ? 'changed' : 'added', before, after, fields });
+    if (!before || fields.length) changes.push({ cardId: after.cardId, importId: after.importId, kind: before ? 'changed' : 'added', before, after, fields });
   }
   for (const [importId, before] of oldCards) {
-    if (!newCards.has(importId)) changes.push({ importId, kind: 'removed', before, fields: fieldChanges(comparableCard(before), undefined) });
+    if (!newCards.has(importId)) changes.push({ cardId: before.cardId, importId: before.importId, kind: 'removed', before, fields: fieldChanges(comparableCard(before), undefined) });
   }
   return changes;
 }

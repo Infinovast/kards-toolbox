@@ -42,6 +42,10 @@ export default function CardCacheManager({ cards }: { cards: KardsCardRecord[] }
   }, [cards, revision, refresh]);
 
   const entries = useMemo(() => {
+    if (scope === 'recent' && snapshot?.batch?.cardIds) {
+      const ids = new Set(snapshot.batch.cardIds);
+      return snapshot.entries.filter(entry => ids.has(entry.card.cardId));
+    }
     const ids = scope === 'recent' ? new Set(snapshot?.batch?.importIds) : undefined;
     return (snapshot?.entries || []).filter(entry => !ids || ids.has(entry.card.importId));
   }, [snapshot, scope]);
@@ -138,7 +142,7 @@ export default function CardCacheManager({ cards }: { cards: KardsCardRecord[] }
       {visibleEntries.map(entry => {
         const title = cardDisplayTitle(entry.card, 'zh-Hans');
         const parts = [{ key: 'full', label: '完整卡图', cache: entry.full, image: imageData[entry.full.key] }, { key: 'thumbnail', label: '缩略图', cache: entry.thumbnail, image: imageData[entry.thumbnail.key] }];
-        return <article key={entry.card.importId} className="min-w-0 rounded border border-kards-border bg-kards-panel/40 p-1.5">
+        return <article key={entry.card.cardId} className="min-w-0 rounded border border-kards-border bg-kards-panel/40 p-1.5">
           <div className="mb-1 flex items-center gap-1"><h4 className="min-w-0 flex-1 truncate text-xs font-bold text-kards-text" title={`${title} · ${entry.card.cardId}`}>{title}</h4><button type="button" aria-label={`删除${title}的卡图和缩略图`} title="删除卡图和缩略图" disabled={busy || !parts.some(part => part.cache.status === 'cached' || part.cache.status === 'failed')} onClick={() => void remove([entry.full.key, entry.thumbnail.key], `${title}的卡图和缩略图`, false)} className="shrink-0 rounded p-1 text-kards-text-muted hover:bg-kards-panel-hover hover:text-red-600 dark:hover:text-red-400 disabled:opacity-40"><Trash2 className="h-3 w-3" /></button></div>
           <div className="grid grid-cols-2 gap-1">{parts.map(part => <div key={part.key} aria-label={`${title} ${part.label}：${labels[part.cache.status]}`} title={part.cache.error ? `${part.label}：${part.cache.error.message} · ${new Date(part.cache.error.at).toLocaleString('zh-CN', { hour12: false })}` : `${part.label}：${labels[part.cache.status]}`} className="flex h-24 min-w-0 items-center justify-center bg-black/10">
             {part.cache.status === 'cached' && part.image ? <img src={part.image} alt={`${title} ${part.label}`} loading="lazy" className="h-full w-full object-contain" /> : <span className={`px-1 text-center text-xs ${part.cache.status === 'failed' ? 'text-red-600 dark:text-red-400' : 'text-kards-text-muted'}`}>{part.cache.status === 'cached' ? part.image === undefined ? '读取中…' : '读取失败' : labels[part.cache.status]}</span>}

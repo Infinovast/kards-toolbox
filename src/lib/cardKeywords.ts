@@ -3,6 +3,7 @@ import keywordManifest from '../data/cardKeywords.json';
 
 export interface CardKeywordDefinition {
   id: string;
+  order?: number;
   label: string;
   english: string;
   attribute: boolean;
@@ -13,6 +14,7 @@ export interface CardKeywordDefinition {
   excludeFollowing?: string[];
   filterGroup?: string;
   descriptionPrefix?: boolean;
+  textAliases?: string[];
   textMatch?: boolean;
   cardIds?: string[];
 }
@@ -25,6 +27,7 @@ export const KEYWORD_FILTER_GROUPS = [
   { id: 'combat', label: '对战词条', english: 'Combat' },
   { id: 'independent', label: '独立词条', english: 'Independent' },
   { id: 'extended', label: '扩展词条', english: 'Extended' },
+  { id: 'special', label: '特殊', english: 'Special' },
 ].map(group => ({ ...group, keywords: ALL_CARD_KEYWORDS.filter(item => item.filterGroup === group.id) }));
 const definitions = new Map(ALL_CARD_KEYWORDS.map(item => [item.id.toLowerCase(), item]));
 const attributeDefinitions = new Map(CARD_KEYWORDS.flatMap(definition => [
@@ -62,9 +65,15 @@ export function cardHasKeyword(card: KardsCardRecord, keyword: string) {
   // Official and imported catalogues use text and description respectively.
   const descriptions = Object.values({ ...card.json.text, ...card.json.description });
   if (keyword === 'noDescription') return descriptions.every(text => !text.trim());
+  if (keyword === 'control') return descriptions.some(text => text.includes('控制 1 个'));
   if (definition?.cardIds) return definition.cardIds.includes(card.cardId);
   if (definition?.descriptionPrefix) {
-    const pattern = new RegExp(`(?:${escapePattern(definition.label)}|\\b${escapePattern(definition.english)}\\b)\\s*[:：]`, 'iu');
+    const pattern = new RegExp(`(?:${escapePattern(definition.label)}|\\b(?:${[definition.english, ...(definition.textAliases || [])].map(escapePattern).join('|')})\\b)\\s*[:：]`, 'iu');
+    return descriptions.some(text => pattern.test(text));
+  }
+  if (definition?.filterGroup === 'special') {
+    const exclude = definition.excludeFollowing?.length ? `(?!${definition.excludeFollowing.map(escapePattern).join('|')})` : '';
+    const pattern = new RegExp(`${escapePattern(definition.label)}${exclude}|\\b${escapePattern(definition.english)}\\b`, 'iu');
     return descriptions.some(text => pattern.test(text));
   }
   return entries.some(entry => entry.id === keyword);
@@ -73,7 +82,9 @@ export function cardHasKeyword(card: KardsCardRecord, keyword: string) {
 export function cardKeywordItems(card: KardsCardRecord, language: CardLanguage) {
   const zh = language.startsWith('zh');
   const seen = new Set<string>();
-  return cardKeywordEntries(card, true).flatMap(({ id, amount }) => {
+  return cardKeywordEntries(card, true).filter(entry => definitions.get(entry.id.toLowerCase())?.order !== undefined).sort((left, right) =>
+    (definitions.get(left.id.toLowerCase())?.order ?? Number.MAX_SAFE_INTEGER)
+    - (definitions.get(right.id.toLowerCase())?.order ?? Number.MAX_SAFE_INTEGER)).flatMap(({ id, amount }) => {
     const definition = definitions.get(id.toLowerCase());
     const label = definition ? zh ? definition.label : definition.english : id;
     const text = amount ? `${label} ${amount}` : label;
@@ -89,17 +100,27 @@ export function cardKeywords(card: KardsCardRecord, language: CardLanguage): str
 
 const escapePattern = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const textDefinitions = ALL_CARD_KEYWORDS.filter(item => item.textMatch !== false).sort((a, b) => b.label.length - a.label.length);
-export const CARD_TEXT_KEYWORDS = new RegExp(textDefinitions.map((definition, index) => {
+const keywordPattern = (requirePrefix: boolean) => new RegExp(textDefinitions.map((definition, index) => {
   const amount = definition.numbered ? '(?:[ \\t]*(?:\\d+|X))?' : '';
   const exclude = definition.excludeFollowing?.length ? `(?!${definition.excludeFollowing.map(escapePattern).join('|')})` : '';
   const chinese = `${escapePattern(definition.label)}${amount}${exclude}`;
-  const english = `\\b${escapePattern(definition.english)}${amount}\\b`;
-  return `(?<keyword${index}>${chinese}|${english})`;
+  const english = `\\b(?:${[definition.english, ...(definition.textAliases || [])].map(escapePattern).join('|')})${amount}\\b`;
+  const prefix = requirePrefix && definition.descriptionPrefix ? '\\s*[:：]' : '';
+  return `(?<keyword${index}>(?:${chinese}|${english})${prefix})`;
 }).join('|'), 'giu');
+export const CARD_TEXT_KEYWORDS = keywordPattern(true);
+const CARD_LABEL_KEYWORDS = keywordPattern(false);
 
-export function* cardTextKeywordMatches(text: string) {
-  for (const match of text.matchAll(CARD_TEXT_KEYWORDS)) {
+export function* cardTextKeywordMatches(text: string, requirePrefix = true) {
+  const matches: { index: number; text: string; highlighted: boolean }[] = [];
+  let choiceEnd: number | undefined;
+  for (const match of text.matchAll(requirePrefix ? CARD_TEXT_KEYWORDS : CARD_LABEL_KEYWORDS)) {
     const definition = textDefinitions.find((_, index) => match.groups?.[`keyword${index}`] !== undefined)!;
-    yield { index: match.index, text: match[0], highlighted: definition.highlighted };
+    if (definition.id === 'choice') choiceEnd ??= match.index + match[0].length;
+    matches.push({ index: match.index, text: match[0], highlighted: definition.highlighted });
   }
+  if (requirePrefix && choiceEnd !== undefined) for (const match of text.matchAll(/或|\bor\b/giu)) {
+    if (match.index >= choiceEnd) matches.push({ index: match.index, text: match[0], highlighted: false });
+  }
+  yield* matches.sort((a, b) => a.index - b.index);
 }

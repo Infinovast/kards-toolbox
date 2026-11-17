@@ -6,6 +6,6 @@ export default function CardKeywordList({ card, language, className = '' }: { ca
   const items = cardKeywordItems(card, language);
   if (!items.length) return null;
   return <p aria-label="卡牌词条" className={className}>{items.map((item, index) => <span key={item.label}>
-    {index > 0 && '，'}<span className="card-keyword">{item.icon && <img src={item.icon} alt="" className="keyword-symbol" />}<CardText text={item.label} highlightCombat /></span>
+    {index > 0 && '，'}<span className="card-keyword">{item.icon && <img src={item.icon} alt="" className="keyword-symbol" />}<CardText text={item.label} highlightCombat requirePrefix={false} /></span>
   </span>)}</p>;
 }

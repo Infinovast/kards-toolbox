@@ -23,6 +23,7 @@ type Props = {
   className?: string;
   disabled?: boolean;
   layout?: 'list' | 'grid' | 'columns';
+  headingControl?: ReactNode;
 } & ({ multiple: true; value: string[]; onChange: (value: string[]) => void }
   | { multiple?: false; value: string; onChange: (value: string) => void });
 
@@ -31,6 +32,7 @@ type VisibleOption = { option: SelectOption; parentValue?: string };
 /** A shared, portalled select: no clipping inside sidebars or modal scroll areas. */
 export default function CustomSelect(props: Props) {
   const { label, options, placeholder = label, className = '', disabled, layout = 'list' } = props;
+  const iconOnly = options.length > 0 && options.every(option => option.iconOnly);
   const id = useId();
   const trigger = useRef<HTMLButtonElement>(null);
   const popup = useRef<HTMLDivElement>(null);
@@ -105,7 +107,7 @@ export default function CustomSelect(props: Props) {
       const above = rect.top - gap - margin;
       const upwards = below < 260 && above > below;
       const maxHeight = Math.max(80, Math.min(layout === 'columns' ? 500 : 420, upwards ? above : below));
-      const width = Math.min(window.innerWidth - margin * 2, layout === 'columns' ? popup.current.scrollWidth + 2 : Math.max(rect.width, layout === 'grid' ? 300 : 232));
+      const width = Math.min(window.innerWidth - margin * 2, layout === 'columns' ? popup.current.scrollWidth + 2 : Math.max(rect.width, iconOnly ? 216 : layout === 'grid' ? 300 : 232));
       const height = Math.min(popup.current.scrollHeight, maxHeight);
       setPosition({ width, maxHeight, left: Math.max(margin, Math.min(rect.left, window.innerWidth - width - margin)), top: upwards ? Math.max(margin, rect.top - height - gap) : rect.bottom + gap });
     };
@@ -116,7 +118,7 @@ export default function CustomSelect(props: Props) {
     const observer = new ResizeObserver(place);
     if (trigger.current) observer.observe(trigger.current);
     return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', scroll, true); observer.disconnect(); };
-  }, [open, layout, expandedOptions]);
+  }, [open, layout, expandedOptions, iconOnly]);
 
   useLayoutEffect(() => {
     // The initial measurement pass is hidden; focus only after it becomes visible.
@@ -147,8 +149,9 @@ export default function CustomSelect(props: Props) {
     if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); return; }
     if (event.key === 'Tab') {
       event.stopPropagation();
-      // Return to the opener so native Tab proceeds to the next form control.
-      close();
+      const controls = popup.current?.querySelectorAll<HTMLElement>('button:not(:disabled), [tabindex="0"]');
+      // Keep header controls reachable; restore the opener only when leaving.
+      if (event.target === (event.shiftKey ? controls?.[0] : controls?.[controls.length - 1])) close();
       return;
     }
     if (event.target !== list.current) { if (event.key === 'Enter' || event.key === ' ') event.stopPropagation(); return; }
@@ -207,8 +210,8 @@ export default function CustomSelect(props: Props) {
       </span>
       <ChevronDown aria-hidden="true" className={`h-3.5 w-3.5 shrink-0 ${open ? 'rotate-180' : ''}`} />
     </button>
-    {open && createPortal(<div ref={popup} className={`custom-select-popover glass-panel custom-scrollbar ${props.multiple ? 'is-multiple' : ''} ${layout === 'columns' ? 'custom-select-compact-columns' : ''}`} style={position} onKeyDown={handleKeys} onClick={event => event.stopPropagation()}>
-      {props.multiple && <div className="custom-select-heading"><span>可多选</span><button type="button" onClick={() => { props.onChange([]); list.current?.focus(); }}>清除选择</button></div>}
+    {open && createPortal(<div ref={popup} className={`custom-select-popover glass-panel custom-scrollbar ${props.multiple ? 'is-multiple' : ''} ${layout === 'columns' ? 'custom-select-compact-columns' : ''} ${iconOnly ? 'custom-select-icon-menu' : ''}`} style={position} onKeyDown={handleKeys} onClick={event => event.stopPropagation()}>
+      {props.multiple && <div className={`custom-select-heading${props.headingControl ? ' has-control' : ''}`}><span>可多选</span>{props.headingControl}<button type="button" onClick={() => { props.onChange([]); list.current?.focus(); }}>清除选择</button></div>}
       <div ref={list} id={id} tabIndex={0} role="listbox" aria-label={`${label}选项`} aria-multiselectable={props.multiple || undefined} aria-activedescendant={active >= 0 ? `${id}-${active}` : undefined} className={`custom-select-options custom-select-${layout}`}>
         {(layout === 'columns' ? [...new Set(options.map(option => option.group))] : [undefined]).map(group => <div key={group || 'options'} className={layout === 'columns' ? 'custom-select-column' : 'contents'}>
         {layout === 'columns' && <div className="custom-select-group">{group}</div>}

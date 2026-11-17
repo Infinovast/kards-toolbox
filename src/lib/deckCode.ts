@@ -59,7 +59,7 @@ export function encodeDeckCode(mainNation: string, allyNation: string, counts: M
 }
 
 export function findCardsByImportId(cards: KardsCardRecord[]): Map<string, KardsCardRecord> {
-  return new Map(cards.map((card) => [card.importId, card]));
+  return new Map(cards.filter(card => card.importId).map((card) => [card.importId, card]));
 }
 
 // Headquarters and other deck metadata are not part of the playable-card multiset.

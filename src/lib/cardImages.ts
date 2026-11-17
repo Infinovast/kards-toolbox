@@ -40,7 +40,7 @@ const inflight = new Map<string, Promise<string>>();
 const FAILURE_KEY = 'kards_card_image_failures_v1';
 const BATCH_KEY = 'kards_card_image_batch_v1';
 interface ImageFailure { message: string; at: string; attempts?: number }
-export interface ImageCacheBatch { importIds: string[]; startedAt: string }
+export interface ImageCacheBatch { importIds: string[]; cardIds?: string[]; startedAt: string }
 let failures: Record<string, ImageFailure> = {};
 let failuresLoaded: Promise<void> | undefined;
 let recordWrite: Promise<unknown> = Promise.resolve();
@@ -150,7 +150,7 @@ export function cacheCardImage(card: KardsCardRecord, kind: CardImageKind = 'ful
 
 export async function recordImageCacheBatch(cards: KardsCardRecord[]) {
   try {
-    await localforage.setItem<ImageCacheBatch>(BATCH_KEY, { importIds: cards.map(card => card.importId), startedAt: new Date().toISOString() });
+    await localforage.setItem<ImageCacheBatch>(BATCH_KEY, { importIds: cards.map(card => card.importId), cardIds: cards.map(card => card.cardId), startedAt: new Date().toISOString() });
   } catch { recordError = '最近一次批量缓存范围未能保存，重启后请在全部牌库中查看缓存结果。'; }
   changed();
 }
@@ -215,7 +215,7 @@ export async function readCardImageCache(cards: KardsCardRecord[]) {
   }
   const currentKeys = new Set(refs.flatMap(ref => [ref.full.key, ref.thumbnail.key]));
   const unusedImageKeys = [...imageKeys.full, ...imageKeys.thumbnail].filter(key => !currentKeys.has(key));
-  const cachedCards = (kind: CardImageKind) => new Set(entries.filter(entry => entry[kind].status === 'cached').map(entry => entry.card.importId)).size;
+  const cachedCards = (kind: CardImageKind) => new Set(entries.filter(entry => entry[kind].status === 'cached').map(entry => entry.card.cardId)).size;
   const deckImageEntries = storedKeys.filter(key => key.startsWith('deck_img_')).map(key => ({ key, name: decks?.find(deck => key === `deck_img_local_v1_${deck.code}` || key === `deck_img_${deck.code}`)?.name || key.replace(/^deck_img_(local_v1_)?/, '') }));
   return { entries, batch, imageKeys, unusedImageKeys, cachedFull: cachedCards('full'), cachedThumbnail: cachedCards('thumbnail'), deckImages: deckImageEntries.length, deckImageEntries, downloading: inflight.size > 0, recordError, packDeadBytes, packFileBytes };
 }

@@ -22,6 +22,7 @@ import {
   Check,
   Edit2,
   ArrowRightLeft,
+  Tag,
   Palette
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -64,7 +65,7 @@ import { saveDeckImage } from './lib/deckImageCache';
 import DeckFolders from './components/DeckFolders';
 import AboutPage from './components/AboutPage';
 import WelcomePage, { type WelcomeAction } from './components/WelcomePage';
-import DeckComparePage, { type ComparedDeck } from './components/DeckComparePage';
+import DeckComparePage, { type ComparedDeck, type DeckCompareSelectionRequest } from './components/DeckComparePage';
 import CardDataUpdater from './components/CardDataUpdater';
 import CardCacheManager from './components/CardCacheManager';
 import CustomSelect from './components/CustomSelect';
@@ -280,6 +281,7 @@ export default function App() {
   const [backupStatus, setBackupStatus] = useState<string | null>(null);
   const [activeMenu, setActiveMenu] = useState<AppPage>('welcome');
   const [deckCompareOpened, setDeckCompareOpened] = useState(false);
+  const [deckCompareSelection, setDeckCompareSelection] = useState<DeckCompareSelectionRequest>();
   const deckGrid = useDeckGridLayout(dataLoaded && activeMenu === 'decks' && !settings.showDeckFolders, settings.uiScale, settings.deckGap);
   const [aboutReturnMenu, setAboutReturnMenu] = useState<AppPage>('decks');
   const [settingsReturnMenu, setSettingsReturnMenu] = useState<AppPage>('decks');
@@ -1553,7 +1555,7 @@ export default function App() {
             {activeMenu === 'deck-compare' && cardDatabaseLoading && <p className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</p>}
             {activeMenu === 'deck-compare' && cardDatabaseError && <p role="alert" className="p-6 text-red-400">{cardDatabaseError}</p>}
             {deckCompareOpened && !cardDatabaseLoading && !cardDatabaseError && <div className={`h-full w-full shrink-0 ${activeMenu === 'deck-compare' ? '' : 'hidden'}`}>
-              <DeckComparePage active={activeMenu === 'deck-compare'} cards={cardDatabase} existingDecks={existingCompareDecks} tablecloth={selectedTablecloth} onImportDeck={importComparedDeck} onBack={openWelcomePage} />
+              <DeckComparePage active={activeMenu === 'deck-compare'} cards={cardDatabase} existingDecks={existingCompareDecks} tablecloth={selectedTablecloth} onImportDeck={importComparedDeck} onBack={openWelcomePage} selectionRequest={deckCompareSelection} />
             </div>}
             {activeMenu === 'deck-image' && (cardDatabaseLoading ? <p className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</p>
               : cardDatabaseError ? <p role="alert" className="p-6 text-red-400">{cardDatabaseError}</p>
@@ -1695,14 +1697,21 @@ export default function App() {
                     ) : (
                       <button 
                         onClick={() => setAddingTagToDeckId(selectedDeck.id)}
+                        aria-label="添加标签" title="添加标签"
                         className="deck-detail-option"
                       >
-                        <Plus className="w-3 h-3" /> 添加标签
+                        <span className="relative h-4 w-4" aria-hidden="true"><Tag className="h-4 w-4" /><Plus className="absolute -bottom-0.5 -right-1 h-2.5 w-2.5 bg-kards-panel" /></span>
                       </button>
                     )}
                   </div>
                   <button onClick={() => { selectDeck(selectedDeck.id); setShowHeadquartersModal(selectedDeck.id); }} className="deck-detail-option">更换总部</button>
                   <button onClick={() => { selectDeck(selectedDeck.id); setShowCardBackModal(selectedDeck.id); }} className="deck-detail-option">更换卡背</button>
+                  <button type="button" aria-label="对比此卡组" title="对比此卡组" className="deck-detail-option" onClick={() => {
+                    const deck = existingCompareDecks.find(item => item.id === selectedDeck.id);
+                    if (!deck) return;
+                    setDeckCompareSelection(previous => ({ deck, revision: (previous?.revision || 0) + 1 }));
+                    closeDeckDetails(); openDeckCompare();
+                  }}><ArrowRightLeft className="h-4 w-4" aria-hidden="true" /></button>
                   <DeckCostChart entries={previewCosts.entries} cardsById={previewCosts.cardsById} active hoverOnly className="deck-detail-option deck-detail-cost-chart-button" />
                 </div>
                 {!!selectedDeck.tags?.length && <div className="flex w-full items-center gap-2 overflow-x-auto custom-scrollbar">
