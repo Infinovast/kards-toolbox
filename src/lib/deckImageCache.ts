@@ -1,13 +1,16 @@
 import localforage from 'localforage';
 import { decodeDeckCode } from './deckCode';
+import { notifyImageCacheInventoryChanged } from './cardImages';
 
 export type DeckImageKind = 'full' | 'mini';
 const PREFIXES = { full: 'deck_img_local_v1_', mini: 'deck_img_mini_v1_' };
 
 export async function saveDeckImage(code: string, image: string, kind: DeckImageKind = 'full') {
   // A new full image may have a different title, headquarters or background.
-  if (kind === 'full') await localforage.removeItem(`${PREFIXES.mini}${code}`);
-  return localforage.setItem(`${PREFIXES[kind]}${code}`, image);
+  try {
+    if (kind === 'full') await localforage.removeItem(`${PREFIXES.mini}${code}`);
+    return await localforage.setItem(`${PREFIXES[kind]}${code}`, image);
+  } finally { notifyImageCacheInventoryChanged(); }
 }
 
 export async function readDeckImage(code: string, kind: DeckImageKind = 'full'): Promise<string | null> {

@@ -1,0 +1,34 @@
+import assert from 'node:assert/strict';
+import { getAppDialogSnapshot, requestConfirmation, requestCopyText, requestNotice, resolveAppDialog, subscribeAppDialogs } from './appDialogs';
+
+let changes = 0;
+const unsubscribe = subscribeAppDialogs(() => { changes++; });
+assert.equal(getAppDialogSnapshot(), null);
+const first = requestConfirmation('删除卡图？');
+const firstRequest = getAppDialogSnapshot()!;
+const second = requestConfirmation('应用更新？', { title: '应用更新', confirmLabel: '应用', cancelLabel: '返回' });
+assert.equal(getAppDialogSnapshot(), firstRequest, 'concurrent requests wait behind the visible dialog');
+resolveAppDialog(firstRequest.id + 1, true);
+assert.equal(getAppDialogSnapshot(), firstRequest, 'a stale or hidden dialog cannot resolve the current request');
+resolveAppDialog(firstRequest.id, false);
+assert.equal(await first, false, 'cancel preserves the original false result');
+const secondRequest = getAppDialogSnapshot()!;
+assert.equal(secondRequest.title, '应用更新');
+assert.equal(secondRequest.cancelLabel, '返回');
+resolveAppDialog(firstRequest.id, true);
+assert.equal(getAppDialogSnapshot(), secondRequest, 'a second click cannot confirm the next queued request');
+resolveAppDialog(secondRequest.id, true);
+assert.equal(await second, true);
+
+const notice = requestNotice('卡组码已复制！');
+assert.equal(getAppDialogSnapshot()!.kind, 'notice');
+resolveAppDialog(getAppDialogSnapshot()!.id, false);
+await notice;
+const copy = requestCopyText('请手动复制', '%%11|9s;;;');
+assert.equal(getAppDialogSnapshot()!.text, '%%11|9s;;;');
+resolveAppDialog(getAppDialogSnapshot()!.id, true);
+await copy;
+assert.equal(getAppDialogSnapshot(), null);
+assert.equal(changes, 8);
+unsubscribe();
+console.log('App dialogs passed: queued requests, accept/cancel, stale clicks, notice and manual copy.');

@@ -17,7 +17,7 @@ assert.equal(new Set(KEYWORD_FILTER_GROUPS.flatMap(group => group.keywords.map(i
 assert.ok(ALL_CARD_KEYWORDS.filter(item => item.highlighted).every(item => item.attribute), 'combat keywords are a strict subset of attribute keywords');
 assert.equal(ALL_CARD_KEYWORDS.find(item => item.label === '压制')?.english, 'Pin');
 assert.equal(ALL_CARD_KEYWORDS.find(item => item.label === '抑制')?.english, 'Suppress');
-assert.equal(ALL_CARD_KEYWORDS.filter(item => item.icon).length, 19);
+assert.equal(ALL_CARD_KEYWORDS.filter(item => item.icon).length, 20);
 assert.equal(ALL_CARD_KEYWORDS.find(item => item.id === 'veteran')?.icon, '/assets/keywords/veteran.png');
 const iconCard = { id: 1, cardId: 'icons', importId: 'aa', json: { attributes: ['BecomesVeteran:next', 'heavyArmor2', 'VeteranOf:base', 'guard', 'guard', 'futureAbility'] } };
 assert.deepEqual(cardKeywordItems(iconCard, 'zh-Hans').map(item => [item.label, item.icon]), [

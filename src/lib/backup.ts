@@ -1,6 +1,7 @@
 import localforage from 'localforage';
 import { USER_DATA_KEYS, validateUserDataValue } from './userDataSchema';
 import { assertUserDataSaved, queueUserDataTask, replaceUserData } from './userDataStorage';
+import { notifyImageCacheInventoryChanged } from './cardImages';
 
 export const BACKUP_SCHEMA_VERSION = 1;
 
@@ -55,4 +56,5 @@ export function parseBackup(content: string): KardsBackup {
 export async function restoreBackup(backup: KardsBackup) {
   const validated = parseBackup(JSON.stringify(backup));
   await queueUserDataTask(() => replaceUserData(Object.entries(validated.data)));
+  notifyImageCacheInventoryChanged();
 }

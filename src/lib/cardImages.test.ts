@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import localforage from 'localforage';
 import { cardDisplayTitle, cardImageUrl, type KardsCardRecord } from '../types/card';
-import { cacheCardImage, cachedImageByteLength, compactCardImageCache, deleteCachedImages, getCachedCardImage, initializeCardImageIndex, readCardImageCache, recordImageCacheBatch } from './cardImages';
+import { cacheCardImage, cachedImageByteLength, compactCardImageCache, deleteCachedImages, getCachedCardImage, initializeCardImageIndex, readCardImageCache, recordImageCacheBatch, subscribeImageCacheInventory } from './cardImages';
+import { saveDeckImage } from './deckImageCache';
 import { cardPackCacheKey, type CardImageMetadata } from './cacheBundleFormat';
 import { downloadCardImage, validateCardImageUrl } from './cardImageDownload';
 import { cardKeywords, cardRelations } from './cardDetails';
@@ -39,12 +40,35 @@ await assert.rejects(() => downloadCardImage(base.imageUrl!, (async () => new Re
 for (const url of ['file:///etc/passwd', 'https://example.com/a.avif', 'https://www.kardsplayer.com/graphql', 'https://www.kardsplayer.com/images/card/v53/zh-Hans/a.avif?url=bad']) assert.throws(() => validateCardImageUrl(url));
 
 const memory = new Map<string, unknown>();
-localforage.getItem = async <T>(key: string) => (memory.get(key) ?? null) as T;
+const reads: string[] = [];
+let readError = '';
+localforage.getItem = async <T>(key: string) => { reads.push(key); if (key === readError) throw new Error('fixture storage read failed'); return (memory.get(key) ?? null) as T; };
 localforage.setItem = async <T>(key: string, value: T) => { memory.set(key, value); return value; };
+localforage.removeItem = async (key: string) => { memory.delete(key); };
 localforage.keys = async () => [...memory.keys()];
 const downloaded: string[] = [];
 globalThis.window = { location: { href: 'http://localhost/' }, kardsDesktop: { fetchCardImage: async (url: string) => { downloaded.push(url); return avifData; } } } as unknown as Window & typeof globalThis;
 globalThis.fetch = (async (url: URL) => { assert.equal(String(url), 'http://localhost/data/cards.json'); return Response.json({ cards }); }) as typeof fetch;
+const byteFixtures = [
+  ['kards_card_image_v1_54_zh-Hans_legacy', 'data:image/png;base64,AA=='],
+  ['kards_card_image_v2_legacy_full', 'data:image/avif;base64,AAAA'],
+  ['kards_card_image_v2_legacy_https%3A%2F%2Ffixture%2Fthumb%2Fimage.avif', 'data:image/avif;base64,AA=='],
+  ['deck_img_local_v1_fixture', 'data:image/png;base64,AA=='],
+  ['deck_img_mini_v1_fixture', 'data:image/png;base64,AAAA'],
+  ['deck_img_legacy_fixture', 'data:image/svg+xml,<svg>卡组</svg>'],
+];
+for (const [key, value] of byteFixtures) memory.set(key, value);
+const storageInventory = await readCardImageCache([]);
+assert.deepEqual(storageInventory.storageBytes, {
+  full: Buffer.byteLength(byteFixtures[0][1]) + Buffer.byteLength(byteFixtures[1][1]),
+  thumbnail: Buffer.byteLength(byteFixtures[2][1]),
+  deckImages: byteFixtures.slice(3).reduce((bytes, [, value]) => bytes + Buffer.byteLength(value), 0),
+}, 'browser storage includes legacy cards and full/mini/legacy deck image strings as UTF-8, not decoded image sizes');
+assert.equal(downloaded.length, 0, 'reading storage usage never downloads artwork');
+readError = 'deck_img_local_v1_fixture';
+await assert.rejects(readCardImageCache([]), /storage read failed/, 'a failed size read must reject the inventory rather than report a false zero');
+readError = '';
+for (const [key] of byteFixtures) memory.delete(key);
 memory.set(`kards_card_image_v1_54_zh-Hans_${base.importId}`, 'old-v54-cache');
 await Promise.all([cacheCardImage(base), cacheCardImage(base), cacheCardImage(base, 'thumbnail')]);
 assert.deepEqual(downloaded, [base.imageUrl, base.thumbUrl], 'concurrent full/thumbnail requests deduplicate by URL and bypass stale v54');
@@ -155,6 +179,8 @@ await Promise.all(delugeFamily.map(card => cacheCardImage(card, 'thumbnail', fal
 assert.equal(nativeDownloads.filter(key => key.includes('_thumb_')).length, 1, 'native weather thumbnails deduplicate by base cardId');
 const nativeInventory = await readCardImageCache([base, updated, ...delugeFamily]);
 assert.equal(nativeInventory.cachedThumbnail, 3);
+assert.deepEqual(nativeInventory.storageBytes, { full: 234 * 2, thumbnail: 234, deckImages: 0 }, 'desktop storage totals each binary metadata entry once, including an old URL and a shared weather thumbnail');
+assert.ok(!reads.slice(reads.lastIndexOf('kards_decks') + 1).some(key => /^kards_card_image_v[12]_/.test(key)), 'desktop usage must not load browser card blobs or native image data');
 await deleteCachedImages([cardPackCacheKey({ cardId: base.cardId, variant: 'full', url: base.imageUrl! })]);
 assert.equal(await getCachedCardImage(base), null);
 assert.ok(await getCachedCardImage(updated));
@@ -177,4 +203,20 @@ packEntries.set(fresh.key, fresh); finishDownload(fresh); await downloading;
 finishRefresh({ entries: stale, deadBytes: 0, fileBytes: 100 }); await refreshing;
 assert.ok((await getCachedCardImage(base))?.includes('v=fresh'), 'a stale index refresh preserves completed downloads');
 window.kardsDesktop!.cacheCardImage = nativeCache;
+window.kardsDesktop!.listCardImageKeys = async () => ({ entries: [...packEntries.values()], deadBytes: 0, fileBytes: 100 });
+// Let pending card download notifications settle before checking deck-only events.
+await new Promise(resolve => setTimeout(resolve, 180));
+let inventoryEvents = 0;
+const unsubscribeInventory = subscribeImageCacheInventory(() => { inventoryEvents++; });
+await saveDeckImage('fixture', 'data:image/png;base64,AA==', 'mini');
+await saveDeckImage('fixture', 'data:image/png;base64,AAAA');
+await new Promise(resolve => setTimeout(resolve, 180));
+assert.equal(inventoryEvents, 1, 'deck writes publish one coalesced inventory notification');
+assert.ok(!memory.has('deck_img_mini_v1_fixture'), 'a new full deck image removes its obsolete mini image');
+assert.equal((await readCardImageCache([])).storageBytes.deckImages, Buffer.byteLength('data:image/png;base64,AAAA'));
+await deleteCachedImages(['deck_img_local_v1_fixture']);
+await new Promise(resolve => setTimeout(resolve, 180));
+assert.equal(inventoryEvents, 2, 'deleting deck images refreshes the same inventory');
+assert.equal((await readCardImageCache([])).storageBytes.deckImages, 0);
+unsubscribeInventory();
 console.log('Desktop image index tests passed: protocol URLs, binary speed, no Blob writes, weather sharing, rollback, delete, compaction and in-flight index refresh');

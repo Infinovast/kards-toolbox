@@ -35,6 +35,8 @@ import { addPackHistory, emptyPackHistory, type PackHistory } from './lib/packHi
 import type { PackReward } from './lib/cardPacks';
 import type { CardPackKind } from './lib/assetCatalog';
 import UserDataSaveStatus from './components/UserDataSaveStatus';
+import AppDialogHost from './components/AppDialogHost';
+import { requestConfirmation, requestCopyText, requestNotice } from './lib/appDialogs';
 import { generateLightModeColors } from './lib/colorUtils';
 import { renderDeckImage, renderDeckMiniImage, downloadDeckImage } from './lib/deckRenderer';
 import { decodeDeckCode, findCardsByImportId, findDuplicateDeck } from './lib/deckCode';
@@ -1100,9 +1102,9 @@ export default function App() {
     try {
       if (window.kardsDesktop?.writeClipboardText) await window.kardsDesktop.writeClipboardText(code);
       else await navigator.clipboard.writeText(code);
-      alert('卡组码已复制！');
+      await requestNotice('卡组码已复制！');
     } catch {
-      window.prompt('剪贴板不可用，请手动复制卡组码：', code);
+      await requestCopyText('剪贴板不可用，请手动复制卡组码：', code);
     }
   };
 
@@ -1438,6 +1440,7 @@ export default function App() {
     {dataLoadError && <><p role="alert" className="max-w-lg text-center text-sm text-kards-text-muted">{dataLoadError}。已停止自动保存，原数据不会被默认值覆盖。</p><div className="flex flex-wrap justify-center gap-3"><button type="button" onClick={() => { setDataLoadError(null); setLoadAttempt(value => value + 1); }} className="rounded bg-kards-accent px-4 py-2 text-white hover:brightness-110">重试读取</button><button type="button" disabled={backupBusy} onClick={handleExportBackup} className="rounded border border-kards-border px-4 py-2 hover:border-kards-gold">导出备份</button><button type="button" disabled={backupBusy} onClick={handleImportBackup} className="rounded border border-kards-border px-4 py-2 hover:border-kards-gold">导入备份</button><button type="button" disabled={backupBusy} onClick={() => { void showAutomaticBackups(); }} className="rounded border border-kards-border px-4 py-2 hover:border-kards-gold">恢复自动备份</button></div></>}
     {backupStatus && <p role="status" className="max-w-lg text-center text-sm text-kards-text-muted">{backupStatus}</p>}
     {automaticBackupDialog}
+    <AppDialogHost />
   </main>;
 
   return (
@@ -2187,8 +2190,8 @@ export default function App() {
                       </h4>
                       {category.isCustom && (
                         <button 
-                          onClick={() => {
-                            if (window.confirm(`确定要删除分类“${category.name}”及其包含的文件吗？`)) {
+                          onClick={async () => {
+                            if (await requestConfirmation(`确定要删除分类“${category.name}”及其包含的文件吗？`)) {
                               setCustomCategories(prev => prev.filter(c => c.id !== category.id));
                             }
                           }}
@@ -2807,6 +2810,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      <AppDialogHost />
     </div>
   );
 }

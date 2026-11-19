@@ -40,6 +40,7 @@ npm run dev:desktop
 | 卡牌与构筑交互检查 | `python scripts/smoke-card-workflows.py` | 先在 5189 启动渲染端；隔离浏览器数据，检查与/或/非、搜索框长度、缓存按钮显隐、临时天气 ID、详情一键对比、含预备自动选择及扩展筛选展开/收缩 |
 | 全卡池评分核验 | `npx tsx src/lib/deckAnalysis.test.ts --audit` | 在 `references/deck-analysis/card-ability-audit.json` 记录当前全卡池的能力提取、未识别文本与近似假设；算法变动后可加 `--update-reference` 显式重算样本区间 |
 | 生图快捷页交互检查 | `node scripts/smoke-deck-image-page.cjs` | 先在 5189 端口启动渲染端 |
+| 缓存设置与应用内确认检查 | `node scripts/smoke-cache-settings.cjs` | 先在 5189 端口启动渲染端；隔离数据验证统计布局与空间、自动更新、失败重试、批量操作及确认弹窗，不访问真实剪贴板 |
 | 构建桌面应用 | `npm run build:desktop` | `build/wails/kards_toolbox.exe` |
 | 构建可选 Web 服务 | `npm run build` | 网页与 `dist/server.cjs` |
 

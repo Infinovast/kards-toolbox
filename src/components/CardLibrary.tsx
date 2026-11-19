@@ -28,6 +28,7 @@ import { revealDetailItem, type CardDetailItem } from '../lib/cardDetailPaging';
 import useCardDetailPaging from '../lib/useCardDetailPaging';
 import useSearchContentWidth from '../lib/useSearchContentWidth';
 import { readCardImageCache, useCardImageCacheRevision } from '../lib/cardImages';
+import { requestConfirmation } from '../lib/appDialogs';
 import { type CardLanguage } from '../types/card';
 import {
   cardText,
@@ -187,8 +188,8 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange, aut
           <div className="flex flex-wrap items-center gap-2">
             <span className="library-result-count">找到 <strong>{filteredCards.length.toLocaleString()}</strong> 张</span>
             <button type="button" onClick={resetFilters} className="library-clear-filters"><Trash2 className="h-3.5 w-3.5" aria-hidden="true" />{filters.query.trim() && !hasCardFilterConditions(filters) ? '清除搜索' : '清除筛选'}</button>
-            {cacheAvailability?.cards === filteredCards && cacheAvailability.missing && <button disabled={download.status === 'running' || download.status === 'paused'} onClick={() => {
-              if (filteredCards.length > 100 && !window.confirm(`缓存当前筛选的 ${filteredCards.length.toLocaleString()} 张卡牌大图+缩略图？`)) return;
+            {cacheAvailability?.cards === filteredCards && cacheAvailability.missing && <button disabled={download.status === 'running' || download.status === 'paused'} onClick={async () => {
+              if (filteredCards.length > 100 && !await requestConfirmation(`缓存当前筛选的 ${filteredCards.length.toLocaleString()} 张卡牌大图+缩略图？`)) return;
               startImageDownload(filteredCards);
             }} className="flex h-9 items-center gap-1 rounded border border-kards-border glass-panel px-3 py-2 text-kards-text disabled:opacity-40"><Download className="h-3.5 w-3.5" />缓存卡牌图片（{filteredCards.length.toLocaleString()}）</button>}
             <CardLibrarySettings language={language} onLanguageChange={setLanguage} detailMode={detailMode} onDetailModeChange={onDetailModeChange} />

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import localforage from 'localforage';
-import { createBackup, parseBackup } from './backup';
+import { createBackup, parseBackup, restoreBackup } from './backup';
+import { subscribeImageCacheInventory } from './cardImages';
 for (const app of ['kards-toolbox', 'kards-local-tool', 'kards-deck-collector']) {
   assert.equal(parseBackup(JSON.stringify({ app, schemaVersion: 1, data: { kards_decks: [] } })).app, app);
 }
@@ -11,8 +12,20 @@ const stored = new Map<string, unknown>([
   ['kards_card_image_batch_v1', { importIds: ['lV'] }],
 ]);
 localforage.getItem = async <T>(key: string) => (stored.get(key) ?? null) as T;
+localforage.setItem = async <T>(key: string, value: T) => { stored.set(key, value); return value; };
+localforage.removeItem = async (key: string) => { stored.delete(key); };
 localforage.iterate = async <T, U>(iterator: (value: T, key: string, iteration: number) => U | undefined) => { for (const [key, value] of stored) iterator(value as T, key, 1); return undefined as U; };
 const backup = await createBackup();
 assert.equal(backup.data.deck_img_local_v1_fixture, 'deck-image');
 assert.ok(!Object.keys(backup.data).some(key => key.startsWith('kards_card_image_')), 'ordinary images, failures and batch scope are separate from user backups');
+let inventoryChanges = 0;
+const unsubscribeInventory = subscribeImageCacheInventory(() => { inventoryChanges++; });
+await restoreBackup({ ...backup, data: { deck_img_local_v1_fixture: 'restored-deck-image' } });
+await new Promise(resolve => setTimeout(resolve, 180));
+assert.equal(stored.get('deck_img_local_v1_fixture'), 'restored-deck-image');
+assert.equal(inventoryChanges, 1, 'successful backup restoration refreshes image cache usage');
+await assert.rejects(restoreBackup({ ...backup, data: { unexpected_key: 'invalid' } } as never));
+await new Promise(resolve => setTimeout(resolve, 180));
+assert.equal(inventoryChanges, 1, 'invalid backups do not announce a storage change');
+unsubscribeInventory();
 console.log('backup format compatibility tests passed');

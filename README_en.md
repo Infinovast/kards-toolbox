@@ -8,7 +8,7 @@
 
 KARDS Toolbox is a local tool for KARDS players to browse cards, build and manage decks, and simulate opening card packs.
 
-Current version: **1.3.5**.
+Current version: **1.3.6**.
 
 ## Screenshots
 
@@ -139,7 +139,7 @@ Ability scores are the core of deck analysis. By estimating a deck's economy, co
 - WebView2 stores decks and settings in the `webview2/` subdirectory. It does not automatically read or migrate Electron's IndexedDB, even when both versions use the same data root. Export a user backup from the original app and import it in the new app.
 - Open settings from the bottom of the sidebar. To update card data, choose kardsplayer.com (the default) or kards.com, fetch data, review additions, changes, and removals, then apply the update. You can roll back to the previous snapshot.
 - The library does not update automatically at startup. Viewing uncached card artwork can trigger a network download. Updating card data changes the records and image URLs without downloading all images.
-- **Local cache** reports library size, full-size image coverage, and thumbnail coverage separately. Inspect cached, uncached, and failed items; download in batches, retry failures, delete images, or compact the cache to reclaim space.
+- **Local cache** shows the library count, cached full-size images, thumbnails, and generated deck images in one row, with storage usage for the three image categories. The inventory updates automatically. Scope, search, and the current status action are grouped; deletion, old-cache cleanup, and compaction are under cache maintenance. The card-image grid is unchanged. Batch downloads, deletion, and card-data updates use in-app confirmation dialogs.
 - User backups include decks, folders, settings, drafts, user images, and generated deck image caches. Ordinary card image caches and the card database are managed separately. Export a backup before upgrading or moving to another device.
 - If local data cannot be read, automatic saving stops. Retry the read, import a backup, or restore an automatic backup. Failed saves show a message with a retry option. Up to three distinct automatic backups are retained at startup and before imports; restore them under **Data backup** in settings. Automatic backups include user data and pack history, without duplicating deck images that can be regenerated. Backups are fully validated before restoration. An interrupted restore is rolled back, including any unfinished rollback detected at the next startup.
 - Choose tablecloths from the sidebar, including named defaults and wallpapers organized by nation and Chinese card name. Hover or focus a tablecloth to read its short description in a frosted-glass tooltip above or below the image; descriptions appear in full without scrolling. Switch light and dark themes with the sun/moon button in the top bar. Settings are saved automatically. Headquarters-specific tablecloths appear temporarily only while selecting or editing the corresponding deck.

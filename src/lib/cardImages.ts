@@ -51,7 +51,17 @@ let deleting = false;
 const listeners = new Set<() => void>();
 let revision = 0;
 let timer: ReturnType<typeof setTimeout> | undefined;
+const inventoryListeners = new Set<() => void>();
+let inventoryRevision = 0;
+let inventoryTimer: ReturnType<typeof setTimeout> | undefined;
+export const subscribeImageCacheInventory = (listener: () => void) => { inventoryListeners.add(listener); return () => { inventoryListeners.delete(listener); }; };
+export function notifyImageCacheInventoryChanged() {
+  if (inventoryTimer) return;
+  inventoryTimer = setTimeout(() => { inventoryTimer = undefined; inventoryRevision++; inventoryListeners.forEach(listener => listener()); }, 150);
+}
+export const useImageCacheInventoryRevision = () => useSyncExternalStore(subscribeImageCacheInventory, () => inventoryRevision);
 function changed() {
+  notifyImageCacheInventoryChanged();
   if (timer) return;
   timer = setTimeout(() => { timer = undefined; revision++; listeners.forEach(listener => listener()); }, 150);
 }
@@ -219,7 +229,19 @@ export async function readCardImageCache(cards: KardsCardRecord[]) {
   const unusedImageKeys = [...imageKeys.full, ...imageKeys.thumbnail].filter(key => !currentKeys.has(key));
   const cachedCards = (kind: CardImageKind) => new Set(entries.filter(entry => entry[kind].status === 'cached').map(entry => entry.card.cardId)).size;
   const deckImageEntries = storedKeys.filter(key => key.startsWith('deck_img_')).map(key => ({ key, name: decks?.find(deck => key === `deck_img_local_v1_${deck.code}` || key === `deck_img_${deck.code}`)?.name || key.replace(/^deck_img_(local_v1_)?/, '') }));
-  return { entries, batch, imageKeys, unusedImageKeys, cachedFull: cachedCards('full'), cachedThumbnail: cachedCards('thumbnail'), deckImages: deckImageEntries.length, deckImageEntries, downloading: inflight.size > 0, recordError, packDeadBytes, packFileBytes };
+  const storageBytes = { full: 0, thumbnail: 0, deckImages: 0 };
+  if (desktopPack()) {
+    for (const image of packIndex.values()) storageBytes[image.variant === 'thumb' ? 'thumbnail' : 'full'] += image.size;
+  }
+  // Count each stored file/string once, including old URLs and legacy caches.
+  // Desktop images use binary metadata; IndexedDB image strings use UTF-8 bytes.
+  for (const key of storedKeys) {
+    const kind = key.startsWith('deck_img_') ? 'deckImages' : !desktopPack() ? imageCacheKind(key) : null;
+    if (!kind) continue;
+    const image = await localforage.getItem<unknown>(key);
+    if (typeof image === 'string') storageBytes[kind] += new Blob([image]).size;
+  }
+  return { entries, batch, imageKeys, unusedImageKeys, cachedFull: cachedCards('full'), cachedThumbnail: cachedCards('thumbnail'), deckImages: deckImageEntries.length, deckImageEntries, storageBytes, downloading: inflight.size > 0, recordError, packDeadBytes, packFileBytes };
 }
 
 export async function compactCardImageCache() {

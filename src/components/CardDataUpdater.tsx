@@ -7,6 +7,7 @@ import SearchClearButton from './SearchClearButton';
 import { compareCardData, type CardFieldChange } from '../lib/cardData';
 import type { CardDataSource } from '../lib/cardData';
 import { applyCardData, cancelCardDataCheck, checkCardData, deleteDownloadedCardData, initializeCardDataSync, rollbackCardData, useCardDataSync } from '../lib/cardDataSync';
+import { requestConfirmation } from '../lib/appDialogs';
 
 const labels: Record<string, string> = { cardId: '卡牌标识', imageUrl: '当前卡图地址', thumbUrl: '缩略图地址', reserved: '预备状态', title: '卡名', text: '卡牌文本', description: '描述', kredits: '费用', attack: '攻击力', defense: '防御力', rarity: '稀有度', faction: '阵营', type: '类型', set: '扩展包', image: '卡图路径', attributes: '词条与衍生关系', operationCost: '行动费用', can_create: '衍生卡', exile: '流亡', permanent_pool: '常驻卡池', id: '卡牌标识', import_id: '卡组码 ID' };
 const kindLabels = { added: '新增', changed: '修改', removed: '移除' };
@@ -35,16 +36,16 @@ export default function CardDataUpdater({ cards, onApplied }: { cards: KardsCard
   useEffect(() => setPage(1), [kind, query, pending]);
   const busy = sync.status === 'fetching' || sync.status === 'applying';
   const apply = async () => {
-    if (counts.removed && !window.confirm(`本次更新会从卡牌资料库移除 ${counts.removed} 张远端不再返回的卡牌。已有卡组码、携带数量和用户数据会保留；缺失卡将显示编号。应用前会保存一份可回退的数据。是否继续？`)) return;
+    if (counts.removed && !await requestConfirmation(`本次更新会从卡牌资料库移除 ${counts.removed} 张远端不再返回的卡牌。已有卡组码、携带数量和用户数据会保留；缺失卡将显示编号。应用前会保存一份可回退的数据。是否继续？`)) return;
     try { onApplied(await applyCardData(cards)); } catch { /* The service exposes the write error inline. */ }
   };
   const rollback = async () => {
-    if (!window.confirm('回退至上次卡牌数据？卡组、设置、桌布和卡图缓存不会改变。')) return;
+    if (!await requestConfirmation('回退至上次卡牌数据？卡组、设置、桌布和卡图缓存不会改变。')) return;
     try { onApplied(await rollbackCardData()); } catch { /* Keep the current database visible on failure. */ }
   };
   const removeData = async (part: 'all' | 'active' | 'pending' | 'previous') => {
     const label = { all: '全部下载的卡牌数据（含已应用、待应用和回退数据）及更新记录', active: '当前已应用的更新数据', pending: '待应用数据', previous: '回退数据' }[part];
-    if (!window.confirm(`删除${label}？${part === 'all' || part === 'active' ? '当前牌库将切回随包数据。' : ''}卡组和图片缓存会保留，需要时可重新获取数据。`)) return;
+    if (!await requestConfirmation(`删除${label}？${part === 'all' || part === 'active' ? '当前牌库将切回随包数据。' : ''}卡组和图片缓存会保留，需要时可重新获取数据。`)) return;
     try {
       const restored = await deleteDownloadedCardData(part);
       if (restored) onApplied(restored);
