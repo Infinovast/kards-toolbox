@@ -36,6 +36,7 @@ export default function CardDetailModal({ card: initialCard, headquarters: initi
   const [headquarters, setHeadquarters] = useState(initialHeadquarters);
   const overlay = useRef<HTMLDivElement>(null);
   const currentOrigin = useRef(origin);
+  const relatedHistory = useRef<CardDetailItem[]>([]);
   const panel = useRef<HTMLElement>(null);
   const art = useRef<HTMLDivElement>(null);
   const backdrop = useRef<HTMLDivElement>(null);
@@ -72,7 +73,7 @@ export default function CardDetailModal({ card: initialCard, headquarters: initi
     onReveal: async item => { currentOrigin.current = await onNavigate?.(item); },
     onMoving: moving => { entrance.current?.cancel(); setArrived(!moving); },
   });
-  useEffect(() => { setCard(initialCard || null); setHeadquarters(initialHeadquarters); currentOrigin.current = origin; }, [initialCard, initialHeadquarters]);
+  useEffect(() => { setCard(initialCard || null); setHeadquarters(initialHeadquarters); currentOrigin.current = origin; relatedHistory.current = []; }, [initialCard, initialHeadquarters]);
   useLayoutEffect(() => {
     const element = art.current;
     if (!element || !origin || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -126,6 +127,13 @@ export default function CardDetailModal({ card: initialCard, headquarters: initi
     const keydown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.isComposing || event.key !== 'Escape') return;
       event.preventDefault(); event.stopPropagation();
+      const previous = relatedHistory.current.pop();
+      if (previous) {
+        setCard(previous.card || null);
+        setHeadquarters(previous.headquarters);
+        currentOrigin.current = undefined;
+        return;
+      }
       requestCloseRef.current();
     };
     document.addEventListener('keydown', keydown, true);
@@ -199,7 +207,7 @@ export default function CardDetailModal({ card: initialCard, headquarters: initi
             <h3 className="mb-3 font-bold">关联卡牌</h3>
             <div className="flex flex-wrap gap-3">{relatedCards.map(related => <button key={related.label + related.cardId} type="button"
               title={related.label + '：' + cardDisplayTitle(related.card, language)} aria-label={related.label + '：' + cardDisplayTitle(related.card, language)}
-              onClick={() => { setCard(related.card); setHeadquarters(undefined); currentOrigin.current = undefined; }} className="card-action w-[86px]"><CardFace card={related.card} /></button>)}</div>
+              onClick={() => { if (card) relatedHistory.current.push({ card }); setCard(related.card); setHeadquarters(undefined); currentOrigin.current = undefined; }} className="card-action w-[86px]"><CardFace card={related.card} /></button>)}</div>
           </section>}
         </div>
       </div>

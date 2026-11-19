@@ -1,16 +1,20 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { ChartColumn, Library, Upload, X } from 'lucide-react';
-import { decodeDeckCode, findCardsByImportId } from '../lib/deckCode';
+import { decodeDeckCode, findCardsByImportId, findDuplicateDeck } from '../lib/deckCode';
 import { extractDeckCodeFromText, inferDeckTitleFromText } from '../lib/deckImport';
 import { DECK_COST_CATEGORIES, summarizeDeckCosts } from '../lib/deckCostCurve';
 import { analyzeDeckAbilities, type DeckAbilityResult } from '../lib/deckAnalysis';
 import { factionIcon, WILDCARDS } from '../lib/assetCatalog';
-import { defaultDeckName } from '../lib/deckName';
+import { defaultDeckName, normalizeDeckName } from '../lib/deckName';
 import { handleDialogKeys } from '../lib/dialogKeyboard';
-import { factionLabel, type KardsCardRecord } from '../types/card';
+import { cardDisplayTitle, factionLabel, type KardsCardRecord } from '../types/card';
 import { DeckCostColumns } from './DeckCostChart';
 import DeckCompareImage from './DeckCompareImage';
+import CardDetailModal from './CardDetailModal';
+import { CardFace } from './CardFace';
+import { captureCardDetailOrigin } from '../lib/cardDetailOrigin';
+import { revealDetailItem, type CardDetailItem } from '../lib/cardDetailPaging';
 import ReservedBadge from './ReservedBadge';
 import './deckCompare.css';
 
@@ -21,6 +25,9 @@ export interface ComparedDeck {
   allyNation: string;
   headquartersId?: string;
   cardBackId?: string;
+  existingDeckId?: string;
+  mainCardCount: number;
+  allyCardCount: number;
   curve: ReturnType<typeof summarizeDeckCosts>;
   abilities: DeckAbilityResult;
 }
@@ -39,12 +46,13 @@ export interface ExistingCompareDeck {
 type ImportComparedDeck = (deck: ComparedDeck) => Promise<{ imported: boolean; name: string }>;
 export interface DeckCompareSelectionRequest { deck: ExistingCompareDeck; revision: number }
 
-function CompareDeckInput({ slot, cards, cardsById, existingDecks, deck, costMax, tablecloth, onAnalyze, onInvalidate, onImportDeck, selectionRequest }: {
+function CompareDeckInput({ slot, cards, cardsById, existingDecks, deck, otherSelectedExistingId, costMax, tablecloth, onAnalyze, onInvalidate, onImportDeck, selectionRequest }: {
   slot: 'A' | 'B';
   cards: KardsCardRecord[];
   cardsById: Map<string, KardsCardRecord>;
   existingDecks: ExistingCompareDeck[];
   deck: ComparedDeck | null;
+  otherSelectedExistingId?: string;
   costMax: number;
   tablecloth?: string;
   onAnalyze: (deck: ComparedDeck) => void;
@@ -59,10 +67,67 @@ function CompareDeckInput({ slot, cards, cardsById, existingDecks, deck, costMax
   const [status, setStatus] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [selectedExistingId, setSelectedExistingId] = useState<string | null>(null);
+  const [duplicateDeck, setDuplicateDeck] = useState<ExistingCompareDeck | null>(null);
+  const [checkingDuplicate, setCheckingDuplicate] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [detailCard, setDetailCard] = useState<KardsCardRecord | null>(null);
+  const [detailOrigin, setDetailOrigin] = useState<ReturnType<typeof captureCardDetailOrigin>>();
   const codeInput = useRef<HTMLTextAreaElement>(null);
+  const cardStrip = useRef<HTMLDivElement>(null);
   const savingRef = useRef(false);
   const id = `compare-deck-${slot.toLowerCase()}`;
+
+  const uniqueDeckCards = useMemo(() => {
+    if (!deck) return [];
+    return [...decodeDeckCode(deck.code).counts]
+      .flatMap(([importId, count]) => {
+        const card = cardsById.get(importId);
+        return card ? [{ card, importId, count }] : [];
+      })
+      .sort((a, b) => (a.card.json.kredits ?? 99) - (b.card.json.kredits ?? 99));
+  }, [deck?.code, cardsById]);
+  const stripCards = useMemo(() => uniqueDeckCards.flatMap(entry => Array.from({ length: entry.count }, (_, copy) => ({
+    card: entry.card, importId: entry.importId, key: `${entry.importId}-${copy}`,
+  }))), [uniqueDeckCards]);
+  const detailSequence = useMemo<CardDetailItem[]>(() => uniqueDeckCards.map(({ card }) => ({ card })), [uniqueDeckCards]);
+
+  useEffect(() => {
+    if (!deck) { setDetailCard(null); setDetailOrigin(undefined); return; }
+    const element = cardStrip.current;
+    if (!element) return;
+    const scrollHorizontally = (event: WheelEvent) => {
+      if (event.ctrlKey || element.scrollWidth <= element.clientWidth) return;
+      const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+      if (!delta) return;
+      const next = Math.max(0, Math.min(element.scrollWidth - element.clientWidth, element.scrollLeft + delta));
+      if (next === element.scrollLeft) return;
+      event.preventDefault();
+      event.stopPropagation();
+      element.scrollLeft = next;
+    };
+    element.addEventListener('wheel', scrollHorizontally, { passive: false });
+    return () => element.removeEventListener('wheel', scrollHorizontally);
+  }, [deck?.code, uniqueDeckCards.length]);
+
+  useEffect(() => {
+    if (selectedExistingId || !text.trim()) {
+      setDuplicateDeck(null);
+      setCheckingDuplicate(false);
+      return;
+    }
+    setDuplicateDeck(null);
+    setCheckingDuplicate(true);
+    const timer = window.setTimeout(() => {
+      try {
+        const code = extractDeckCodeFromText(text);
+        setDuplicateDeck(code ? findDuplicateDeck(code, existingDecks) || null : null);
+      } catch {
+        setDuplicateDeck(null);
+      }
+      setCheckingDuplicate(false);
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [text, existingDecks, selectedExistingId]);
 
   useLayoutEffect(() => {
     const element = codeInput.current;
@@ -94,10 +159,15 @@ function CompareDeckInput({ slot, cards, cardsById, existingDecks, deck, costMax
       if (!total) { setError('卡组中还没有卡牌，请导入包含卡牌的卡组。'); return; }
       const missing = [...decoded.counts.keys()].filter(cardId => !cardsById.has(cardId));
       if (missing.length) { setError(`本地资料库中找不到 ${missing.length} 种卡牌，请检查卡组码或更新卡牌数据。`); return; }
+      const countForNation = (nation: string) => [...decoded.counts].reduce((sum, [cardId, count]) =>
+        sum + (cardsById.get(cardId)?.json.faction?.toLowerCase() === nation.toLowerCase() ? count : 0), 0);
+      const fallbackName = normalizeDeckName(inferDeckTitleFromText(inputText, code), defaultDeckName(decoded.mainNation, decoded.allyNation));
       parsed = {
-        code, name: inputName.trim() || inferDeckTitleFromText(inputText, code) || defaultDeckName(decoded.mainNation, decoded.allyNation),
+        code, name: normalizeDeckName(inputName, fallbackName),
         mainNation: decoded.mainNation, allyNation: decoded.allyNation,
-        ...(source ? { headquartersId: source.headquartersId, cardBackId: source.cardBackId } : metadata),
+        ...(source ? { headquartersId: source.headquartersId, cardBackId: source.cardBackId, existingDeckId: source.id } : metadata),
+        mainCardCount: countForNation(decoded.mainNation) + 1,
+        allyCardCount: decoded.mainNation.toLowerCase() === decoded.allyNation.toLowerCase() ? 0 : countForNation(decoded.allyNation),
         curve: summarizeDeckCosts(decoded.counts, cardsById),
         abilities: analyzeDeckAbilities(decoded.counts, cardsById),
       };
@@ -106,6 +176,12 @@ function CompareDeckInput({ slot, cards, cardsById, existingDecks, deck, costMax
       return;
     }
     if (persist) {
+      const duplicate = findDuplicateDeck(parsed.code, existingDecks);
+      if (duplicate) {
+        setDuplicateDeck(duplicate);
+        setStatus(`卡组已存在：“${duplicate.name}”，仍可仅分析。`);
+        return;
+      }
       savingRef.current = true; setSaving(true);
       try {
         const result = await onImportDeck(parsed);
@@ -120,7 +196,7 @@ function CompareDeckInput({ slot, cards, cardsById, existingDecks, deck, costMax
 
   const selectExistingDeck = (item: ExistingCompareDeck) => {
     setText(item.code); setName(item.name); setMetadata({ headquartersId: item.headquartersId, cardBackId: item.cardBackId });
-    setSelectedExistingId(item.id); onInvalidate(); setPickerOpen(false); void analyze(false, item);
+    setSelectedExistingId(item.id); setDuplicateDeck(null); setCheckingDuplicate(false); onInvalidate(); setPickerOpen(false); void analyze(false, item);
   };
   useEffect(() => {
     if (!selectionRequest) return;
@@ -136,7 +212,7 @@ function CompareDeckInput({ slot, cards, cardsById, existingDecks, deck, costMax
       <label htmlFor={`${id}-code`}>卡组码或分享文本</label>
       <textarea ref={codeInput} id={`${id}-code`} value={text} disabled={saving} spellCheck={false} rows={1}
         autoFocus={slot === 'A'} aria-invalid={!!error} aria-describedby={error ? `${id}-error` : undefined}
-        onChange={event => { setText(event.target.value); setSelectedExistingId(null); setMetadata({}); setError(null); setStatus(null); onInvalidate(); }}
+        onChange={event => { setText(event.target.value); setSelectedExistingId(null); setDuplicateDeck(null); setCheckingDuplicate(!!event.target.value.trim()); setMetadata({}); setError(null); setStatus(null); onInvalidate(); }}
         placeholder="粘贴卡组码或完整分享文本" />
       <div className="deck-compare-import-actions">
         <button type="button" className="deck-compare-analyze is-secondary" disabled={saving || !existingDecks.length} aria-haspopup="dialog" onClick={() => setPickerOpen(true)}>
@@ -145,25 +221,40 @@ function CompareDeckInput({ slot, cards, cardsById, existingDecks, deck, costMax
         <button type="submit" className="deck-compare-analyze is-secondary" disabled={saving || !!selectedExistingId || !text.trim()}>
           <ChartColumn className="h-4 w-4" aria-hidden="true" />仅分析
         </button>
-        <button type="button" className="deck-compare-analyze" disabled={saving || !!selectedExistingId || !text.trim()} onClick={() => void analyze(true)}>
+        <button type="button" className="deck-compare-analyze" disabled={saving || !!selectedExistingId || !text.trim() || checkingDuplicate || !!duplicateDeck} onClick={() => void analyze(true)}>
           <Upload className="h-4 w-4" aria-hidden="true" />{saving ? '正在导入…' : '导入并分析'}
         </button>
       </div>
       {error && <p id={`${id}-error`} role="alert" className="deck-compare-error">{error}</p>}
+      {duplicateDeck && !selectedExistingId && <p role="status" className="deck-compare-status">卡组已存在：“{duplicateDeck.name}”，仍可仅分析。</p>}
       {status && <p role="status" className="deck-compare-status">{status}</p>}
     </form>
     {pickerOpen && createPortal(<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setPickerOpen(false)} />
       <section role="dialog" aria-modal="true" aria-label="选择现有卡组" tabIndex={-1} onKeyDown={handleDialogKeys} className="deck-compare-picker glass-panel">
         <header><h2>选择现有卡组</h2><button type="button" data-dialog-cancel aria-label="关闭现有卡组选择" onClick={() => setPickerOpen(false)}><X className="h-5 w-5" /></button></header>
-        <ul className="custom-scrollbar">{existingDecks.map(item => <li key={item.id}><button type="button" onClick={() => selectExistingDeck(item)}><span className="deck-compare-picker-name"><span>{item.name}</span>{item.hasReserved && <ReservedBadge label="卡组含预备卡" />}</span>
+        <ul className="custom-scrollbar">{existingDecks.map(item => <li key={item.id}><button type="button" disabled={item.id === otherSelectedExistingId} onClick={() => selectExistingDeck(item)}><span className="deck-compare-picker-name"><span>{item.name}</span>{item.hasReserved && <ReservedBadge label="卡组含预备卡" />}</span>
           <span className="deck-compare-picker-nations">{[item.mainNation, ...(item.allyNation && item.allyNation !== item.mainNation ? [item.allyNation] : [])].map((nation, index) => <img key={nation} src={factionIcon(nation)} alt={`${index === 0 ? '主国' : '盟国'}：${factionLabel(nation)}`} title={`${index === 0 ? '主国' : '盟国'}：${factionLabel(nation)}`} />)}</span>
         </button></li>)}</ul>
       </section>
     </div>, document.body)}
     {deck ? <section className="deck-compare-analysis" aria-label={`卡组 ${slot} 分析`}>
-      <div className="deck-compare-result-heading"><h3>{deck.name}</h3></div>
-      <DeckCompareImage deck={deck} cards={cards} tablecloth={tablecloth} />
+      <div className="deck-compare-result-heading">
+        <div className="deck-compare-heading-title"><h3>{deck.name}</h3><DeckCompareImage deck={deck} cards={cards} tablecloth={tablecloth} /></div>
+        <div className="deck-compare-heading-nations" aria-label={`主国 ${factionLabel(deck.mainNation)} ${deck.mainCardCount} 张${deck.allyCardCount ? `，盟国 ${factionLabel(deck.allyNation)} ${deck.allyCardCount} 张` : ''}`}>
+          <span><img src={factionIcon(deck.mainNation)} alt="" />{deck.mainCardCount}</span>
+          {deck.allyCardCount > 0 && <span><img src={factionIcon(deck.allyNation)} alt="" />{deck.allyCardCount}</span>}
+        </div>
+      </div>
+      <div ref={cardStrip} className="deck-compare-card-strip custom-scrollbar" aria-label={`${deck.name}卡牌列表`}>
+        {stripCards.map(({ card, importId, key }) => <button key={key} type="button" className="deck-compare-card-tile" data-deck-card-id={importId}
+          title={cardDisplayTitle(card, 'zh-Hans')} aria-label={`查看${cardDisplayTitle(card, 'zh-Hans')}`}
+          onClick={event => { setDetailCard(card); setDetailOrigin(captureCardDetailOrigin(event.currentTarget, 'pool', undefined, event.nativeEvent)); }}>
+          <CardFace card={card} />
+        </button>)}
+      </div>
+      {detailCard && <CardDetailModal card={detailCard} origin={detailOrigin} cards={cards} sequence={detailSequence}
+        onNavigate={item => revealDetailItem(item, 'strip', cardStrip.current)} onClose={() => { setDetailCard(null); setDetailOrigin(undefined); }} />}
       <DeckCostColumns curve={deck.curve} costMax={costMax} />
     </section> : <p className="deck-compare-empty">导入后查看费用曲线、稀有度和五项能力评分。</p>}
   </section>;
@@ -251,10 +342,10 @@ export default function DeckComparePage({ active, cards, existingDecks, onBack, 
   return <section className="deck-compare-page" aria-label="卡组对比">
     <div className="deck-compare-scroll custom-scrollbar">
       <div className="deck-compare-grid">
-        <CompareDeckInput slot="A" cards={cards} cardsById={cardsById} existingDecks={existingDecks} deck={left} costMax={costMax} tablecloth={tablecloth} onAnalyze={setLeft} onInvalidate={() => setLeft(null)} onImportDeck={onImportDeck} selectionRequest={selectionRequest} />
-        <CompareDeckInput slot="B" cards={cards} cardsById={cardsById} existingDecks={existingDecks} deck={right} costMax={costMax} tablecloth={tablecloth} onAnalyze={setRight} onInvalidate={() => setRight(null)} onImportDeck={onImportDeck} selectionRequest={selectionRequest} />
+        <CompareDeckInput slot="A" cards={cards} cardsById={cardsById} existingDecks={existingDecks} deck={left} otherSelectedExistingId={right?.existingDeckId} costMax={costMax} tablecloth={tablecloth} onAnalyze={setLeft} onInvalidate={() => setLeft(null)} onImportDeck={onImportDeck} selectionRequest={selectionRequest} />
+        <CompareDeckInput slot="B" cards={cards} cardsById={cardsById} existingDecks={existingDecks} deck={right} otherSelectedExistingId={left?.existingDeckId} costMax={costMax} tablecloth={tablecloth} onAnalyze={setRight} onInvalidate={() => setRight(null)} onImportDeck={onImportDeck} selectionRequest={selectionRequest} />
       </div>
-      {(left || right) && <><ComparisonTable left={left} right={right} /><CombinedAbilityChart left={left} right={right} /></>}
+      {(left || right) && <div className="deck-compare-metrics-layout"><ComparisonTable left={left} right={right} /><CombinedAbilityChart left={left} right={right} /></div>}
     </div>
   </section>;
 }

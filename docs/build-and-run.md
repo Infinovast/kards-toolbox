@@ -86,6 +86,7 @@ npm run dist:win:portable
 
 ## 常见问题
 
+- 如果打包提示 `node_modules/electron/dist` 不存在，请用 Node.js 22 执行 `npm rebuild electron --foreground-scripts` 补装运行时。确认 `node_modules/electron/dist/electron.exe` 存在后，重新打包。
 - **界面还是旧版**：确认启动的 EXE 路径；源码改动后需重新构建，发布版需重新打包。
 - **输出目录被占用**：关闭该目录中的应用及资源管理器预览，再打包。
 - **牌库数据较旧**：设置中获取更新，核对差异后应用；启动不会覆盖已应用数据。

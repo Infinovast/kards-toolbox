@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { LoaderCircle, RotateCcw, X } from 'lucide-react';
+import { Image as ImageIcon, LoaderCircle, RotateCcw, X } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { KardsCardRecord } from '../types/card';
 import { renderDeckImage } from '../lib/deckRenderer';
@@ -35,13 +35,13 @@ export default function DeckCompareImage({ deck, cards, tablecloth }: {
     return () => { cancelled = true; };
   }, [cards, deck.code, deck.name, deck.headquartersId, deck.cardBackId, retry, tablecloth]);
 
-  return <div className="deck-compare-image">
-    <div className="deck-compare-image-frame" aria-busy={loading}>
-      {loading ? <p role="status" className="deck-compare-image-state"><LoaderCircle className="h-4 w-4 animate-spin motion-reduce:animate-none" />正在生成卡组大图…</p>
-        : error ? <div role="alert" className="deck-compare-image-state"><p>{error}</p><button type="button" onClick={() => setRetry(value => value + 1)}><RotateCcw className="h-4 w-4" />重试生成</button></div>
-          : image ? <button type="button" className="deck-compare-image-button" aria-label={`放大${deck.name}卡组大图`} onClick={() => setEnlarged(true)}><img src={image} alt={`${deck.name}卡组大图`} draggable={false} /></button>
-            : null}
-    </div>
+  return <>
+    <button type="button" className="deck-compare-image-trigger" disabled={loading} aria-busy={loading}
+      aria-label={loading ? `正在生成${deck.name}卡组大图` : error ? `重试生成${deck.name}卡组大图` : `打开${deck.name}卡组大图`}
+      title={loading ? '正在生成卡组大图' : error || '查看卡组大图'}
+      onClick={() => error ? setRetry(value => value + 1) : setEnlarged(true)}>
+      {loading ? <LoaderCircle className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : error ? <RotateCcw className="h-4 w-4" /> : <ImageIcon className="h-4 w-4" />}
+    </button>
     {createPortal(<AnimatePresence>{enlarged && image && <motion.div className="card-detail-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reducedMotion ? 0 : 0.14 }}>
       <div className="card-detail-backdrop" onClick={() => setEnlarged(false)} />
       <section role="dialog" aria-modal="true" aria-label={`${deck.name}卡组大图放大预览`} tabIndex={-1} onKeyDown={handleDialogKeys} className="deck-compare-image-dialog">
@@ -49,5 +49,5 @@ export default function DeckCompareImage({ deck, cards, tablecloth }: {
         <img src={image} alt={`${deck.name}卡组大图放大预览`} draggable={false} />
       </section>
     </motion.div>}</AnimatePresence>, document.body)}
-  </div>;
+  </>;
 }

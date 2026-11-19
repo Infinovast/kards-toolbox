@@ -160,5 +160,8 @@
     "typescript": "~5.8.2",
     "vite": "^6.2.0",
     "wait-on": "^8.0.4"
+  },
+  "allowScripts": {
+    "electron@38.8.6": true
   }
 }

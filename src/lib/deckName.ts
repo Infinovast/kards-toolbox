@@ -5,3 +5,8 @@ export function defaultDeckName(mainNation: string, allyNation = mainNation): st
   const ally = mainNation.toLowerCase() === allyNation.toLowerCase() ? '' : factionLabel(allyNation).slice(0, 1);
   return `${main}${ally}卡组`;
 }
+
+export function normalizeDeckName(name: string, fallback: string): string {
+  const trimmed = name.trim();
+  return /[\p{L}\p{N}]/u.test(trimmed) ? trimmed : fallback;
+}

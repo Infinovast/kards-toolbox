@@ -39,14 +39,14 @@
     "Germany": {
       "icon": "/assets/faction_icons/Germany/germany.png",
       "white": "/assets/faction_icons/Germany/germany_white.svg",
-      "flag": "/assets/flags/Germany.svg",
+      "flag": "/assets/faction_icons/Germany/Germany_flag.svg",
       "stripColor": "#5e6b66"
     },
     "Britain": {
       "icon": "/assets/faction_icons/Britain/britain.png",
       "white": "/assets/faction_icons/Britain/britain_white.svg",
       "air": "/assets/faction_icons/Britain/britain_air.png",
-      "flag": "/assets/flags/Britain.svg",
+      "flag": "/assets/faction_icons/Britain/Britain_flag.svg",
       "stripColor": "#968c6f",
       "darkText": true
     },
@@ -54,7 +54,7 @@
       "icon": "/assets/faction_icons/Japan/japan.png",
       "white": "/assets/faction_icons/Japan/japan_white.svg",
       "air": "/assets/faction_icons/Japan/japan_air.png",
-      "flag": "/assets/flags/Japan.svg",
+      "flag": "/assets/faction_icons/Japan/Japan_flag.svg",
       "stripColor": "#9e8041",
       "darkText": true
     },
@@ -62,42 +62,42 @@
       "icon": "/assets/faction_icons/Soviet/soviet.png",
       "white": "/assets/faction_icons/Soviet/soviet-white.svg",
       "air": "/assets/faction_icons/Soviet/soviet_air.png",
-      "flag": "/assets/flags/Soviet.svg",
+      "flag": "/assets/faction_icons/Soviet/Soviet_flag.svg",
       "stripColor": "#655541"
     },
     "USA": {
       "icon": "/assets/faction_icons/USA/usa.png",
       "white": "/assets/faction_icons/USA/usa_white.svg",
       "air": "/assets/faction_icons/USA/usa_air.png",
-      "flag": "/assets/flags/USA.svg",
+      "flag": "/assets/faction_icons/USA/USA_flag.svg",
       "stripColor": "#656d4f"
     },
     "France": {
       "icon": "/assets/faction_icons/France/france.png",
       "white": "/assets/faction_icons/France/france_white.svg",
       "air": "/assets/faction_icons/France/france_air.png",
-      "flag": "/assets/flags/France.svg",
+      "flag": "/assets/faction_icons/France/France_flag.svg",
       "stripColor": "#515a78"
     },
     "Italy": {
       "icon": "/assets/faction_icons/Italy/italy.png",
       "white": "/assets/faction_icons/Italy/italy_white.svg",
       "air": "/assets/faction_icons/Italy/italy_air.png",
-      "flag": "/assets/flags/Italy.svg",
+      "flag": "/assets/faction_icons/Italy/Italy_flag.svg",
       "stripColor": "#6a6969"
     },
     "Poland": {
       "icon": "/assets/faction_icons/Poland/poland.png",
       "white": "/assets/faction_icons/Poland/poland_white.svg",
       "air": "/assets/faction_icons/Poland/poland_air.png",
-      "flag": "/assets/flags/Poland.svg",
+      "flag": "/assets/faction_icons/Poland/Poland_flag.svg",
       "stripColor": "#676452"
     },
     "Finland": {
       "icon": "/assets/faction_icons/Finland/finland.png",
       "white": "/assets/faction_icons/Finland/finland_white.svg",
       "air": "/assets/faction_icons/Finland/finland_air.png",
-      "flag": "/assets/flags/Finland.svg",
+      "flag": "/assets/faction_icons/Finland/Finland_flag.svg",
       "stripColor": "#bbbaaa",
       "darkText": true
     },
@@ -105,7 +105,7 @@
       "icon": "/assets/faction_icons/Anzac/anzac.png",
       "white": "/assets/faction_icons/Anzac/anzac_white.svg",
       "air": "/assets/faction_icons/Anzac/anzac_air.png",
-      "flag": "/assets/flags/au.svg",
+      "flag": "/assets/faction_icons/Anzac/Australia_flag.svg",
       "stripColor": "#9e6f34",
       "darkText": true
     },

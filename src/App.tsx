@@ -40,7 +40,7 @@ import { renderDeckImage, renderDeckMiniImage, downloadDeckImage } from './lib/d
 import { decodeDeckCode, findCardsByImportId, findDuplicateDeck } from './lib/deckCode';
 import { DEFAULT_DECK_RULES, deckModeLabel, deckRuleSet, validateDeck, type DeckRuleSet } from './lib/deckRules';
 import { extractDeckCodeFromText, inferDeckTitleFromText } from './lib/deckImport';
-import { defaultDeckName } from './lib/deckName';
+import { defaultDeckName, normalizeDeckName } from './lib/deckName';
 import ImageDownloadProgress from './components/ImageDownloadProgress';
 import { handleDialogKeys, useDismissiblePanel, useModalFocus } from './lib/dialogKeyboard';
 import CardLibrary from './components/CardLibrary';
@@ -410,6 +410,12 @@ export default function App() {
 
         if (localStorage.getItem('kards_last_clipboard_deck_code') === deckCode) return;
 
+        if (findDuplicateDeck(deckCode, decks)) {
+          lastClipboardPromptRef.current = deckCode;
+          localStorage.setItem('kards_last_clipboard_deck_code', deckCode);
+          return;
+        }
+
         const { defaultName } = parseDeck(deckCode);
         const inferredName = inferDeckTitleFromText(clipboardText, deckCode);
         lastClipboardPromptRef.current = deckCode;
@@ -417,7 +423,7 @@ export default function App() {
         setClipboardDeckCandidate({
           sourceText: clipboardText,
           code: deckCode,
-          name: inferredName || defaultName,
+          name: normalizeDeckName(inferredName, defaultName),
         });
       } catch {
         // Clipboard access can fail in browsers without permission; ignore silently.
@@ -433,7 +439,7 @@ export default function App() {
       cancelled = true;
       window.removeEventListener('focus', detectClipboardDeck);
     };
-  }, [activeMenu]);
+  }, [activeMenu, decks]);
 
   useEffect(() => {
     let disposed = false;
@@ -932,13 +938,19 @@ export default function App() {
   const handleImportClipboardDeck = () => {
     if (!clipboardDeckCandidate) return;
 
+    const duplicate = findDuplicateDeck(clipboardDeckCandidate.code, decks);
+    setClipboardDeckCandidate(null);
+    if (duplicate) {
+      setErrorStatus(`卡组已存在：“${duplicate.name}”。`);
+      return;
+    }
+
     setImportCode(clipboardDeckCandidate.sourceText);
     setImportHeadquartersId(undefined);
     setImportCardBackId(undefined);
-    setImportName(currentName => currentName || clipboardDeckCandidate.name);
+    setImportName(currentName => normalizeDeckName(currentName || clipboardDeckCandidate.name, clipboardDeckCandidate.name));
     setErrorStatus(null);
     setShowImportModal(true);
-    setClipboardDeckCandidate(null);
   };
 
   const createDeckFromCode = (sourceText: string, name: string, headquartersId?: string, cardBackId?: string): Deck => {
@@ -952,7 +964,7 @@ export default function App() {
       
       const newDeck: Deck = {
         id: crypto.randomUUID(),
-        name: name.trim() || inferredName || defaultName,
+        name: normalizeDeckName(name, normalizeDeckName(inferredName, defaultName)),
         mainNation,
         allyNation,
         code: deckCode,
