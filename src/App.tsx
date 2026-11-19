@@ -1894,7 +1894,7 @@ export default function App() {
                     placeholder="输入卡组名称，留空则默认以国家命名"
                     className="w-full bg-kards-input-bg border border-kards-border px-4 py-3 text-kards-text focus:outline-none focus:border-kards-gold transition-colors mb-4 rounded-md"
                   />
-                  <DeckImageImport cards={cardDatabase} cancelRef={cancelImageImport} onBusyChange={setImportImageBusy} onError={setErrorStatus}
+                  <DeckImageImport cancelRef={cancelImageImport} onBusyChange={setImportImageBusy} onError={setErrorStatus}
                     onRecognized={result => { setImportCode(result.code); setImportHeadquartersId(result.headquartersId); setImportCardBackId(result.cardBackId); if (result.name) setImportName(result.name); }} />
                   <label className="block text-xs uppercase tracking-wider text-kards-text-muted mb-2 mt-4 font-bold">卡组码</label>
                   <textarea

@@ -1,9 +1,10 @@
-// Build first. Exercises the real packaged protocol, worker, Sharp and Windows OCR.
+// Build first. Exercises the real packaged protocol, QR worker and Sharp.
 const { _electron: electron, expect } = require('playwright/test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const sharp = require('sharp');
+const QRCode = require('qrcode');
 
 async function main() {
   const root = path.resolve(__dirname, '..');
@@ -17,6 +18,7 @@ async function main() {
     const page = await app.firstWindow();
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     await page.waitForURL('kards://app/index.html');
+    await page.getByRole('complementary', { name: '主导航' }).getByRole('button', { name: '卡组', exact: true }).click();
     await expect(page.getByRole('button', { name: '新卡组', exact: true })).toBeVisible();
     const records = JSON.parse(await fs.readFile(path.join(root, 'public/data/cards.json'), 'utf8')).cards;
     const manifest = JSON.parse(await fs.readFile(path.join(root, 'src/data/headquarters.json'), 'utf8')).headquarters;
@@ -36,13 +38,10 @@ async function main() {
       return page.getByRole('dialog').filter({ has: page.getByRole('button', { name: '确认导入', exact: true }) });
     };
     let dialog = await openImport();
-    // A working QR must not need OCR, even when no OCR language pack is available.
-    await app.evaluate(({ ipcMain }) => { global.__ocrCalls = 0; const original = ipcMain._invokeHandlers.get('deck:recognize-image'); ipcMain.removeHandler('deck:recognize-image'); ipcMain.handle('deck:recognize-image', (...args) => { global.__ocrCalls++; return original(...args); }); });
     await dialog.getByLabel('选择卡组图片文件', { exact: true }).setInputFiles(file);
     await expect(dialog.getByRole('status')).toHaveText('已读取二维码：40 张（含总部）', { timeout: 30000 });
     await expect(dialog.getByRole('textbox').last()).toHaveValue(code);
     await expect(dialog.getByRole('textbox').first()).toHaveValue('QR round trip');
-    assert.equal(await app.evaluate(() => global.__ocrCalls), 0);
     await dialog.getByRole('textbox').first().fill('Image round trip');
     await dialog.getByRole('button', { name: '确认导入', exact: true }).click();
     await page.getByRole('button', { name: '更换总部', exact: true }).click();
@@ -51,27 +50,29 @@ async function main() {
     await expect(page.getByAltText('Image round trip', { exact: true })).toHaveAttribute('src', '/assets/cardbacks/Japan/cardback-050.png');
 
     dialog = await openImport();
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="700"><rect width="100%" height="100%" fill="white"/><g font-family="Microsoft YaHei" font-size="48" fill="black">${['OCR Pioneer', '第 50 步兵团', '第 50 步兵团', '第 50 步兵团', 'OT-34'].map((name, i) => `<text x="40" y="${100 + i * 120}">${name}</text>`).join('')}</g></svg>`;
+    const previousTitle = 'Keep existing deck';
+    await dialog.getByRole('textbox').first().fill(previousTitle);
+    await dialog.getByRole('textbox').last().fill(code);
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="700"><rect width="100%" height="100%" fill="white"/><g font-family="Microsoft YaHei" font-size="48" fill="black">${['Text-only deck', '第 50 步兵团', '第 50 步兵团', '第 50 步兵团', 'OT-34'].map((name, i) => `<text x="40" y="${100 + i * 120}">${name}</text>`).join('')}</g></svg>`;
     const textImage = await sharp(Buffer.from(svg)).png().toBuffer();
-    await dialog.getByLabel('选择卡组图片文件', { exact: true }).setInputFiles({ name: 'no-qr.png', mimeType: 'image/png', buffer: textImage });
-    await expect(dialog.getByRole('status')).toHaveText('图像识别：5 张（含总部），请核对信息', { timeout: 65000 });
-    assert.equal(await app.evaluate(() => global.__ocrCalls), 1);
-    await expect(dialog.getByRole('textbox').last()).toHaveValue('%%14|9s;;lV;');
-    await expect(dialog.getByRole('textbox').first()).toHaveValue('OCR Pioneer');
-
-    // Failed recognition preserves existing code, and closing cancels stale UI work.
-    const previousCode = await dialog.getByRole('textbox').last().inputValue();
     const blank = await sharp({ create: { width: 700, height: 500, channels: 3, background: '#ffffff' } }).png().toBuffer();
-    await dialog.getByLabel('选择卡组图片文件', { exact: true }).setInputFiles({ name: 'blank.png', mimeType: 'image/png', buffer: blank });
-    await expect(dialog.getByText('无法识别卡组图片', { exact: true })).toBeVisible({ timeout: 65000 });
-    await expect(dialog.getByRole('textbox').last()).toHaveValue(previousCode);
+    const unrelatedQr = await QRCode.toBuffer('https://example.com');
+    // Images without a usable deck QR preserve the existing title and code.
+    for (const [name, buffer] of [['no-qr.png', textImage], ['blank.png', blank], ['unrelated-qr.png', unrelatedQr]]) {
+      await dialog.getByLabel('选择卡组图片文件', { exact: true }).setInputFiles({ name, mimeType: 'image/png', buffer });
+      await expect(dialog.getByText('图片中未找到可用的卡组二维码', { exact: true })).toBeVisible({ timeout: 30000 });
+      await expect(dialog.getByRole('textbox').first()).toHaveValue(previousTitle);
+      await expect(dialog.getByRole('textbox').last()).toHaveValue(code);
+      await expect(dialog.getByRole('button', { name: '确认导入', exact: true })).toBeEnabled();
+    }
+    // Closing cancels stale UI work.
     await dialog.getByLabel('选择卡组图片文件', { exact: true }).setInputFiles(file);
     await dialog.getByRole('button', { name: '取消', exact: true }).click();
     await expect(dialog).toHaveCount(0);
     dialog = await openImport();
     await expect(dialog.getByRole('textbox').last()).toHaveValue('');
     assert.deepEqual(errors, []);
-    console.log('Deck image desktop smoke passed: Sharp QR, production worker, headquarters/card back round trip, actual Windows OCR, failure preservation and cancel/reopen');
+    console.log('Deck image desktop smoke passed: Sharp QR, production worker, headquarters/card back round trip, missing/invalid QR preservation and cancel/reopen');
   } finally {
     await app.close();
   }

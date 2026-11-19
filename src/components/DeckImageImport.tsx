@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { ImagePlus, LoaderCircle } from 'lucide-react';
 import { importDeckImage, type ImageDeckResult } from '../lib/deckImageImport';
-import type { KardsCardRecord } from '../types/card';
 
-export default function DeckImageImport({ cards, onRecognized, onError, onBusyChange, cancelRef }: {
-  cards: KardsCardRecord[];
+export default function DeckImageImport({ onRecognized, onError, onBusyChange, cancelRef }: {
   onRecognized: (result: ImageDeckResult) => void;
   onError: (message: string | null) => void;
   onBusyChange: (busy: boolean) => void;
@@ -23,10 +21,10 @@ export default function DeckImageImport({ cards, onRecognized, onError, onBusyCh
     const task = new AbortController(); controller.current = task;
     setBusy(true); onBusyChange(true); onError(null); setMessage('识别二维码…');
     try {
-      const result = await importDeckImage(file, cards, setMessage, task.signal);
+      const result = await importDeckImage(file, setMessage, task.signal);
       if (task.signal.aborted) return;
       onRecognized(result);
-      setMessage(result.source === 'qr' ? `已读取二维码：${result.total} 张（含总部）` : `图像识别：${result.total} 张（含总部），请核对信息`);
+      setMessage(`已读取二维码：${result.total} 张（含总部）`);
     } catch (error) {
       if (!task.signal.aborted) { setMessage(''); onError(error instanceof Error ? error.message : '无法识别卡组图片'); }
     } finally {

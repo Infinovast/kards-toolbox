@@ -3,7 +3,6 @@ import fs from 'fs/promises';
 import { mkdirSync } from 'fs';
 import path from 'path';
 import { renderDeckImage } from './deckRenderer';
-import { recognizeDeckImage } from './windowsOcr';
 import { resolveUserDataPath } from './userDataPath';
 import { CacheBundleInstaller, configurePackManager, validateImageReference } from './cacheBundle';
 import { fetchCardDataPage, type CardDataSource } from '../src/lib/cardData';
@@ -171,7 +170,6 @@ function registerIpcHandlers() {
   }));
 
   ipcMain.handle('deck:render', (_event, request: DeckRenderRequest) => renderDeckImage(request));
-  ipcMain.handle('deck:recognize-image', (_event, data: string) => recognizeDeckImage(data));
   ipcMain.handle('app:set-theme', async (_event, mode: string) => {
     if (!['dark', 'light', 'system'].includes(mode)) throw new Error('无效主题');
     nativeTheme.themeSource = mode as 'dark' | 'light' | 'system';

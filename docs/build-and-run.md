@@ -5,7 +5,6 @@
 - Windows 10/11 x64、Node.js 22 和 npm。
 - 保留 `package-lock.json`，首次安装或换机器时执行 `npm ci`，日常开发无需重复安装。
 - 在包含 `package.json` 的项目根目录执行命令，目录可以重命名。
-- 无二维码的图片导入使用 Windows 本机 OCR，需要相应语言的文字识别组件。
 
 ## 静态资源与源码仓库
 

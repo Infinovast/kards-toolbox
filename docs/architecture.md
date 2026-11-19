@@ -48,8 +48,7 @@ Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴
 | `src/components/PageIndicator.tsx`、`src/lib/pagination.ts` | 共用首尾页、邻近页及省略号导航，支持点击与键盘；滚轮翻页由卡池区域负责 |
 | `src/data/cardSubtypes.json`、`src/lib/cardSubtypes.ts` | 本地子类定义、卡牌映射及详情展示 |
 | `src/lib/deckRenderer.ts`、`deckRenderCounter.ts` | Canvas 生图及共享计数器绘制 |
-| `src/lib/deckImageCode.ts`、`deckImageQr.worker.ts`、`deckImageImport.ts` | 含卡组名、总部和卡背标识的二维码载荷、后台识别及卡名文字匹配 |
-| `electron/windowsOcr.ts` | 本机 Windows OCR，图片转换、临时文件清理与超时限制；通过受限 IPC 返回文字 |
+| `src/lib/deckImageCode.ts`、`deckImageQr.worker.ts`、`deckImageImport.ts` | 含卡组名、总部、卡背标识和卡组码的二维码载荷、后台识别及图片导入 |
 | `src/lib/cardAssets.ts`、`src/data/` | 卡背、总部、桌布和战备卡组清单 |
 | `src/lib/backup.ts` | 用户备份的校验、导出和恢复 |
 | `src/lib/userDataSchema.ts`、`userDataStorage.ts` | 用户数据结构校验、串行保存、失败重试、自动备份与备份恢复日志 |
