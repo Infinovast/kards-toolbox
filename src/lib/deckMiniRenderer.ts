@@ -75,8 +75,10 @@ export async function renderDeckMiniImage(code: string, cards: KardsCardRecord[]
     ctx.drawImage(image, image.width * crop.x, image.height * crop.y, image.width * crop.width, image.height * crop.height, 16 + index * 43, 210, 15, 20);
     ctx.fillStyle = '#fff9e8'; ctx.font = '12px Bahnschrift, Arial, sans-serif'; ctx.fillText(String(summary.rarities[rarity] || 0), 35 + index * 43, 225);
   }
-  const qr = await load(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(deckQrSvg(code, headquartersId, title, cardBackId, RESOLUTION))}`);
-  const qrSize = 44, qrX = WIDTH - 6 - qrSize, qrY = 10;
+  // Keep whole pixels per module at export resolution so the QR survives the
+  // smaller cover layout and can be read back on a busy background.
+  const qr = await load(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(deckQrSvg(code, headquartersId, title, cardBackId, 48 * RESOLUTION))}`);
+  const qrSize = qr.naturalWidth / RESOLUTION, qrX = WIDTH - 6 - qrSize, qrY = 10;
   ctx.drawImage(qr, qrX, qrY, qrSize, qrSize);
   return canvas.toDataURL('image/png');
 }

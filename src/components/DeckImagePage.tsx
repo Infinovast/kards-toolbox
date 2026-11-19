@@ -45,6 +45,7 @@ export default function DeckImagePage({ cards, decks, tablecloth: defaultTablecl
   const [input, setInput] = useState<{ text: string; title?: string; history?: { tablecloth: string; revision: number; cards: KardsCardRecord[] } }>({ text: '' });
   const [previews, setPreviews] = useState({ full: emptyPreview(), mini: emptyPreview() });
   const [saveError, setSaveError] = useState('');
+  const [downloadError, setDownloadError] = useState('');
   const [retry, setRetry] = useState(0);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
@@ -100,6 +101,7 @@ export default function DeckImagePage({ cards, decks, tablecloth: defaultTablecl
   useEffect(() => {
     let cancelled = false;
     setSaveError('');
+    setDownloadError('');
     const deck = parsed.deck;
     if (!deck) { setPreviews({ full: emptyPreview(), mini: emptyPreview() }); return; }
     setPreviews({ full: { ...emptyPreview(), loading: true }, mini: { ...emptyPreview(), loading: true } });
@@ -190,13 +192,19 @@ export default function DeckImagePage({ cards, decks, tablecloth: defaultTablecl
     <div className="relative min-h-0 flex-1">
       <div className="h-full overflow-y-auto p-5">
         {saveError && <p role="alert" className="mb-4 text-sm text-kards-text">{saveError}<button type="button" onClick={() => setRetry(value => value + 1)} className="ml-2 underline underline-offset-4">重试生成</button></p>}
+        {downloadError && <p role="alert" className="mb-4 text-sm text-kards-text">{downloadError}</p>}
         <div className="grid items-start gap-6 md:grid-cols-[minmax(0,1fr)_minmax(260px,342px)]">
           {(['full', 'mini'] as const).map(kind => {
             const preview = previews[kind], title = kind === 'full' ? '完整卡组图' : '迷你分享图';
             return <section key={kind} aria-label={title} className="min-w-0">
               <div className="glass-panel mb-3 flex min-h-10 items-center justify-between gap-2 rounded px-3 py-2">
                 <h2 className="text-sm font-bold">{title}</h2>
-                <button type="button" disabled={!preview.image || preview.loading || !parsed.deck} onClick={() => downloadDeckImage(preview.image!, parsed.deck!.name + (kind === 'mini' ? '-mini' : ''))}
+                <button type="button" disabled={!preview.image || preview.loading || !parsed.deck} onClick={() => {
+                  if (!preview.image || !parsed.deck) return;
+                  setDownloadError('');
+                  void downloadDeckImage(preview.image, parsed.deck.name + (kind === 'mini' ? '-mini' : ''))
+                    .catch(error => setDownloadError(`无法保存 PNG：${error instanceof Error ? error.message : String(error)}`));
+                }}
                   aria-label={`下载${title}`} className="flex items-center gap-1.5 text-xs text-kards-text-muted hover:text-kards-text disabled:opacity-40"><Download className="h-4 w-4" />下载 PNG</button>
               </div>
               <div aria-busy={preview.loading} className="glass-panel flex min-h-[242px] items-center justify-center overflow-hidden rounded">

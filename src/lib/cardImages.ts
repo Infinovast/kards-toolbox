@@ -27,10 +27,12 @@ export async function initializeCardImageIndex(refresh = false) {
   }
   return indexLoaded;
 }
-const protocolImageUrl = (ref: CardImageReference, stamp: string) => `kards://app/card-image?${new URLSearchParams({ ...ref, v: stamp })}`;
+const cardImageEndpoint = () => window.kardsDesktop?.cardImageEndpoint || '/card-image';
+const protocolImageUrl = (ref: CardImageReference, stamp: string) => `${cardImageEndpoint()}?${new URLSearchParams({ ...ref, v: stamp })}`;
 export function cachedImageByteLength(value: string) {
-  if (value.startsWith('kards://')) {
-    const url = new URL(value), ref = { cardId: url.searchParams.get('cardId')!, variant: url.searchParams.get('variant') as 'full' | 'thumb', url: url.searchParams.get('url')! };
+  if (typeof window !== 'undefined' && value.startsWith(`${cardImageEndpoint()}?`)) {
+    const url = new URL(value, window.location.href);
+    const ref = { cardId: url.searchParams.get('cardId')!, variant: url.searchParams.get('variant') as 'full' | 'thumb', url: url.searchParams.get('url')! };
     return packIndex.get(cardPackCacheKey(ref))?.size || 0;
   }
   return Math.floor((value.length - value.indexOf(',') - 1) * 0.75);

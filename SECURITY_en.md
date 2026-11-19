@@ -8,4 +8,4 @@ For issues involving tokens, personal data exposure, arbitrary file access, or c
 
 Ordinary functional issues can be reported publicly. When sharing logs or backups, do not include real secrets, personal information, or a complete user data directory in public issues or pull requests.
 
-During maintenance and release preparation, run `npm audit` to check dependency risks and review Electron runtime security advisories. Passing checks does not guarantee the absence of vulnerabilities. Development servers are intended for local debugging and should not be exposed directly to the public internet.
+During maintenance and release preparation, run `npm audit` to check frontend dependencies and review Wails, Go, and WebView2 advisories. Development servers are intended for local debugging.

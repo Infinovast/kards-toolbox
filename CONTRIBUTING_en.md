@@ -6,7 +6,7 @@ Thank you for your contribution. Issue reports and pull requests are welcome. Se
 
 ## Submitting changes
 
-1. Install Node.js 22 and npm, then run `npm ci`. Desktop development and asset-related checks also require static assets that you are authorized to use.
+1. Install Node.js 22 and npm, then run `npm ci`. Desktop development also requires Go 1.26.2 or later, the WebView2 Runtime, and static assets you are authorized to use. [Build guide (Chinese)](docs/build-and-run.md)
 2. Keep each change focused on one clearly defined problem or feature. Explain how to reproduce the issue, the expected behavior, and the actual result. For interface issues, screenshots are useful after personal information has been removed.
 3. Before submitting, run `npm run lint`, `npm test`, and `npm run build:desktop`. State which checks you could not run and why. Do not commit dependency directories, build output, caches, user backups, secrets, or game resource packs.
 4. For a new feature, increment the patch version once and update `package.json`, both the top-level and root package versions in `package-lock.json`, and the current version in the README. Keep the Chinese and English README versions consistent. Fixes, style changes, and documentation updates do not change the version.

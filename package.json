@@ -5,123 +5,36 @@
   "license": "MIT",
   "description": "KARDS Toolbox — local-first card library and deck manager for Windows.",
   "type": "module",
-  "main": "dist-electron/main.cjs",
   "scripts": {
     "dev": "tsx server.ts",
     "dev:web": "tsx server.ts",
     "dev:renderer": "vite --host 127.0.0.1",
-    "dev:desktop": "concurrently -k \"npm:dev:renderer\" \"npm:dev:electron:wait\"",
-    "dev:electron:wait": "wait-on tcp:5173 && npm run build:electron && node scripts/start-electron.cjs . --disable-crash-reporter",
+    "dev:desktop": "node scripts/build-wails.cjs dev",
     "build": "npm run build:web && npm run build:server",
     "build:web": "vite build && node scripts/collect-licenses.cjs",
     "build:server": "esbuild server.ts --bundle --platform=node --format=cjs --outfile=dist/server.cjs --external:express",
-    "build:electron": "node scripts/build-electron.cjs",
-    "build:electron:dev": "node -e \"process.env.KARDS_ENABLE_DEVELOPER_OPTIONS='true'; require('./scripts/build-electron.cjs')\"",
-    "build:desktop": "npm run build:web && npm run build:electron",
-    "build:desktop:dev": "npm run build:web && npm run build:electron:dev",
-    "dist:win": "npm run build:desktop && electron-builder --win --x64",
-    "dist:win:dir": "npm run build:desktop && electron-builder --win --x64 --dir -c.win.signAndEditExecutable=false",
-    "dist:win:zip": "npm run build:desktop && electron-builder --win zip --x64 -c.win.signAndEditExecutable=false",
-    "dist:win:portable": "npm run build:desktop && electron-builder --win portable --x64 -c.win.signAndEditExecutable=false",
-    "dist:win:dir:full": "node scripts/build-full.cjs --target dir",
-    "dist:win:portable:full": "node scripts/build-full.cjs --target portable",
-    "build:cache-bundle": "node scripts/build-full.cjs --cache-only",
+    "build:desktop": "node scripts/build-wails.cjs build",
+    "build:desktop:dev": "node scripts/build-wails.cjs build --developer",
+    "dist:win": "npm run dist:win:dir",
+    "dist:win:dir": "node scripts/build-wails.cjs dir",
+    "dist:win:zip": "node scripts/build-wails.cjs zip",
+    "dist:win:portable": "node scripts/build-wails.cjs portable",
+    "dist:win:dir:full": "node scripts/build-wails.cjs full-dir",
+    "dist:win:portable:full": "node scripts/build-wails.cjs full-portable",
+    "build:cache-bundle": "node scripts/build-wails.cjs cache-only",
     "build:packs": "tsx scripts/build-packs.ts",
     "export:cache:loose": "node scripts/export-cache.cjs --to-loose",
     "export:cache:pack": "node scripts/export-cache.cjs --to-pack",
-    "dist:win:portable:dev": "npm run build:desktop:dev && electron-builder --win portable --x64 -c.win.signAndEditExecutable=false",
+    "dist:win:portable:dev": "node scripts/build-wails.cjs portable --developer",
     "start": "node dist/server.cjs",
     "preview": "vite preview",
-    "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true});fs.rmSync('dist-electron',{recursive:true,force:true});fs.rmSync('release',{recursive:true,force:true})\"",
+    "clean": "node scripts/clean-build.cjs",
     "lint": "tsc --noEmit",
     "test:deck-import": "tsx src/lib/deckImport.test.ts",
     "test:deck-image-header": "tsx src/lib/deckRenderHeader.test.ts",
-    "test": "npm run test:deck-import && tsx src/lib/deckCode.test.ts && tsx src/lib/deckCostCurve.test.ts && tsx src/lib/deckAnalysis.test.ts && tsx src/lib/deckImageImport.test.ts && npm run test:deck-image-header && tsx src/lib/backup.test.ts && tsx src/lib/userDataStorage.test.ts && tsx electron/userDataPath.test.ts && tsx electron/cacheBundle.test.ts && tsx src/lib/cardData.test.ts && tsx src/lib/cardAssets.test.ts && tsx src/lib/cardFilters.test.ts && tsx src/lib/cardKeywords.test.tsx && tsx src/lib/pagination.test.ts && tsx src/lib/cardImages.test.ts && tsx src/lib/cardPacks.test.ts && tsx src/lib/packHistory.test.ts",
-    "test:desktop": "node scripts/smoke-desktop.cjs",
+    "test": "npm run test:deck-import && tsx src/lib/deckCode.test.ts && tsx src/lib/deckCostCurve.test.ts && tsx src/lib/deckAnalysis.test.ts && tsx src/lib/deckImageImport.test.ts && npm run test:deck-image-header && tsx src/lib/backup.test.ts && tsx src/lib/userDataStorage.test.ts && tsx tooling/cacheBundle.test.ts && tsx src/lib/cardData.test.ts && tsx src/lib/cardAssets.test.ts && tsx src/lib/cardFilters.test.ts && tsx src/lib/cardKeywords.test.tsx && tsx src/lib/pagination.test.ts && tsx src/lib/cardImages.test.ts && tsx src/lib/cardPacks.test.ts && tsx src/lib/packHistory.test.ts",
+    "test:desktop": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/smoke-wails.ps1",
     "app": "start \"\" \"release/win-unpacked/kards_toolbox.exe\""
-  },
-  "build": {
-    "appId": "com.kards.localtool",
-    "productName": "KARDS Toolbox",
-    "compression": "maximum",
-    "electronDist": "node_modules/electron/dist",
-    "npmRebuild": false,
-    "buildDependenciesFromSource": false,
-    "afterPack": "scripts/prune-electron-package.cjs",
-    "electronLanguages": [
-      "en-US",
-      "zh-CN"
-    ],
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "dist/**/*",
-      "dist-electron/**/*",
-      "package.json",
-      "LICENSE",
-      "THIRD_PARTY_NOTICES.md",
-      "THIRD_PARTY_NOTICES_en.md",
-      "!src/**/*",
-      "!electron/**/*",
-      "!public/**/*",
-      "!assets-private/**/*",
-      "!dist/assets/**/*.png",
-      "!dist/assets/**/*.jpg",
-      "!dist/assets/**/*.jpeg",
-      "!dist/assets/**/*.svg",
-      "!dist/assets/**/*.webp",
-      "!dist/assets/**/*.avif",
-      "!release/**/*",
-      "!*.log",
-      "node_modules/sharp/**/*",
-      "node_modules/@img/**/*",
-      "node_modules/detect-libc/**/*",
-      "node_modules/semver/**/*"
-    ],
-    "extraMetadata": {
-      "main": "dist-electron/main.cjs"
-    },
-    "extraFiles": [
-      {
-        "from": "LICENSE",
-        "to": "LICENSE.KARDS-Toolbox.txt"
-      },
-      {
-        "from": "THIRD_PARTY_NOTICES.md",
-        "to": "THIRD_PARTY_NOTICES.md"
-      },
-      {
-        "from": "THIRD_PARTY_NOTICES_en.md",
-        "to": "THIRD_PARTY_NOTICES_en.md"
-      },
-      {
-        "from": "dist/THIRD_PARTY_LICENSES.txt",
-        "to": "THIRD_PARTY_LICENSES.txt"
-      }
-    ],
-    "win": {
-      "executableName": "kards_toolbox",
-      "signAndEditExecutable": true,
-      "target": [
-        "nsis",
-        "portable",
-        "dir"
-      ],
-      "icon": "build/app-icon.png"
-    },
-    "portable": {
-      "artifactName": "kards_toolbox.exe"
-    },
-    "nsis": {
-      "oneClick": false,
-      "perMachine": false,
-      "allowToChangeInstallationDirectory": true
-    },
-    "asarUnpack": [
-      "node_modules/@img/**/*",
-      "dist-electron/static.kpak"
-    ]
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.14",
@@ -138,7 +51,6 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-easy-crop": "^5.5.7",
-    "sharp": "^0.35.5",
     "vite": "^6.2.0"
   },
   "devDependencies": {
@@ -150,18 +62,12 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.4.21",
-    "concurrently": "^9.2.1",
-    "electron": "^38.2.0",
-    "electron-builder": "^26.0.12",
     "lightningcss-win32-x64-msvc": "^1.32.0",
     "playwright": "^1.64.1",
+    "sharp": "^0.35.5",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
-    "vite": "^6.2.0",
-    "wait-on": "^8.0.4"
-  },
-  "allowScripts": {
-    "electron@38.8.6": true
+    "vite": "^6.2.0"
   }
 }

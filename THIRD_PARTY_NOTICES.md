@@ -19,17 +19,18 @@ KARDS Toolbox 自行编写的代码和文档采用 [MIT License](LICENSE)。该�
 
 ## 软件依赖
 
-依赖按其各自许可证使用，不因本项目采用 MIT 而统一变为 MIT。依赖版本由 `package-lock.json` 固定。
+依赖按其各自许可证使用。JavaScript 和 Go 依赖版本分别记在 `package-lock.json` 和 `desktop/go.mod` 中。
 
 | 组件 | 许可证及说明 |
 | --- | --- |
 | React、Motion、localForage、jsQR、QRCode、react-easy-crop | MIT；保留各组件的版权声明及许可证 |
 | Lucide | ISC；部分图标源自 Feather，另有 MIT 声明，以组件附带许可证为准 |
-| Sharp | Apache-2.0；预编译原生包还包含 LGPL-3.0-or-later 等许可的组件 |
-| libvips 及随 Sharp 分发的原生库 | 按原生包的 `LICENSE`、`README.md` 及上游条款使用；LGPL 组件的源码和构建资料见 [sharp-libvips](https://github.com/lovell/sharp-libvips) 与 [libvips](https://github.com/libvips/libvips)。分发二进制时需核实对应版本的源码提供、替换/重新链接等义务 |
-| Electron、Chromium、Node.js | 保留运行时随附的 `LICENSE`、`LICENSES.chromium.html` 等声明及许可 |
+| Go 标准库、Brotli | BSD-3-Clause |
+| Wails、go-webview2 | MIT |
+| Microsoft Edge WebView2 Runtime | 桌面应用使用系统安装的运行时，适用微软的许可条款 |
+| Sharp、libvips | 开发测试依赖，适用组件自带的许可 |
 | Vite、esbuild、Express、Tailwind CSS 等构建及服务依赖 | 按各组件附带许可证使用；Lightning CSS 使用 MPL-2.0 |
 
-`npm run build:web` 会从当前安装的生产依赖收集完整许可证文本到 `dist/THIRD_PARTY_LICENSES.txt`，完整缓存构建也执行相同步骤。标准桌面打包会把该文件、中英文第三方说明和项目 MIT 许可证复制到分发目录；Electron 及原生依赖附带的许可证仍需随组件保留。
+`npm run build:web` 将生产依赖的许可证收集到 `dist/THIRD_PARTY_LICENSES.txt`。桌面构建补充 Go 的运行依赖许可，将完整文本、中英文第三方说明和项目 MIT 许可证嵌入 EXE。文件夹版也在 EXE 旁附上这些文本。
 
 收集文件用于保留软件依赖声明，不替代游戏内容授权，也不自动满足所有二进制组件的源码提供义务。重新分发前应结合实际产物、所含组件及对应版本检查许可要求。

@@ -2,7 +2,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { config } from 'dotenv';
-import { Kpak } from '../electron/kpak';
+import { Kpak } from '../tooling/kpak';
 config({ quiet: true });
 const args = process.argv.slice(2), file = args[0];
 if (!file) throw new Error('用法：cache-bundle-reader.ts file.kpak [--verify] [--extract directory]');

@@ -135,7 +135,7 @@ Ability scores are the core of deck analysis. By estimating a deck's economy, co
 
 ### Settings and data
 
-- User data is stored in `%APPDATA%\kards-toolbox`. For a ZIP release, extract the entire archive before running `kards_toolbox.exe`.
+- User data is stored in `%APPDATA%\kards-toolbox-wails`. Extract the full ZIP release with `kards_toolbox.exe` and `cards.kpak` in the same folder, then run the executable.
 - Open settings from the bottom of the sidebar. To update card data, choose kardsplayer.com (the default) or kards.com, fetch data, review additions, changes, and removals, then apply the update. You can roll back to the previous snapshot.
 - The library does not update automatically at startup. Viewing uncached card artwork can trigger a network download. Updating card data changes the records and image URLs without downloading all images.
 - **Local cache** reports library size, full-size image coverage, and thumbnail coverage separately. Inspect cached, uncached, and failed items; download in batches, retry failures, delete images, or compact the cache to reclaim space.
@@ -145,7 +145,7 @@ Ability scores are the core of deck analysis. By estimating a deck's economy, co
 
 ## Run from source
 
-Requires Windows 10/11 x64, Node.js 22, and npm. The source repository does not include game artwork. Before running the desktop app, prepare assets you are authorized to use, or a compatible resource pack, as described in [Static asset setup (Chinese)](docs/build-and-run.md#静态资源与源码仓库). From the project directory, run:
+Requires Windows 10/11 x64, Node.js 22, npm, Go 1.26.2 or later, and the WebView2 Runtime. Prepare game assets you are authorized to use or a compatible resource pack before building. [Static asset setup (Chinese)](docs/build-and-run.md#静态资源与源码仓库)
 
 ```powershell
 npm ci

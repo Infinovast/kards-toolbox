@@ -1,27 +1,17 @@
 // Run against a local renderer server; uses a fresh, isolated browser profile.
 // KARDS_TEST_URL can override the default http://127.0.0.1:5188.
-const { chromium, _electron, expect } = require('playwright/test');
+const { chromium, expect } = require('playwright/test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 
 async function main() {
-  const desktop = process.argv.includes('--desktop');
   const root = path.resolve(__dirname, '..');
-  const base = desktop ? 'kards://app' : process.env.KARDS_TEST_URL || 'http://127.0.0.1:5188';
-  const output = path.join(root, 'test-results', 'user-data-and-packs', desktop ? 'desktop' : 'renderer');
+  const base = process.env.KARDS_TEST_URL || 'http://127.0.0.1:5188';
+  const output = path.join(root, 'test-results', 'user-data-and-packs', 'renderer');
   await fs.mkdir(output, { recursive: true });
-  const profile = desktop ? await fs.mkdtemp(path.join(output, 'profile-')) : null;
-  const env = { ...process.env, KARDS_USE_DIST: '1' };
-  delete env.ELECTRON_RUN_AS_NODE;
-  const app = desktop ? await _electron.launch({ executablePath: require('electron'), args: [root, `--user-data-dir=${profile}`, '--disable-crash-reporter'], env }) : null;
-  if (app) await app.evaluate(({ net }) => {
-    const fetch = net.fetch.bind(net);
-    net.fetch = (input, init) => /^https?:/.test(typeof input === 'string' ? input : input.url || String(input))
-      ? Promise.resolve(new Response('Offline test', { status: 503 })) : fetch(input, init);
-  });
-  const browser = desktop ? null : await chromium.launch({ headless: true, ...(process.env.KARDS_BROWSER_CHANNEL ? { channel: process.env.KARDS_BROWSER_CHANNEL } : {}) });
-  const context = app ? app.context() : await browser.newContext({ viewport: { width: 1280, height: 820 }, reducedMotion: 'reduce' });
+  const browser = await chromium.launch({ headless: true, channel: process.env.KARDS_BROWSER_CHANNEL || 'msedge' });
+  const context = await browser.newContext({ viewport: { width: 1280, height: 820 }, reducedMotion: 'reduce' });
   await context.addInitScript(() => {
     const get = IDBObjectStore.prototype.get;
     const put = IDBObjectStore.prototype.put;
@@ -55,15 +45,15 @@ async function main() {
     });
     window.__testStore = { getItem: key => storage(key), setItem: (key, value) => storage(key, value, true) };
   });
-  const page = app ? await app.firstWindow() : await context.newPage();
+  const page = await context.newPage();
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.route('**/*', route => route.request().url().startsWith(base) || /^(data:|blob:)/.test(route.request().url()) ? route.continue() : route.abort());
   const storeGet = key => page.evaluate(key => window.__testStore.getItem(key), key);
   try {
-    await page.goto(desktop ? `${base}/index.html` : base);
-    await expect(page.getByRole('heading', { name: '卡组', exact: true })).toBeVisible();
+    await page.goto(base);
+    await page.getByRole('button', { name: '进入我的卡组' }).click();
     await page.waitForFunction(() => window.__userDataWrites.includes('kards_custom_tablecloths'));
     const fixture = { id: 'safety-fixture', name: '原有卡组', mainNation: 'Germany', allyNation: 'Soviet', code: '%%14|;;;', isFavorite: false, isArena: false, totalCards: 0, warnings: [] };
     await page.evaluate(async deck => {
@@ -76,6 +66,7 @@ async function main() {
     assert.deepEqual(await page.evaluate(() => window.__userDataWrites), [], 'failed startup must not start any user-data writes');
     await page.evaluate(() => sessionStorage.removeItem('test_fail_read'));
     await page.getByRole('button', { name: '重试读取', exact: true }).click();
+    await page.getByRole('button', { name: '进入我的卡组' }).click();
     await expect(page.getByRole('button', { name: '选择卡组 原有卡组', exact: true })).toBeVisible();
 
     await page.evaluate(() => sessionStorage.setItem('test_fail_write', 'kards_settings'));
@@ -91,16 +82,9 @@ async function main() {
     const backupContent = JSON.stringify({
       app: 'kards-toolbox', schemaVersion: 1, data: { kards_decks: [], kards_settings: { displayMode: 'dark' } },
     });
-    if (app) {
-      const backupFile = path.join(output, 'restore-fixture.json');
-      await fs.writeFile(backupFile, backupContent);
-      await app.evaluate(({ dialog }, file) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }); }, backupFile);
-      await page.getByRole('button', { name: '导入备份', exact: true }).click();
-    } else {
-      const chooser = page.waitForEvent('filechooser');
-      await page.getByRole('button', { name: '导入备份', exact: true }).click();
-      await (await chooser).setFiles({ name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(backupContent) });
-    }
+    const chooser = page.waitForEvent('filechooser');
+    await page.getByRole('button', { name: '导入备份', exact: true }).click();
+    await (await chooser).setFiles({ name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(backupContent) });
     await expect(page.getByText(/已回滚原数据/)).toBeVisible();
     assert.equal((await storeGet('kards_decks'))[0].id, fixture.id);
     assert.equal((await storeGet('kards_settings')).displayMode, 'light');
@@ -128,11 +112,11 @@ async function main() {
 
     await page.getByRole('button', { name: '卡包', exact: true }).click();
     const history = page.getByLabel('开包历史', { exact: true });
-    await expect(history).toContainText('100×0+330×0=0');
+    await expect(history.locator('p')).toHaveText('100×0 + 330×0 = 0');
     await page.evaluate(() => { Math.random = () => 0.999999; });
     await page.getByRole('button', { name: '打开卡包', exact: true }).click();
     await expect(page.locator('.pack-opening-stage')).toBeVisible();
-    await expect(history).toContainText('100×1+330×0=100');
+    await expect(history.locator('p')).toHaveText('100×1 + 330×0 = 100');
     await expect(page.locator('[data-reward-kind="wildcard"]')).toHaveCount(0);
     await page.getByRole('button', { name: '全部翻开', exact: true }).click();
     await expect(page.locator('.pack-reveal-card[data-state="revealed"]')).toHaveCount(5);
@@ -145,9 +129,9 @@ async function main() {
     await page.getByRole('button', { name: '打开卡包', exact: true }).click();
     await expect(page.getByRole('alert').filter({ hasText: '无法打开卡包' })).toBeVisible();
     await expect(page.locator('.pack-opening-stage')).toHaveCount(0);
-    await expect(history).toContainText('100×1+330×0=100');
+    await expect(history.locator('p')).toHaveText('100×1 + 330×0 = 100');
     await page.getByRole('button', { name: '打开卡包', exact: true }).click();
-    await expect(history).toContainText('100×1+330×1=430');
+    await expect(history.locator('p')).toHaveText('100×1 + 330×1 = 430');
     await expect(page.locator('[data-reward-kind="wildcard"]')).toHaveCount(7);
     await page.getByRole('button', { name: '全部翻开', exact: true }).click();
     await expect(page.locator('.pack-reveal-card[data-state="revealed"]')).toHaveCount(7);
@@ -180,11 +164,11 @@ async function main() {
     }
     await page.reload();
     await page.getByRole('button', { name: '卡包', exact: true }).click();
-    await expect(history).toContainText('100×1+330×1=430');
+    await expect(history.locator('p')).toHaveText('100×1 + 330×1 = 430');
     await expect(history.getByLabel('精英 12', { exact: true })).toBeVisible();
     assert.deepEqual(errors, [], 'no uncaught renderer errors');
-    console.log(`${desktop ? 'Production desktop' : 'Renderer'} UI checks passed: failed-load protection, save retry, restore rollback, explicit builder saves, exact pack history, Common wildcard reveal, persistence and 980/1280 layouts.`);
-  } finally { if (app) await app.close(); else { await context.close(); await browser.close(); } }
+    console.log('Renderer UI checks passed: failed-load protection, save retry, restore rollback, explicit builder saves, exact pack history, Common wildcard reveal, persistence and 980/1280 layouts.');
+  } finally { await browser.close(); }
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; });

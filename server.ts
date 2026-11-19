@@ -2,7 +2,7 @@ import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'node:path';
 import { config } from 'dotenv';
-import { staticAssetMiddleware } from './electron/staticMiddleware';
+import { staticAssetMiddleware } from './tooling/staticMiddleware';
 
 async function startServer() {
   const app = express();

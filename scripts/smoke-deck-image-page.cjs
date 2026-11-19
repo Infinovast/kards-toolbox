@@ -1,42 +1,20 @@
-// Start a renderer on port 5189, or build first and pass --desktop.
-const { chromium, _electron, expect } = require('playwright/test');
+// Start a renderer on port 5189.
+const { chromium, expect } = require('playwright/test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const sharp = require('sharp');
 
 async function main() {
-  const desktop = process.argv.includes('--desktop');
   const root = path.resolve(__dirname, '..');
-  const output = path.join(root, 'test-results', 'deck-image-page', desktop ? 'desktop' : 'renderer');
+  const output = path.join(root, 'test-results', 'deck-image-page', 'renderer');
   await fs.mkdir(output, { recursive: true });
-  const env = { ...process.env, KARDS_USE_DIST: '1' }; delete env.ELECTRON_RUN_AS_NODE;
-  const profile = desktop ? await fs.mkdtemp(path.join(output, 'profile-')) : null;
-  const app = desktop ? await _electron.launch({ executablePath: require('electron'), args: [root, `--user-data-dir=${profile}`, '--disable-crash-reporter'], env }) : null;
-  let browser = null;
+  const browser = await chromium.launch({ channel: process.env.KARDS_BROWSER_CHANNEL || 'msedge', headless: true });
   try {
-    if (app) await app.evaluate(({ session }, output) => {
-      session.defaultSession.on('will-download', (_event, item) => item.setSavePath(output + '/' + item.getFilename()));
-    }, output);
-    if (app) await app.evaluate(({ ipcMain, session }) => {
-      global.__testClipboard = '';
-      global.__imageRequests = [];
-      ipcMain.removeHandler('clipboard:read-text');
-      ipcMain.handle('clipboard:read-text', () => global.__testClipboard);
-      const render = ipcMain._invokeHandlers.get('deck:render');
-      ipcMain.removeHandler('deck:render');
-      ipcMain.handle('deck:render', async (event, request) => {
-        global.__imageRequests.push(request.code);
-        if (request.code === global.__slowCode) await new Promise(resolve => setTimeout(resolve, 1600));
-        return render(event, request);
-      });
-      session.defaultSession.webRequest.onBeforeRequest({ urls: ['https://*/*', 'http://*/*'] }, (_request, done) => done({ cancel: true }));
-    });
-    browser = app ? null : await chromium.launch({ channel: process.env.KARDS_BROWSER_CHANNEL || 'msedge', headless: true });
-    const context = app ? app.context() : await browser.newContext({ viewport: { width: 1280, height: 820 }, reducedMotion: 'reduce' });
-    await context.addInitScript(({ desktop }) => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 820 }, reducedMotion: 'reduce' });
+    await context.addInitScript(() => {
       window.__testClipboard = '';
-      if (!desktop) window.kardsDesktop = { readClipboardText: async () => window.__testClipboard, setTheme: async () => {} };
+      window.kardsDesktop = { readClipboardText: async () => window.__testClipboard, setTheme: async () => {} };
       const put = IDBObjectStore.prototype.put;
       IDBObjectStore.prototype.put = function(value, key) {
         if (window.__failImageSave && String(key).startsWith('deck_img_local_v1_')) throw new DOMException('Test disk full', 'QuotaExceededError');
@@ -57,8 +35,8 @@ async function main() {
           tx.onabort = tx.onerror = () => { db.close(); reject(tx.error || request.error); };
         };
       });
-    }, { desktop });
-    const page = app ? await app.firstWindow() : await context.newPage();
+    });
+    const page = await context.newPage();
     await page.emulateMedia({ reducedMotion: 'reduce' });
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     const codeA = '%%31|3X5C6BhHm6qCqDrktFvhwJx5;66nwx0x3;3f4p6x7e7l;5Z';
@@ -66,8 +44,7 @@ async function main() {
     const key = code => `deck_img_local_v1_${code}`;
     const read = code => page.evaluate(key => window.__store(key), key(code));
     const clipboard = async text => {
-      if (app) await app.evaluate((_, text) => { global.__testClipboard = text; }, text);
-      else await page.evaluate(text => { window.__testClipboard = text; }, text);
+      await page.evaluate(text => { window.__testClipboard = text; }, text);
       await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     };
     const full = page.getByAltText('完整卡组图', { exact: true }), mini = page.getByAltText('迷你分享图', { exact: true });
@@ -77,11 +54,8 @@ async function main() {
       await expect.poll(() => full.evaluate(image => image.naturalWidth)).toBe(2304);
       await expect.poll(() => mini.evaluate(image => image.naturalWidth)).toBe(1368);
     };
-    if (app) {
-      await page.waitForURL('kards://app/index.html', { waitUntil: 'domcontentloaded' });
-      await page.reload({ waitUntil: 'domcontentloaded' });
-    }
-    else await page.goto(process.env.KARDS_TEST_URL || 'http://127.0.0.1:5189');
+    await page.goto(process.env.KARDS_TEST_URL || 'http://127.0.0.1:5189');
+    await page.getByRole('button', { name: '进入我的卡组' }).click();
     await expect(page.getByRole('button', { name: '新卡组', exact: true })).toBeVisible({ timeout: 30000 });
     await page.getByRole('button', { name: '卡组生图', exact: true }).click();
     const input = page.getByLabel('卡组码', { exact: true });
@@ -129,16 +103,9 @@ async function main() {
       await expect(opener).toBeFocused();
     }
     for (const [name, filename] of [['下载完整卡组图', '剪贴板生图.png'], ['下载迷你分享图', '剪贴板生图-mini.png']]) {
-      if (app) {
-        const target = path.join(output, filename);
-        await fs.rm(target, { force: true });
-        await page.getByRole('button', { name, exact: true }).click();
-        await expect.poll(async () => (await fs.stat(target).catch(() => null))?.size || 0).toBeGreaterThan(0);
-      } else {
-        const downloaded = page.waitForEvent('download', { timeout: 10000 });
-        await page.getByRole('button', { name, exact: true }).click();
-        assert.equal((await downloaded).suggestedFilename(), filename);
-      }
+      const downloaded = page.waitForEvent('download', { timeout: 10000 });
+      await page.getByRole('button', { name, exact: true }).click();
+      assert.equal((await downloaded).suggestedFilename(), filename);
     }
 
     await input.fill(codeB); await waitImages();
@@ -208,8 +175,7 @@ async function main() {
     await waitImages();
 
     // A slow earlier request must never overwrite a newer code or its cache.
-    if (app) await app.evaluate((_, code) => { global.__slowCode = code; global.__imageRequests = []; }, codeA);
-    else await page.evaluate(({ codeA, codeB, imageA, imageB }) => {
+    await page.evaluate(({ codeA, codeB, imageA, imageB }) => {
       window.__imageRequests = [];
       window.kardsDesktop.renderDeckImage = async request => {
         window.__imageRequests.push(request.code);
@@ -218,7 +184,7 @@ async function main() {
       };
     }, { codeA, codeB, imageA, imageB });
     await input.fill(codeA);
-    await expect.poll(() => app ? app.evaluate(() => global.__imageRequests.length) : page.evaluate(() => window.__imageRequests.length)).toBeGreaterThan(0);
+    await expect.poll(() => page.evaluate(() => window.__imageRequests.length)).toBeGreaterThan(0);
     await input.fill(codeB); await waitImages();
     const latest = await full.getAttribute('src');
     await page.waitForTimeout(1900);
@@ -227,8 +193,7 @@ async function main() {
 
     for (const [width, height, mode] of [[1280, 820, 'dark'], [980, 640, 'light']]) {
       if (mode === 'light') await page.getByRole('button', { name: '切换到浅色模式', exact: true }).click();
-      if (app) await app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0].setContentSize(...size), [width, height]);
-      else await page.setViewportSize({ width, height });
+      await page.setViewportSize({ width, height });
       await page.waitForTimeout(350); // Capture the settled theme after its existing transition.
       await page.screenshot({ path: path.join(output, `${mode}.png`) });
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
@@ -245,10 +210,7 @@ async function main() {
     await page.getByRole('button', { name: '卡组生图', exact: true }).click();
     await expect(input).toHaveValue(codeB); await waitImages();
     assert.deepEqual(errors, []);
-    console.log(`Deck image page ${desktop ? 'desktop' : 'renderer'} smoke passed: clipboard, dual PNGs, header charts, image zoom, history thumbnails, legacy caches, errors/retries, stale requests, themes and minimum window`);
-  } finally {
-    if (app) await app.close();
-    if (browser) await browser.close();
-  }
+    console.log('Deck image page renderer smoke passed: clipboard, dual PNGs, header charts, image zoom, history thumbnails, legacy caches, errors/retries, stale requests, themes and minimum window');
+  } finally { await browser.close(); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

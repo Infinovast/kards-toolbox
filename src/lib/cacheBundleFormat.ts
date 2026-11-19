@@ -9,8 +9,6 @@ export const PACK_FOOTER_SIZE = 32;
 export const PACK_MASK_FLAG = 1;
 export const DEFAULT_PACK_SALT = 'kards-toolbox-default-open-source-salt';
 export const STATIC_PACK_FILE = 'static.kpak';
-export const CACHE_BUNDLE_FILE = 'cards.kpak';
-export const CACHE_BUNDLE_MARKER = 'full-cache-applied.json';
 
 export type PackImageVariant = 'full' | 'thumb';
 export interface CardImageReference { cardId: string; variant: PackImageVariant; url: string }
@@ -28,14 +26,4 @@ export function readCardPackCacheKey(key: string): CardImageReference | null {
   const match = /^kards_card_pack_v2_(.+)_(full|thumb)_(https%3A%2F%2F.+)$/.exec(key);
   if (!match) return null;
   try { return { cardId: decodeURIComponent(match[1]), variant: match[2] as PackImageVariant, url: decodeURIComponent(match[3]) }; } catch { return null; }
-}
-
-// Legacy IndexedDB export/migration only. New desktop caches use binary packs.
-export function isBundleImageKey(key: string) {
-  return /^kards_card_image_v2_[^_]+_https%3A%2F%2F/.test(key);
-}
-
-export function isBundleImageData(value: unknown): value is string {
-  return typeof value === 'string' && value.length <= 14 * 1024 * 1024
-    && /^data:image\/(png|jpeg|webp|avif);base64,[A-Za-z0-9+/]+={0,2}$/.test(value);
 }

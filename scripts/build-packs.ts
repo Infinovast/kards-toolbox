@@ -1,7 +1,7 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { config } from 'dotenv';
-import { buildStaticPack, buildLooseCardPack } from '../electron/packTools';
+import { buildStaticPack, buildLooseCardPack } from '../tooling/packTools';
 config({ quiet: true });
 const root = path.resolve(import.meta.dirname, '..');
 await buildStaticPack(root);

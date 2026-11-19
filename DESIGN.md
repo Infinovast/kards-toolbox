@@ -131,7 +131,7 @@ components:
 
 ## 品牌图标
 
-Windows 原生标题栏和任务栏保持使用原有 `cards_new` 黑白图标，创建窗口及主题变化时同步更新；EXE 图标和 favicon 也使用 `cards_new` 图标。不通过 Electron 的窗口图标接口单独更换标题栏图标，以免连带改变任务栏图标。界面内 top bar 和关于页使用 `icon_new` 黑白图标，随主题切换。卡牌导航在深色模式使用米色 cards 图标；其余计数器保持现有黑白 cards 资源。
+Windows 原生标题栏和任务栏使用随 EXE 打包的 `cards_new` 黑白图标，创建窗口及主题切换时同步更新。EXE 图标和 favicon 也使用 `cards_new` 图标。界面内 top bar 和关于页使用 `icon_new` 黑白图标，随主题切换。卡牌导航在深色模式使用米色 cards 图标；其余计数器使用黑白 cards 资源。
 
 ## 总部与卡包
 

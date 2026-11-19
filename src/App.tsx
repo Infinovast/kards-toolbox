@@ -551,6 +551,7 @@ export default function App() {
     const onChange = (e: MediaQueryListEvent) => {
       if (settings.displayMode === 'system') {
         const isDark = e.matches;
+        void window.kardsDesktop?.setTheme('system').catch(console.error);
         setEffectiveIsDarkMode(isDark);
         if (isDark) {
           document.body.classList.add('dark');
@@ -603,6 +604,7 @@ export default function App() {
   const [renameCollectionName, setRenameCollectionName] = useState('');
   const [deckImageModal, setDeckImageModal] = useState<{show: boolean, deck: Pick<Deck, 'name' | 'code' | 'headquartersId' | 'cardBackUrl' | 'allyNation'> | null, loading: boolean, miniLoading: boolean, imageUrl: string | null, miniImageUrl: string | null, view: 'full' | 'mini', error: string | null, tablecloth: string}>({show: false, deck: null, loading: false, miniLoading: false, imageUrl: null, miniImageUrl: null, view: 'full', error: null, tablecloth: DEFAULT_TABLECLOTH});
   const [tableclothPickerForImage, setTableclothPickerForImage] = useState(false);
+  const [deckImageDownloadError, setDeckImageDownloadError] = useState('');
   const pageTableclothPicker = useRef<{ tablecloth: string; onChoose: (tablecloth: string) => void } | null>(null);
   const deckImageRequest = useRef(0);
   const closeDeckImage = () => { deckImageRequest.current++; setTableclothPickerForImage(false); setDeckImageModal(current => ({ ...current, show: false })); };
@@ -626,6 +628,7 @@ export default function App() {
   };
 
   const handleGetDeckImage = async (deck: Pick<Deck, 'name' | 'code' | 'headquartersId' | 'cardBackUrl' | 'allyNation'> & { mainNation?: string }) => {
+    setDeckImageDownloadError('');
     const request = ++deckImageRequest.current;
     const mainNation = deck.mainNation || decodeDeckCode(deck.code).mainNation;
     const background = tableclothForHeadquarters(headquartersForDeck(deck.headquartersId, mainNation)?.groupId) || selectedTablecloth;
@@ -1095,7 +1098,8 @@ export default function App() {
 
   const handleCopyCode = async (code: string) => {
     try {
-      await navigator.clipboard.writeText(code);
+      if (window.kardsDesktop?.writeClipboardText) await window.kardsDesktop.writeClipboardText(code);
+      else await navigator.clipboard.writeText(code);
       alert('卡组码已复制！');
     } catch {
       window.prompt('剪贴板不可用，请手动复制卡组码：', code);
@@ -2765,8 +2769,17 @@ export default function App() {
               <div className="m-3 flex flex-wrap items-center justify-end gap-2">
                 <button disabled={deckImageModal.loading || deckImageModal.miniLoading || !deckImageModal.imageUrl} onClick={generateMiniDeckImage} className="mr-auto rounded border border-kards-border px-4 py-2 text-sm font-bold disabled:opacity-40">{deckImageModal.miniLoading ? '正在生成迷你分享图…' : deckImageModal.view === 'mini' ? '切换到完整卡组图' : '切换到迷你分享图'}</button>
                 <button disabled={deckImageModal.loading || deckImageModal.miniLoading || !deckImageModal.deck} onClick={() => openTableclothPicker(true)} className="flex items-center gap-2 rounded border border-kards-border px-4 py-2 text-sm font-bold disabled:opacity-40"><Palette className="h-4 w-4" />更换桌布</button>
-                {deckImageModal.imageUrl && <button data-dialog-confirm disabled={deckImageModal.miniLoading} onClick={() => downloadDeckImage((deckImageModal.view === 'mini' ? deckImageModal.miniImageUrl : deckImageModal.imageUrl)!, (deckImageModal.deck?.name || 'kards-deck') + (deckImageModal.view === 'mini' ? '-mini' : ''))} className="rounded bg-kards-accent px-4 py-2 text-sm font-bold text-white disabled:opacity-40">下载 PNG 图片</button>}
+                {deckImageModal.imageUrl && <button data-dialog-confirm disabled={deckImageModal.miniLoading} onClick={() => {
+                  const mini = deckImageModal.view === 'mini';
+                  const image = mini ? deckImageModal.miniImageUrl : deckImageModal.imageUrl;
+                  if (!image) return;
+                  const request = deckImageRequest.current;
+                  setDeckImageDownloadError('');
+                  void downloadDeckImage(image, (deckImageModal.deck?.name || 'kards-deck') + (mini ? '-mini' : ''))
+                    .catch(error => { if (request === deckImageRequest.current) setDeckImageDownloadError(`无法保存 PNG：${error instanceof Error ? error.message : String(error)}`); });
+                }} className="rounded bg-kards-accent px-4 py-2 text-sm font-bold text-white disabled:opacity-40">下载 PNG 图片</button>}
               </div>
+              {deckImageDownloadError && <p role="alert" className="mx-4 mb-2 text-sm text-kards-text">{deckImageDownloadError}</p>}
               <div className="flex-1 overflow-auto p-6 flex flex-col items-center justify-center bg-kards-bg">
                 {deckImageModal.loading ? (
                   <div className="flex flex-col items-center justify-center py-12 text-kards-text-muted">

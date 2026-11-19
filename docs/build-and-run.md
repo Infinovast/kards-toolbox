@@ -2,7 +2,8 @@
 
 ## 准备
 
-- Windows 10/11 x64、Node.js 22 和 npm。
+- Windows 10/11 x64、Node.js 22 及 npm。桌面构建还需要 Go 1.26.2 或更新版本，运行桌面版需要 Microsoft Edge WebView2 Runtime。
+- 将 Go 加入 PATH，或将环境变量 `KARDS_GO` 设为 `go.exe` 的绝对路径。构建脚本直接调用 Go，无需另装 Wails CLI。
 - 保留 `package-lock.json`，首次安装或换机器时执行 `npm ci`，日常开发无需重复安装。
 - 在包含 `package.json` 的项目根目录执行命令，目录可以重命名。
 
@@ -12,7 +13,7 @@ Git 仓库不包含 `assets-private/`、`dist-packs/`、`.env`、构建产物和
 
 桌面开发和构建需要以下两种资源来源之一，素材的使用和再分发须先核实 [第三方许可](../THIRD_PARTY_NOTICES.md)：
 
-- **松散资源**：把有权使用的图片放入 `assets-private/static/assets/`，保持 `src/data/assets.json`、`cardbacks.json`、`headquarters.json`、`tablecloths.json` 和词条清单引用的相对路径。桌面构建还从 `assets/kards_logos/KardsLogoBlack_cards_new.png` 提取应用图标。
+- **松散资源**：把有权使用的图片放入 `assets-private/static/assets/`，保持 `src/data/assets.json`、`cardbacks.json`、`headquarters.json`、`tablecloths.json` 和词条清单引用的相对路径。桌面构建从 `assets/kards_logos/` 读取 `KardsLogoBlack_cards_new.png` 和 `KardsLogoWhite_cards_new.png` 作为应用图标。
 - **已有资源包**：把兼容的 `static.kpak` 放入 `dist-packs/static.kpak`。该方式在没有松散资源目录时使用，资源包与构建时的 salt 必须一致。
 
 可先执行 `npx tsx scripts/build-packs.ts --static-only` 生成或验证静态包；桌面构建也会自动执行这一步。资源缺失时，纯网页构建 `npm run build:web` 仍可生成界面，但运行时缺少对应图像，桌面构建无法完成。
@@ -26,11 +27,11 @@ npm ci
 npm run dev:desktop
 ```
 
-`dev:desktop` 启动 Vite、编译 Electron 主进程和 preload，再打开桌面应用。界面代码支持热更新；修改 `electron/` 中的主进程或 preload 后，停止并重新运行此命令。结束开发时在终端按 Ctrl+C。
+`dev:desktop` 构建并打开带开发者选项的 Wails 窗口，F12 可打开 WebView2 调试工具。修改代码后关闭窗口并重跑桌面命令。只调试 React 界面时可运行 `dev:renderer`，继续使用 Vite 热更新。
 
 | 场景 | 命令 | 结果 |
 | --- | --- | --- |
-| 桌面开发 | `npm run dev:desktop` | 开发窗口与界面热更新 |
+| 桌面开发 | `npm run dev:desktop` | 构建并打开开发窗口 |
 | 只调试界面 | `npm run dev:renderer` | `http://127.0.0.1:5173`，无桌面专属接口 |
 | 可选本地 Web 服务 | `npm run dev` | 默认端口 3000，桌面开发无需运行 |
 | 类型检查 | `npm run lint` | TypeScript 检查 |
@@ -38,16 +39,15 @@ npm run dev:desktop
 | 欢迎页与对比交互检查 | `python scripts/smoke-welcome.py` | 先执行 `npm run dev:renderer -- --port 5189`；需要 Python Playwright 和 Edge，检查启动偏好、三处对比入口、透明面板、构筑退出保护、现有卡组列表及自动分析、离开后状态保留、跨入口及并发判重、仅分析/导入保存、大图放大、统计表配色与绝对差距、评分名称与胶囊同色及最小窗口 |
 | 卡牌与构筑交互检查 | `python scripts/smoke-card-workflows.py` | 先在 5189 启动渲染端；隔离浏览器数据，检查与/或/非、搜索框长度、缓存按钮显隐、临时天气 ID、详情一键对比、含预备自动选择及扩展筛选展开/收缩 |
 | 全卡池评分核验 | `npx tsx src/lib/deckAnalysis.test.ts --audit` | 在 `references/deck-analysis/card-ability-audit.json` 记录当前全卡池的能力提取、未识别文本与近似假设；算法变动后可加 `--update-reference` 显式重算样本区间 |
-| 生图快捷页交互检查 | `node scripts/smoke-deck-image-page.cjs` | 先在 5189 端口启动渲染端；也可在桌面构建后加 `--desktop` 检查本地协议与 Sharp |
-| 仅构建桌面资源 | `npm run build:desktop` | `dist/` 与 `dist-electron/`，不生成 EXE |
+| 生图快捷页交互检查 | `node scripts/smoke-deck-image-page.cjs` | 先在 5189 端口启动渲染端 |
+| 构建桌面应用 | `npm run build:desktop` | `build/wails/kards_toolbox.exe` |
 | 构建可选 Web 服务 | `npm run build` | 网页与 `dist/server.cjs` |
 
-检查已构建的桌面资源，无需先打包：
+构建后可直接运行 `build/wails/kards_toolbox.exe`。下面的检查会启动真实的 WebView2 窗口，验证新数据目录成功载入卡图包：
 
 ```powershell
-$env:KARDS_USE_DIST = '1'
-try { node scripts/start-electron.cjs . }
-finally { Remove-Item Env:KARDS_USE_DIST -ErrorAction SilentlyContinue }
+npm run build:cache-bundle
+npm run test:desktop -- -Executable build/wails/kards_toolbox.exe -CardsPack release/cards.kpak
 ```
 
 ## Windows 分发
@@ -57,35 +57,38 @@ finally { Remove-Item Env:KARDS_USE_DIST -ErrorAction SilentlyContinue }
 ```powershell
 npm run lint
 npm test
-npm run dist:win:portable
+npm run dist:win:dir
+npm run dist:win:portable:full
 ```
 
 按需要选择一种产物，不必全部生成：
 
 | 命令 | `release/` 中的产物 | 如何分发 |
 | --- | --- | --- |
-| `npm run dist:win:dir` | `win-unpacked/` | 分发整个文件夹，不能只取其中的 EXE |
-| `npm run dist:win:zip` | Electron Builder 输出的 ZIP | 分发 ZIP，用户完整解压后运行 |
+| `npm run dist:win:dir` | `win-unpacked/kards_toolbox.exe` 及许可声明 | 双击目录内的 EXE |
+| `npm run dist:win:zip` | `kards_toolbox-版本.zip`，内含 EXE | 解压后运行 |
 | `npm run dist:win:portable` | `kards_toolbox.exe` | 分发这个便携 EXE |
-| `npm run dist:win` | 配置中的安装包、便携版及解包目录 | 同时生成多个目标，按需要选用 |
+| `npm run dist:win:portable:full` | `kards_toolbox-版本-portable-full.zip`，内含 EXE 和 `cards.kpak` | 完整解压到同一目录再运行 |
+| `npm run dist:win:dir:full` | `kards_toolbox-版本-dir-full.zip`，内含 EXE 和 `cards.kpak` | 完整解压到同一目录再运行 |
+| `npm run dist:win` | 同 `dist:win:dir` | 分发文件夹版 |
 
 `npm run app` 只启动 `release/win-unpacked/kards_toolbox.exe`，不构建发布目录，也不会启动便携 EXE。便携版直接双击对应 EXE。
 
-发布根目录始终为 `release/`，文件夹版始终为 `release/win-unpacked/`，重复打包会更新同一目录，不按日期或版本创建新目录。ZIP 和安装包的文件名仍可包含版本号；这是文件名，不影响目录位置。
+默认发布根目录为 `release/`。需要隔离构建输出时可传入 `-- --output <目录>`。首次打包发现旧的 Electron 文件夹时，脚本会将它保留为旁边的 `win-unpacked-electron` 目录。
 
-普通用户无需安装 Node.js、npm 或源码。程序文件夹中的 Electron 运行时及依赖文件属于正常分发内容，不能单独删除。应用版本取自 `package.json`；修改版本后必须重新打包，现有 EXE 和 ZIP 不会自动更新。
+EXE 内嵌界面、静态素材包与许可文本，运行时使用系统的 WebView2。若本机没有 WebView2，启动时会提示安装。需要离线部署时可在联网机器上另取微软的 Evergreen 独立安装程序。应用版本取自 `package.json`。 [WebView2 下载页面](https://developer.microsoft.com/microsoft-edge/webview2/#download-section)
 
-网页构建同时生成 `dist/THIRD_PARTY_LICENSES.txt`，收集已安装生产依赖的版权及许可证文本。标准桌面打包把它与 `LICENSE.KARDS-Toolbox.txt`、`THIRD_PARTY_NOTICES.md` 及 `THIRD_PARTY_NOTICES_en.md` 放在分发目录；保留 Electron/Chromium 和原生组件原有许可文件。自行组合发布包时也应包含这些声明，并核实游戏素材授权及 LGPL 组件的分发义务。
+完整包优先读取 Wails 数据目录中的 `packs/cards.kpak`，其次读取旧 Electron 数据目录，最后查找 `dist-packs/cards.kpak` 和 `assets-private/cards.kpak`。可以通过 `npm run dist:win:portable:full -- --cards-pack <文件>` 指定任意兼容卡图包，或用 `--profile <数据目录>` 指定数据目录。若数据目录有当前生效的牌库快照，快照会随卡图打包。
 
 ## 用户数据
 
-桌面版统一使用 `%APPDATA%\kards-toolbox`，与源码和 `release/` 分开。清理项目构建输出不会清除用户卡组。升级或换机前，可在应用设置中备份卡组和设置；卡牌数据库及普通卡图缓存另行管理。
+桌面版使用 `%APPDATA%\kards-toolbox-wails`。WebView2 的 IndexedDB 放在其中的 `webview2/`，应用管理的牌库与卡图分别在 `card-data.json` 和 `packs/cards.kpak`。卡组和设置可通过应用内备份导入。要复用旧卡图，可将兼容的 `cards.kpak` 与 EXE 放在一起启动。
 
-启动参数 `--user-data-dir` 可指定隔离数据目录。开发网页、桌面应用和不同端口的浏览器预览拥有独立存储。
+环境变量 `KARDS_USER_DATA_DIR` 可指定绝对路径作为隔离数据目录。开发网页、桌面应用和不同端口的浏览器预览拥有独立存储。
 
 ## 常见问题
 
-- 如果打包提示 `node_modules/electron/dist` 不存在，请用 Node.js 22 执行 `npm rebuild electron --foreground-scripts` 补装运行时。确认 `node_modules/electron/dist/electron.exe` 存在后，重新打包。
+- **找不到 Go**：运行 `go version` 检查 PATH，或设置 `KARDS_GO`。
 - **界面还是旧版**：确认启动的 EXE 路径；源码改动后需重新构建，发布版需重新打包。
 - **输出目录被占用**：关闭该目录中的应用及资源管理器预览，再打包。
 - **牌库数据较旧**：设置中获取更新，核对差异后应用；启动不会覆盖已应用数据。

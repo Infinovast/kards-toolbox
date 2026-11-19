@@ -2,16 +2,16 @@
 
 ## 技术与运行边界
 
-React 19、TypeScript、Vite 和 Tailwind CSS 4 构成渲染端，Electron 提供 Windows 桌面能力。卡组、设置与牌库快照通过 localforage 保存在 IndexedDB。Sharp 负责桌面图片生成，浏览器预览使用 Canvas。
+React 19、TypeScript、Vite 和 Tailwind CSS 4 构成界面。Wails v2 通过系统 WebView2 显示界面，Go 提供 Windows 桌面能力。卡组和设置通过 localforage 保存在 IndexedDB，桌面牌库快照独立保存在 JSON 文件中。桌面与浏览器共用 Canvas 生图逻辑。
 
-渲染进程不启用 Node 集成，桌面能力经隔离的 preload 接口调用。生产资源由 `kards://app` 本地协议提供；可选 Web 服务用于浏览器开发，不参与桌面启动。
+界面经 `src/lib/wailsDesktop.ts` 调用 Go。Wails 的本地资源入口提供 EXE 内嵌的界面和静态图包，以及数据目录中的卡图包。独立 Web 服务可用于浏览器开发。
 
 ```text
 React 界面 → 共享业务模块 → localforage / IndexedDB
                   ↓
-             preload 桌面接口
+             Wails 桌面接口
                   ↓
-Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴板、Sharp
+Go 桌面层 → 固定数据源、图片下载、文件对话框、剪贴板
 ```
 
 ## 目录与职责
@@ -23,7 +23,7 @@ Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴
 | `src/components/DeckComparePage.tsx`、`src/components/DeckCostChart.tsx` | 两个卡组的独立分析与可选保存，共同刻度费用曲线、统计对比表及合并能力评分图 |
 | `src/components/DeckCompareImage.tsx` | 对比卡组完整图片的生成、加载状态与点击放大 |
 | `src/components/DeckImagePage.tsx`、`src/lib/deckImageCache.ts` | 卡组生图快捷页、剪贴板自动填充、双预览及按现有图片缓存发现历史记录 |
-| `src/components/DeckImageHistoryItem.tsx`、`src/lib/deckRenderHeader.ts` | 可见历史项的双缩略图、旧缓存迷你图补全；Canvas 与 Sharp 共用的费用柱状图、分类饼图及标题布局 |
+| `src/components/DeckImageHistoryItem.tsx`、`src/lib/deckRenderHeader.ts` | 历史项的双缩略图、旧缓存迷你图补全，以及两种生图共用的统计和标题布局 |
 | `src/components/CardLibrary.tsx` | 卡牌筛选、分页、总部堆叠与资料详情 |
 | `src/lib/deckCover.ts` / `src/lib/deckMiniRenderer.ts` | 战备封面与迷你分享图共用统计及代表卡选择；本地 Canvas 导出带元数据二维码的 PNG |
 | `src/components/HeadquartersGallery.tsx` | 无底板的总部散开与反向收回，支持中途关闭，到位后显示国家标题 |
@@ -54,14 +54,15 @@ Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴
 | `src/lib/userDataSchema.ts`、`userDataStorage.ts` | 用户数据结构校验、串行保存、失败重试、自动备份与备份恢复日志 |
 | `src/lib/packHistory.ts` | 开包累计次数、模拟花费及含万能牌的稀有度统计 |
 | `src/types/` | 卡牌模型、桌面接口及类型定义 |
-| `electron/main.ts`、`preload.ts` | 窗口、受限 IPC、本地协议及桌面能力 |
-| `electron/deckRenderer.ts` | 使用本地资源和已缓存卡图生成 PNG |
+| `desktop/main.go`、`app.go` | Wails 窗口、桌面接口、剪贴板、备份与 PNG 保存 |
+| `desktop/kpak.go`、`packs.go` | 读写 KPAK v2，提供静态素材及卡图，处理缓存下载和导入 |
+| `tooling/` | Node 端 KPAK 构建、导出和 Vite 资源读取 |
 | `public/data/cards.json` | 安装时提供的只读卡牌快照 |
 | `scripts/` | 构建、启动、打包辅助及交互验证脚本 |
 
 ## 卡牌数据更新
 
-设置中选择 `kardsplayer` 或 `kardscom` 来源，调用共享分页与校验逻辑。桌面经 `cards:fetch-page` IPC 请求固定 GraphQL 端点，浏览器使用同样的数据模型；不向渲染端开放任意网络代理。
+设置中选择 `kardsplayer` 或 `kardscom` 来源，调用共享分页与校验逻辑。桌面由 Go 请求对应的固定 GraphQL 端点，浏览器使用同样的数据模型。
 
 ```text
 手动获取 → 分页及完整性校验 → 候选快照 → 新旧差异 → 用户应用
@@ -91,7 +92,7 @@ Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴
 
 | 数据 | 存储键或位置 | 用户备份 |
 | --- | --- | --- |
-| 当前、候选及上次卡牌快照 | `kards_card_database_v1` | 不包含 |
+| 当前、候选及上次卡牌快照 | 桌面数据目录的 `card-data.json`，或浏览器的 `kards_card_database_v1` | 不包含 |
 | 卡组与收藏夹 | `kards_decks`、`kards_collections` | 包含 |
 | 构筑草稿 | `kards_builder_draft` | 包含 |
 | 开包累计历史 | `kards_pack_history_v1` | 包含 |
@@ -102,7 +103,7 @@ Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴
 | 卡组生图缓存 | `deck_img_local_v1_` 前缀 | 包含 |
 | 迷你分享图缓存 | `deck_img_mini_v1_` 前缀 | 包含 |
 
-用户数据目录固定为 `%APPDATA%\kards-toolbox`，不查找旧目录；测试可用 `--user-data-dir` 隔离。用户备份不能覆盖独立管理的卡牌数据库和普通卡图缓存。
+用户数据目录为 `%APPDATA%\kards-toolbox-wails`，可通过环境变量 `KARDS_USER_DATA_DIR` 指定隔离目录。用户备份只包括卡组、设置和其他在表中标注的用户数据。卡图包可作为 `cards.kpak` 放到 EXE 旁边，在新数据目录中导入。
 
 用户数据初始化先完整读取、校验并创建启动快照，再开放自动保存；任一项读取失败时保留原值并显示恢复入口。卡组、设置、草稿和开包历史的写入经共享队列串行执行；自动保存失败保留待重试值并显示全局提示，构筑的显式保存等待实际写入成功后才退出。备份导出等待队列，存在未保存修改时拒绝导出过期数据。
 
@@ -136,7 +137,7 @@ Electron 主进程 → 固定数据源、图片下载、文件对话框、剪贴
 
 总部名称、英文名、简介与历史集中维护在 `src/data/headquarters.json`。清单的 `id` 和 `groupId` 保持稳定，以兼容已保存卡组及专属桌布关联。
 
-界面颜色、间距、浮层与动画约定见 [界面规范](../DESIGN.md)。包依赖仍由 npm 管理；`scripts/collect-licenses.cjs` 在网页及完整缓存构建时从已安装生产依赖收集许可文本，桌面打包附带项目与第三方声明。依赖自带许可证与 Electron 运行时许可证随各自组件保留；游戏内容的权属范围见 [第三方说明](../THIRD_PARTY_NOTICES.md)。
+界面的颜色、间距、浮层与动画遵循现有界面规范。前端依赖由 npm 管理，桌面依赖由 Go 模块管理。构建时将生产依赖许可和项目声明嵌入桌面 EXE，并随文件夹版另附可读副本。[界面规范](../DESIGN.md) · [第三方说明](../THIRD_PARTY_NOTICES.md)
 
 词条唯一清单位于 `src/data/cardKeywords.json`：`order` 是可选整数显示序号，同值保留原顺序，未配置时不出现在详情词条栏，也不计入数量筛选；`cardKeywordItems` 仅对详情属性栏按该值升序排序（数值越小越靠前），仅显示已配置 `order` 的词条，保留同值项的原始相对顺序，不修改原卡属性数组，也不改变词条筛选菜单顺序。`label` / `english` 管理中英对照，`icon` 指向可选词条图标（动员使用 `mobilize.png`，老兵使用 `veteran.png`）；PNG 保留真实透明空白与抗锯齿边缘，避免半透明底层形成灰色矩形，`attribute` 标识属性词条，`highlighted` 标识战斗词条；战斗词条属于属性词条，属性词条属于完整词条表。`numbered` 声明重甲/情报的数值后缀，`attributeAliases` 管理属性别名及详情可见性，`excludeFollowing` 避免“战斗”命中“战斗机”。`filterGroup` 管理对战、独立、扩展、特殊四列筛选分类及排列顺序；特殊词条在规则文字中匹配中英文标签，并保留英文单词边界及排除后缀规则；“控制”仅匹配描述中含“控制 1 个”的卡牌，`descriptionPrefix` 匹配并加粗描述中的“词条：”形式（冒号包含在内），`textAliases` 补充 `Show when drawn` 等英文描述前缀，`cardIds` 维护倒计时卡名单，`textMatch: false` 排除纯筛选项目的正文匹配。筛选菜单、详情属性与中英文规则文字加粗均由该清单派生；战斗强调色只用于筛选项与详情的词条信息，规则正文仅加粗。
 

@@ -5,7 +5,10 @@ import { validateCardRecords, type CardDataStorage } from './cardData';
 export const CARD_DATABASE_KEY = 'kards_card_database_v1';
 
 export async function readCardDataStorage(): Promise<CardDataStorage> {
-  const stored = await localforage.getItem<CardDataStorage>(CARD_DATABASE_KEY);
+  const raw = await globalThis.window?.go?.main?.App?.ReadCardDataStorage();
+  const stored: CardDataStorage | null = raw !== undefined
+    ? raw ? JSON.parse(raw) : null
+    : await localforage.getItem<CardDataStorage>(CARD_DATABASE_KEY);
   if (!stored) return { schemaVersion: 1 };
   if (stored.schemaVersion !== 1) throw new Error('本地更新牌库版本不受支持');
   if (stored.active) stored.active.cards = validateCardRecords(stored.active.cards);
@@ -15,7 +18,11 @@ export async function readCardDataStorage(): Promise<CardDataStorage> {
 }
 
 export async function writeCardDataStorage(stored: CardDataStorage) {
-  // One IndexedDB value contains active + rollback + candidate, so a failed write
-  // cannot leave a half-applied catalogue or destroy the rollback copy.
+  // Store active, rollback and candidate together as one atomic update.
+  const app = globalThis.window?.go?.main?.App;
+  if (app) {
+    await app.WriteCardDataStorage(JSON.stringify(stored));
+    return;
+  }
   await localforage.setItem(CARD_DATABASE_KEY, stored);
 }

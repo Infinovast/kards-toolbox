@@ -130,7 +130,7 @@ KARDS Toolbox 是面向 Kards 玩家的卡牌、卡组和卡包本地管理工�
 
 ### 设置与数据
 
-- 用户数据位于 `%APPDATA%\kards-toolbox`。下载 ZIP 发布版后，完整解压再启动 `kards_toolbox.exe`。
+- 用户数据位于 `%APPDATA%\kards-toolbox-wails`。完整 ZIP 发布版解压后，将 `kards_toolbox.exe` 和 `cards.kpak` 放在同一个目录启动。
 - 左侧底部进入设置。卡牌数据更新流程为：选择 kardsplayer.com（默认）或 kards.com → 获取数据 → 核对新增、修改、移除 → 应用更新；支持回退上次快照。
 - 牌库不会在启动时自动更新。查看缺失卡图时可联网缓存；更新卡牌资料只更新数据和图片地址，不批量下载图片。
 - “本地缓存”分别统计牌库卡数、大图覆盖数和缩略图覆盖数，可查看已缓存、未缓存和失败项，批量缓存、重试、删除或整理缓存以回收空间。
@@ -140,7 +140,7 @@ KARDS Toolbox 是面向 Kards 玩家的卡牌、卡组和卡包本地管理工�
 
 ## 从源码运行
 
-需要 Windows 10/11 x64、Node.js 22 和 npm。源码仓库不包含游戏静态素材，桌面运行前需要按 [资源准备](docs/build-and-run.md#静态资源与源码仓库) 自行准备有权使用的资源或兼容资源包。在项目目录执行：
+需要 Windows 10/11 x64、Node.js 22、npm、Go 1.26.2 或更新版本，以及 WebView2 Runtime。桌面运行需要自行准备有权使用的游戏素材或兼容资源包。[资源准备](docs/build-and-run.md#静态资源与源码仓库)
 
 ```powershell
 npm ci

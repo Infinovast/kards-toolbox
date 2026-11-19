@@ -2,12 +2,14 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { Kpak, hashPackKey, mimeForFile, normalizeAssetPath, packSalt, type PackWrite } from './kpak';
-import { insideFile, validateImageReference } from './cacheBundle';
+import { insideFile, validateImageReference } from './staticAssets';
 import { STATIC_PACK_FILE, cardImageIdentity, type LooseCardManifest, type CardImageReference } from '../src/lib/cacheBundleFormat';
 import { cardImageMime } from '../src/lib/cardImageDownload';
 export { Kpak, hashPackKey, normalizeAssetPath, packSalt, mimeForFile } from './kpak';
 export { cardImageIdentity, cardPackCacheKey } from '../src/lib/cacheBundleFormat';
 export { staticAssetMiddleware } from './staticMiddleware';
+export { validateImageReference } from './staticAssets';
+export { validateCardRecords } from '../src/lib/cardData';
 
 export async function buildStaticPack(root: string, output = path.join(root, 'dist-packs', STATIC_PACK_FILE), salt = packSalt()) {
   const source = path.join(root, 'assets-private', 'static'), assets = path.join(source, 'assets');
@@ -63,11 +65,4 @@ export async function exportPackToLoose(file: string, directory: string, salt = 
     manifest.images.push({ ...meta, file: name, mime: entry.mime, updatedAt: entry.updatedAt });
   }
   await fs.writeFile(path.join(directory, 'manifest.json'), JSON.stringify(manifest, null, 2));
-}
-
-export async function writeLooseImage(directory: string, ref: CardImageReference, buffer: Buffer, salt = packSalt()) {
-  validateImageReference(ref); const mime = cardImageMime(buffer);
-  const file = `${hashPackKey(cardImageIdentity(ref), salt)}.${mime.split('/')[1]}`;
-  await fs.mkdir(directory, { recursive: true }); await fs.writeFile(path.join(directory, file), buffer);
-  return { ...ref, file, mime, updatedAt: new Date().toISOString() };
 }

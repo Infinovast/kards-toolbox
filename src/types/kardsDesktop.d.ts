@@ -21,23 +21,29 @@ declare global {
     filePath?: string;
   }
 
+  interface KardsDesktopBridge {
+    cardImageEndpoint?: string;
+    prepareCacheBundle: () => Promise<import('../lib/cacheBundleFormat').CacheBundleInfo | null>;
+    finishCacheBundle: () => Promise<void>;
+    listCardImageKeys: () => Promise<import('../lib/cacheBundleFormat').CardPackStats>;
+    deleteCardImages: (refs: import('../lib/cacheBundleFormat').CardImageReference[]) => Promise<void>;
+    compactCardPack: () => Promise<void>;
+    cacheCardImage: (ref: import('../lib/cacheBundleFormat').CardImageReference) => Promise<import('../lib/cacheBundleFormat').CardImageMetadata>;
+    fetchCardDataPage: (offset: number, source: import('../lib/cardData').CardDataSource) => Promise<import('../lib/cardData').CardDataPage>;
+    fetchCardImage?: (url: string) => Promise<string>;
+    renderDeckImage?: (request: import('../lib/deckRenderTypes').DeckRenderRequest) => Promise<string>;
+    saveDeckImage?: (data: string, filename: string) => Promise<KardsDesktopBackupSaveResult>;
+    setTheme: (mode: 'dark' | 'light' | 'system') => Promise<boolean>;
+    getAppInfo: () => Promise<KardsDesktopAppInfo>;
+    readClipboardText: () => Promise<string>;
+    writeClipboardText?: (text: string) => Promise<void>;
+    saveBackup: (backup: unknown) => Promise<KardsDesktopBackupSaveResult>;
+    openBackup: () => Promise<KardsDesktopBackupOpenResult>;
+  }
+
   interface Window {
-    kardsDesktop?: {
-      prepareCacheBundle: () => Promise<import('../lib/cacheBundleFormat').CacheBundleInfo | null>;
-      finishCacheBundle: () => Promise<void>;
-      listCardImageKeys: () => Promise<import('../lib/cacheBundleFormat').CardPackStats>;
-      deleteCardImages: (refs: import('../lib/cacheBundleFormat').CardImageReference[]) => Promise<void>;
-      compactCardPack: () => Promise<void>;
-      cacheCardImage: (ref: import('../lib/cacheBundleFormat').CardImageReference) => Promise<import('../lib/cacheBundleFormat').CardImageMetadata>;
-      importLegacyCardImage: (ref: import('../lib/cacheBundleFormat').CardImageReference, data: string) => Promise<void>;
-      fetchCardDataPage: (offset: number, source: import('../lib/cardData').CardDataSource) => Promise<import('../lib/cardData').CardDataPage>;
-      fetchCardImage: (url: string) => Promise<string>;
-      renderDeckImage: (request: import('../lib/deckRenderTypes').DeckRenderRequest) => Promise<string>;
-      setTheme: (mode: 'dark' | 'light' | 'system') => Promise<boolean>;
-      getAppInfo: () => Promise<KardsDesktopAppInfo>;
-      readClipboardText: () => Promise<string>;
-      saveBackup: (backup: unknown) => Promise<KardsDesktopBackupSaveResult>;
-      openBackup: () => Promise<KardsDesktopBackupOpenResult>;
-    };
+    kardsDesktop?: KardsDesktopBridge;
+    go?: { main?: { App?: import('../lib/wailsDesktop').WailsApp } };
+    runtime?: { ClipboardSetText?: (text: string) => Promise<boolean> };
   }
 }

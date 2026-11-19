@@ -8,11 +8,11 @@ import { CARD_PACKS, FACTION_ASSETS, SUBCLASS_ICONS, WILDCARDS, cardFactionIcon,
 import { ALL_CARD_KEYWORDS } from './cardKeywords';
 import { CARD_SUBTYPES } from './cardSubtypes';
 import { factionLabel, typeLabel, type KardsCardRecord } from '../types/card';
-import { CacheBundleInstaller } from '../../electron/cacheBundle';
+import { staticAssetReader } from '../../tooling/staticAssets';
 
 const privateAssets = path.resolve('assets-private/static/assets');
-const manager = new CacheBundleInstaller(path.resolve('test-results/asset-test'), '', { root: process.cwd() });
-const assetBuffer = async (url: string) => { const asset = await manager.readStaticAsset(url); assert.ok(asset, `asset exists: ${url}`); return asset.buffer; };
+const readAsset = staticAssetReader(process.cwd());
+const assetBuffer = async (url: string) => { const asset = await readAsset(url); assert.ok(asset, `asset exists: ${url}`); return asset.buffer; };
 assert.deepEqual(HEADQUARTERS_STACKS.map(stack => stack.id), ['USA', 'Soviet', 'Britain', 'Japan', 'Germany', 'Common']);
 assert.ok(HEADQUARTERS_STACKS.every(stack => stack.cards.length > 0));
 assert.deepEqual(HEADQUARTERS_STACKS.map(stack => stack.cards[0].name), ['瑟堡', '斯大林格勒', '阿拉姆哈勒法', '特鲁克', '但泽', '补给列车']);

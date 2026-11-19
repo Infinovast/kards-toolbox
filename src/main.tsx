@@ -2,10 +2,12 @@ import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import {applyCacheBundle} from './lib/cacheBundle';
+import {installWailsDesktopBridge} from './lib/wailsDesktop';
 import './index.css';
 
 const root = createRoot(document.getElementById('root')!);
 const openApp = () => root.render(<StrictMode><App /></StrictMode>);
+installWailsDesktopBridge();
 
 async function start() {
   const showProgress = (message: string) => root.render(
@@ -16,7 +18,7 @@ async function start() {
   );
   showProgress('正在启动…');
   try {
-    await applyCacheBundle((completed, total) => showProgress(`正在迁移旧卡图缓存 ${completed.toLocaleString()} / ${total.toLocaleString()}`));
+    await applyCacheBundle();
     openApp();
   } catch (error) {
     root.render(<main className="flex h-screen flex-col items-center justify-center gap-4 bg-kards-bg p-8 text-kards-text" role="alert">

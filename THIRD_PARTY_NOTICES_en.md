@@ -19,17 +19,18 @@ This is an unofficial tool for players. It has no official affiliation with KARD
 
 ## Software dependencies
 
-Dependencies retain their own licenses; they do not become MIT-licensed because this project uses MIT. Dependency versions are pinned by `package-lock.json`.
+Dependencies retain their own licenses. JavaScript and Go dependencies are recorded in `package-lock.json` and `desktop/go.mod`, respectively.
 
 | Component | License and requirements |
 | --- | --- |
 | React, Motion, localForage, jsQR, QRCode, react-easy-crop | MIT; retain each component's copyright and license notices |
 | Lucide | ISC; some icons originate from Feather and carry additional MIT notices. Refer to the licenses included with the component |
-| Sharp | Apache-2.0; prebuilt native packages also contain components under LGPL-3.0-or-later and other licenses |
-| libvips and native libraries distributed with Sharp | Follow the native package's `LICENSE`, `README.md`, and upstream terms. Source and build materials for LGPL components are available through [sharp-libvips](https://github.com/lovell/sharp-libvips) and [libvips](https://github.com/libvips/libvips). When distributing binaries, check the obligations for the exact versions, including corresponding source availability and replacement or relinking |
-| Electron, Chromium, Node.js | Retain the runtime's bundled license files and notices, including `LICENSE` and `LICENSES.chromium.html` |
+| Go standard library, Brotli | BSD-3-Clause |
+| Wails, go-webview2 | MIT |
+| Microsoft Edge WebView2 Runtime | The desktop app uses the system runtime under Microsoft's license terms |
+| Sharp, libvips | Test dependencies under their respective licenses |
 | Build and server dependencies such as Vite, esbuild, Express, and Tailwind CSS | Follow the license included with each component. Lightning CSS uses MPL-2.0 |
 
-`npm run build:web` collects full license texts from the currently installed production dependencies into `dist/THIRD_PARTY_LICENSES.txt`. Full-cache builds run the same collection step. Standard desktop packaging copies that file, the Chinese and English third-party notices, and the project's MIT License into the distribution directory. Licenses supplied with Electron and native dependencies must also remain with those components.
+`npm run build:web` collects production dependency licenses in `dist/THIRD_PARTY_LICENSES.txt`. Desktop builds add the Go runtime dependency licenses and embed the collection, the Chinese and English third-party notices, and the project's MIT License in the EXE. Directory releases also include copies beside the EXE.
 
 The collected file preserves software dependency notices. It does not grant permission to use game content or automatically satisfy every binary component's corresponding-source obligations. Before redistributing a build, check the requirements against the actual artifacts, included components, and exact versions.

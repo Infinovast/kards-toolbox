@@ -8,6 +8,9 @@ coverage/
 dist/
 dist-electron/
 dist-packs/
+/desktop/frontend/dist/
+/desktop/frontend/wailsjs/
+/desktop/*.syso
 /docs/local-resource-notes.md
 node_modules/
 /references/

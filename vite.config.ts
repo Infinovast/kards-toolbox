@@ -2,7 +2,7 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'node:path';
-import { staticAssetMiddleware } from './electron/staticMiddleware';
+import { staticAssetMiddleware } from './tooling/staticMiddleware';
 
 export default defineConfig({
   base: './',

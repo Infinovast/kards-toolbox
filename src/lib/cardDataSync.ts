@@ -1,7 +1,6 @@
 import { useSyncExternalStore } from 'react';
-import localforage from 'localforage';
 import { collectCardData, fetchCardDataPage, mergeWeatherCardRecords, validateCardRecords, type CardDataSource, type CardDataSnapshot, type CardDataStorage } from './cardData';
-import { CARD_DATABASE_KEY, readCardDataStorage, writeCardDataStorage } from './cardDatabase';
+import { readCardDataStorage, writeCardDataStorage } from './cardDatabase';
 import type { KardsCardRecord } from '../types/card';
 
 interface CardSyncState {
@@ -79,8 +78,7 @@ export async function deleteDownloadedCardData(part: 'all' | 'active' | 'pending
       cards = mergeWeatherCardRecords(validateCardRecords(bundled.cards));
     }
     const next: CardDataStorage = part === 'all' ? { schemaVersion: 1 } : { ...stored, [part]: undefined };
-    if (part === 'all') await localforage.removeItem(CARD_DATABASE_KEY);
-    else await writeCardDataStorage(next);
+    await writeCardDataStorage(next);
     const label = { all: '全部下载的卡牌数据及更新记录', active: '当前已应用的更新数据', pending: '待应用数据', previous: '回退数据' }[part];
     publish({ status: next.pending ? 'ready' : 'idle', stored: next, completed: 0, total: 0, error: null, message: `已删除${label}。${cards ? '当前使用随包牌库。' : ''}` });
     return cards;

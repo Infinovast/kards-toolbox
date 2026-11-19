@@ -1,4 +1,4 @@
-// Shared by Electron's main process and the browser preview. Kardsplayer serves
+// Shared by the pack tooling and browser preview. Kardsplayer serves
 // AVIF as binary/octet-stream, so determine the MIME type from the actual bytes.
 export function validateCardImageUrl(value: string): string {
   const url = new URL(value);
