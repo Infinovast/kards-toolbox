@@ -130,7 +130,8 @@ KARDS Toolbox 是面向 Kards 玩家的卡牌、卡组和卡包本地管理工�
 
 ### 设置与数据
 
-- 用户数据位于 `%APPDATA%\kards-toolbox-wails`。完整 ZIP 发布版解压后，将 `kards_toolbox.exe` 和 `cards.kpak` 放在同一个目录启动。
+- 用户数据位于 `%APPDATA%\kards-toolbox`。完整 ZIP 发布版解压后，将 `kards_toolbox.exe` 和 `cards.kpak` 放在同一个目录启动。
+- WebView2 将卡组和设置保存在该目录的 `webview2/` 子目录中，不会自动读取或迁移 Electron 的 IndexedDB。即使使用相同的数据根目录，也需先在原版应用中导出用户备份，再在新版应用中导入。
 - 左侧底部进入设置。卡牌数据更新流程为：选择 kardsplayer.com（默认）或 kards.com → 获取数据 → 核对新增、修改、移除 → 应用更新；支持回退上次快照。
 - 牌库不会在启动时自动更新。查看缺失卡图时可联网缓存；更新卡牌资料只更新数据和图片地址，不批量下载图片。
 - “本地缓存”分别统计牌库卡数、大图覆盖数和缩略图覆盖数，可查看已缓存、未缓存和失败项，批量缓存、重试、删除或整理缓存以回收空间。

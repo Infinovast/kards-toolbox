@@ -21,7 +21,7 @@ import (
 
 const (
 	appName     = "KARDS Toolbox"
-	windowClass = "KardsToolboxWails"
+	windowClass = "KardsToolbox"
 )
 
 var (
@@ -79,7 +79,7 @@ func run() error {
 
 	// A profile owns both its IndexedDB and the writable cards.kpak.
 	// Windows paths are case-insensitive, so casing must not affect the lock.
-	instanceID := fmt.Sprintf("com.kards.toolbox.wails-%x", sha256.Sum256([]byte(strings.ToLower(profile))))
+	instanceID := fmt.Sprintf("kards-toolbox-%x", sha256.Sum256([]byte(strings.ToLower(profile))))
 	return wails.Run(&options.App{
 		Title: appName, Width: 1280, Height: 820, MinWidth: 980, MinHeight: 640,
 		BackgroundColour: options.NewRGB(17, 17, 17),
@@ -120,5 +120,5 @@ func profileDirectory() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "kards-toolbox-wails"), nil
+	return filepath.Join(dir, "kards-toolbox"), nil
 }

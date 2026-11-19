@@ -5,8 +5,7 @@ const tools = require('./load-pack-tools.cjs');
 
 const root = path.resolve(__dirname, '..');
 const roaming = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
-const wailsProfile = process.env.KARDS_USER_DATA_DIR || path.join(roaming, 'kards-toolbox-wails');
-const electronProfile = path.join(roaming, 'kards-toolbox');
+const appProfile = process.env.KARDS_USER_DATA_DIR || path.join(roaming, 'kards-toolbox');
 
 async function exists(file) {
   try { await fs.access(file); return true; }
@@ -15,7 +14,7 @@ async function exists(file) {
 
 async function stageCards({ pack, profile }, destination) {
   const candidates = pack ? [{ file: pack }] : profile ? [profilePack(profile)] : [
-    profilePack(wailsProfile), profilePack(electronProfile),
+    profilePack(appProfile),
     { file: path.join(root, 'dist-packs', 'cards.kpak') },
     { file: path.join(root, 'assets-private', 'cards.kpak') },
   ];

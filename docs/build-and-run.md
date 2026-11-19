@@ -78,11 +78,13 @@ npm run dist:win:portable:full
 
 EXE 内嵌界面、静态素材包与许可文本，运行时使用系统的 WebView2。若本机没有 WebView2，启动时会提示安装。需要离线部署时可在联网机器上另取微软的 Evergreen 独立安装程序。应用版本取自 `package.json`。 [WebView2 下载页面](https://developer.microsoft.com/microsoft-edge/webview2/#download-section)
 
-完整包优先读取 Wails 数据目录中的 `packs/cards.kpak`，其次读取旧 Electron 数据目录，最后查找 `dist-packs/cards.kpak` 和 `assets-private/cards.kpak`。可以通过 `npm run dist:win:portable:full -- --cards-pack <文件>` 指定任意兼容卡图包，或用 `--profile <数据目录>` 指定数据目录。若数据目录有当前生效的牌库快照，快照会随卡图打包。
+完整包优先读取默认应用数据目录中的 `packs/cards.kpak`，然后查找 `dist-packs/cards.kpak` 和 `assets-private/cards.kpak`。默认应用数据目录为 `%APPDATA%\kards-toolbox`，可由 `KARDS_USER_DATA_DIR` 覆盖。可以通过 `npm run dist:win:portable:full -- --cards-pack <文件>` 指定任意兼容卡图包，或用 `--profile <数据目录>` 指定数据目录。若数据目录有当前生效的牌库快照，快照会随卡图打包。
 
 ## 用户数据
 
-桌面版使用 `%APPDATA%\kards-toolbox-wails`。WebView2 的 IndexedDB 放在其中的 `webview2/`，应用管理的牌库与卡图分别在 `card-data.json` 和 `packs/cards.kpak`。卡组和设置可通过应用内备份导入。要复用旧卡图，可将兼容的 `cards.kpak` 与 EXE 放在一起启动。
+桌面版使用 `%APPDATA%\kards-toolbox`。WebView2 的 IndexedDB 放在其中的 `webview2/`，应用管理的牌库与卡图分别在 `card-data.json` 和 `packs/cards.kpak`。WebView2 不会自动读取或迁移 Electron 的 IndexedDB，即使两个版本使用相同的数据根目录；卡组和设置需先在原版应用中导出用户备份，再在新版应用中导入。现有 `packs/cards.kpak` 可直接复用，也可将兼容的 `cards.kpak` 与 EXE 放在一起启动。
+
+数据根目录恢复一致后，测试或回看旧 Electron 版本前应先退出新版，避免两者同时写入同一个卡图缓存；需要并行比较时，请为两个版本使用各自独立的数据目录。
 
 环境变量 `KARDS_USER_DATA_DIR` 可指定绝对路径作为隔离数据目录。开发网页、桌面应用和不同端口的浏览器预览拥有独立存储。
 

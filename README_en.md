@@ -135,7 +135,8 @@ Ability scores are the core of deck analysis. By estimating a deck's economy, co
 
 ### Settings and data
 
-- User data is stored in `%APPDATA%\kards-toolbox-wails`. Extract the full ZIP release with `kards_toolbox.exe` and `cards.kpak` in the same folder, then run the executable.
+- User data is stored in `%APPDATA%\kards-toolbox`. Extract the full ZIP release with `kards_toolbox.exe` and `cards.kpak` in the same folder, then run the executable.
+- WebView2 stores decks and settings in the `webview2/` subdirectory. It does not automatically read or migrate Electron's IndexedDB, even when both versions use the same data root. Export a user backup from the original app and import it in the new app.
 - Open settings from the bottom of the sidebar. To update card data, choose kardsplayer.com (the default) or kards.com, fetch data, review additions, changes, and removals, then apply the update. You can roll back to the previous snapshot.
 - The library does not update automatically at startup. Viewing uncached card artwork can trigger a network download. Updating card data changes the records and image URLs without downloading all images.
 - **Local cache** reports library size, full-size image coverage, and thumbnail coverage separately. Inspect cached, uncached, and failed items; download in batches, retry failures, delete images, or compact the cache to reclaim space.
