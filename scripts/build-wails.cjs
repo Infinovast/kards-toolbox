@@ -128,6 +128,15 @@ async function main() {
   }
   if (opts.pack && opts.profile) throw new Error('请选择 --cards-pack 或 --profile 其中一项。');
 
+  if (mode !== 'cache-only') {
+    try {
+      await run(go, ['version'], { cwd: desktop, env: goEnv });
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      throw new Error(`找不到 Go（${go}）。请安装 Go 1.26.2 或更新版本并加入 PATH，或将 KARDS_GO 设为 go.exe 的绝对路径。`);
+    }
+  }
+
   await fs.mkdir(workRoot, { recursive: true });
   const resolvedRoot = await fs.realpath(workRoot);
   if (path.relative(await fs.realpath(root), resolvedRoot) !== path.join('build', 'wails')) {

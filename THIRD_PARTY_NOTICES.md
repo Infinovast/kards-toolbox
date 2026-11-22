@@ -1,6 +1,6 @@
 # 第三方内容与许可证
 
-[中文](THIRD_PARTY_NOTICES.md) | [English](THIRD_PARTY_NOTICES_en.md)
+中文 | [English](THIRD_PARTY_NOTICES_en.md)
 
 ## 项目源码
 
@@ -19,7 +19,7 @@ KARDS Toolbox 自行编写的代码和文档采用 [MIT License](LICENSE)。该�
 
 ## 软件依赖
 
-依赖按其各自许可证使用。JavaScript 和 Go 依赖版本分别记在 `package-lock.json` 和 `desktop/go.mod` 中。
+依赖按其各自许可证使用。JavaScript 和 Go 依赖版本分别在 `package-lock.json` 和 `desktop/go.mod` 中。
 
 | 组件 | 许可证及说明 |
 | --- | --- |

@@ -67,6 +67,7 @@
 .pack-back-button { display: inline-flex; align-items: center; gap: 8px; color: var(--color-kards-text-muted); font-size: 14px; }
 .pack-opening-title { display: flex; align-items: baseline; gap: 12px; font-size: 18px; font-weight: 700; }
 .pack-opening-title > span, .pack-reveal-progress { color: var(--color-kards-text-muted); font-size: 12px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.pack-opening-viewport { display: flex; flex: 1; min-height: 0; overflow: clip; }
 .pack-opening-stage { --pack-card-width: min(184px, calc((100dvh - 344px) * 618 / 1734), calc((100vw - 260px) / 4)); position: relative; display: flex; flex: 1; min-height: 0; flex-direction: column; justify-content: center; align-items: center; gap: 24px; }
 .pack-opening-row { display: flex; align-items: flex-start; justify-content: center; gap: 28px; }
 .pack-reveal-card { position: relative; width: var(--pack-card-width); padding: 0; perspective: 1200px; isolation: isolate; }

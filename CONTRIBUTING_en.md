@@ -1,6 +1,6 @@
 # Contributing
 
-[中文](CONTRIBUTING.md) | [English](CONTRIBUTING_en.md)
+[中文](CONTRIBUTING.md) | English
 
 Thank you for your contribution. Issue reports and pull requests are welcome. See the [README](README_en.md) for features and usage, [Build and run (Chinese)](docs/build-and-run.md) for environment requirements, asset setup, and build commands, and [Architecture (Chinese)](docs/architecture.md) for the code structure.
 

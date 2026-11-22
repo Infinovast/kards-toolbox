@@ -14,6 +14,7 @@ import { FilterIcon } from './CardFilterSelects';
 import './cardPacks.css';
 
 const RARITY_LABELS = { Standard: '普通', Limited: '限定', Special: '特殊', Elite: '精英' };
+const ELITE_LIFT = 26;
 
 function PackSourceIcon({ pack }: { pack: CardPackAsset }) {
   const [index, setIndex] = useState(0);
@@ -71,13 +72,14 @@ function PackHistorySummary({ history }: { history: PackHistory }) {
   </div>;
 }
 
-function PackRevealCard({ reward, index, requested, onRequest, onComplete, onImpact, onInspect }: {
+function PackRevealCard({ reward, index, requested, onRequest, onComplete, onZoom, onImpact, onInspect }: {
   reward: PackReward;
   index: number;
   requested: boolean;
   onRequest: () => void;
   onComplete: () => void;
-  onImpact: (amount: number) => void;
+  onZoom: (card: HTMLButtonElement) => void;
+  onImpact: (distance: number, duration: number) => void;
   onInspect: (origin?: CardDetailOrigin) => void;
 }) {
   const button = useRef<HTMLButtonElement>(null);
@@ -85,7 +87,8 @@ function PackRevealCard({ reward, index, requested, onRequest, onComplete, onImp
   const rotator = useRef<HTMLSpanElement>(null);
   const [dealt, setDealt] = useState(false);
   const [phase, setPhase] = useState<'concealed' | 'revealing' | 'revealed'>('concealed');
-  const callbacks = useRef({ onComplete, onImpact }); callbacks.current = { onComplete, onImpact };
+  const rarity = packRewardRarity(reward);
+  const callbacks = useRef({ onComplete, onZoom, onImpact }); callbacks.current = { onComplete, onZoom, onImpact };
   useLayoutEffect(() => {
     const element = deal.current, stage = button.current?.closest('[data-pack-stage]');
     if (!element || !stage) { setDealt(true); return; }
@@ -104,26 +107,29 @@ function PackRevealCard({ reward, index, requested, onRequest, onComplete, onImp
     if (!element) return;
     setPhase('revealing');
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const timing = PACK_FLIP_TIMINGS[packRewardRarity(reward)];
+    const timing = PACK_FLIP_TIMINGS[rarity];
     const duration = timing.lift + timing.flip + timing.settle;
+    const elite = rarity === 'Elite';
+    const raised = elite ? `translateY(-${ELITE_LIFT}px) scale(1)` : 'translateY(-32px) scale(1.12)';
+    if (!reduced && elite && button.current) callbacks.current.onZoom(button.current);
     const animation = element.animate(reduced ? [
       { transform: 'rotateY(0deg)', opacity: 0.5 }, { transform: 'rotateY(180deg)', opacity: 1 },
     ] : [
       { transform: 'translateY(0) scale(1) rotateY(0deg)', offset: 0, easing: 'ease-out' },
-      { transform: 'translateY(-32px) scale(1.12) rotateY(0deg)', offset: timing.lift / duration, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' },
-      { transform: 'translateY(-32px) scale(1.12) rotateY(180deg)', offset: (timing.lift + timing.flip) / duration, easing: 'cubic-bezier(0.2, 0.9, 0.4, 1)' },
+      { transform: `${raised} rotateY(0deg)`, offset: timing.lift / duration, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' },
+      { transform: `${raised} rotateY(180deg)`, offset: (timing.lift + timing.flip) / duration,
+        easing: elite ? 'cubic-bezier(0.55, 0.04, 0.95, 0.65)' : 'cubic-bezier(0.2, 0.9, 0.4, 1)' },
       { transform: 'translateY(0) scale(1) rotateY(180deg)', offset: 1 },
     ], { duration: reduced ? 100 : duration, fill: 'both' });
     animation.onfinish = () => {
       element.style.transform = 'rotateY(180deg)';
       animation.cancel();
       setPhase('revealed');
-      if (!reduced) callbacks.current.onImpact(timing.impact);
+      if (!reduced && timing.impact) callbacks.current.onImpact(timing.impact.distance, timing.impact.duration);
       callbacks.current.onComplete();
     };
     return () => { animation.onfinish = null; animation.cancel(); };
-  }, [requested, dealt, reward]);
-  const rarity = packRewardRarity(reward);
+  }, [requested, dealt, rarity]);
   return <button ref={button} type="button" data-detail-source={reward.kind === 'card' ? reward.card.cardId : undefined} data-reward-kind={reward.kind} data-state={phase} disabled={!dealt || phase === 'revealing'}
     aria-label={phase === 'revealed' ? `查看${reward.kind === 'card' ? cardDisplayTitle(reward.card, 'zh-Hans') : `通用${RARITY_LABELS[rarity]}万能牌`}` : `翻开第 ${index + 1} 张卡牌`}
     onClick={event => phase === 'revealed' ? onInspect(captureCardDetailOrigin(event.currentTarget, 'pool')) : onRequest()}
@@ -153,7 +159,8 @@ export default function CardPacks({ cards, history, onOpenPack }: { cards: Kards
   const [wildcardDetail, setWildcardDetail] = useState<PackRarity | null>(null);
   const stage = useRef<HTMLDivElement>(null);
   const page = useRef<HTMLElement>(null);
-  const impact = useRef<Animation | null>(null);
+  const camera = useRef<Animation | null>(null);
+  const impact = useRef<{ animation: Animation; distance: number } | null>(null);
   const options = useMemo(() => CARD_PACKS.filter(pack => pack.category === category && pack.kind === kind), [category, kind]);
   const selected = options.find(pack => pack.source === source) || options[0];
   const pool = useMemo(() => cardPackPool(cards, selected), [cards, selected]);
@@ -193,15 +200,50 @@ export default function CardPacks({ cards, history, onOpenPack }: { cards: Kards
     element.addEventListener('wheel', wheel, { passive: false });
     return () => { element.removeEventListener('wheel', wheel); window.clearTimeout(resetTimer); };
   }, [opened, opening]);
-  useEffect(() => () => impact.current?.cancel(), []);
-  const shake = (amount: number) => {
-    if (!stage.current || !amount) return;
-    impact.current?.cancel();
-    const displacement = 2 + amount * 4;
-    impact.current = stage.current.animate([
-      { transform: 'none' }, { transform: `translate(${displacement}px, ${-displacement / 2}px)` },
-      { transform: `translate(${-displacement / 2}px, ${displacement / 3}px)` }, { transform: 'none' },
-    ], { duration: 300 + amount * 600, easing: 'ease-out' });
+  useLayoutEffect(() => () => {
+    camera.current?.cancel();
+    camera.current = null;
+    impact.current?.animation.cancel();
+    impact.current = null;
+  }, [opened?.serial]);
+  const zoomOnCard = (card: HTMLButtonElement) => {
+    const element = stage.current;
+    if (!element) return;
+    const { lift, flip, settle, impact } = PACK_FLIP_TIMINGS.Elite;
+    const landing = lift + flip + settle;
+    const duration = landing + impact.duration;
+    const scale = 1.22;
+    const x = card.offsetLeft + card.offsetWidth / 2 - element.offsetWidth / 2;
+    const raisedTop = card.offsetTop - ELITE_LIFT;
+    // Keep the raised card clear of the top edge at the minimum window height.
+    const focusY = Math.min(raisedTop + card.offsetHeight / 4, (raisedTop * scale - 4) / (scale - 1));
+    const y = focusY - element.offsetHeight / 2;
+    const closeUp = `translate(${x * (1 - scale)}px, ${y * (1 - scale)}px) scale(${scale})`;
+    // Keep the current framing when several elite cards are flipped together.
+    const start = camera.current ? getComputedStyle(element).transform : 'none';
+    camera.current?.cancel();
+    camera.current = element.animate([
+      { transform: start, easing: 'ease-out' },
+      { transform: closeUp, offset: lift / duration },
+      { transform: closeUp, offset: landing / duration, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' },
+      { transform: 'none' },
+    ], { duration });
+  };
+  const shake = (distance: number, duration: number) => {
+    if (!stage.current) return;
+    if (impact.current?.animation.playState === 'running' && impact.current.distance > distance) return;
+    impact.current?.animation.cancel();
+    // The independent translate lets impacts play during a camera move.
+    const animation = stage.current.animate([
+      { translate: '0px 0px' },
+      { translate: `${distance}px ${distance * 0.65}px`, offset: 0.07 },
+      { translate: `${-distance * 0.72}px ${-distance * 0.35}px`, offset: 0.18 },
+      { translate: `${distance * 0.42}px ${distance * 0.22}px`, offset: 0.31 },
+      { translate: `${-distance * 0.24}px ${-distance * 0.12}px`, offset: 0.46 },
+      { translate: `${distance * 0.10}px 0px`, offset: 0.62 },
+      { translate: '0px 0px' },
+    ], { duration });
+    impact.current = { animation, distance };
   };
   const leaveOpening = () => { setOpened(null); setError(''); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('.pack-choice[aria-pressed="true"]')?.focus()); };
   useEffect(() => {
@@ -239,17 +281,19 @@ export default function CardPacks({ cards, history, onOpenPack }: { cards: Kards
       </>}
     </div>
     {opened ? <>
-      <div ref={stage} data-pack-stage className="pack-opening-stage" key={opened.serial}>
-        <img src={opened.pack.file} alt="" className="pack-opening-cover" />
-        {[opened.cards.slice(0, opened.pack.kind === 'standard' ? 3 : 4), opened.cards.slice(opened.pack.kind === 'standard' ? 3 : 4)].map((row, rowIndex) => <div key={rowIndex} className="pack-opening-row">
-          {row.map((reward, column) => {
-            const index = column + (rowIndex ? (opened.pack.kind === 'standard' ? 3 : 4) : 0);
-            return <PackRevealCard key={index} reward={reward} index={index} requested={requested.includes(index)}
-              onRequest={() => setRequested(current => [...new Set([...current, index])])}
-              onComplete={() => setRevealed(current => [...new Set([...current, index])])} onImpact={shake}
-              onInspect={origin => reward.kind === 'card' ? setDetail({ card: reward.card, origin }) : setWildcardDetail(reward.rarity)} />;
-          })}
-        </div>)}
+      <div className="pack-opening-viewport">
+        <div ref={stage} data-pack-stage className="pack-opening-stage" key={opened.serial}>
+          <img src={opened.pack.file} alt="" className="pack-opening-cover" />
+          {[opened.cards.slice(0, opened.pack.kind === 'standard' ? 3 : 4), opened.cards.slice(opened.pack.kind === 'standard' ? 3 : 4)].map((row, rowIndex) => <div key={rowIndex} className="pack-opening-row">
+            {row.map((reward, column) => {
+              const index = column + (rowIndex ? (opened.pack.kind === 'standard' ? 3 : 4) : 0);
+              return <PackRevealCard key={index} reward={reward} index={index} requested={requested.includes(index)}
+                onRequest={() => setRequested(current => [...new Set([...current, index])])}
+                onComplete={() => setRevealed(current => [...new Set([...current, index])])} onZoom={zoomOnCard} onImpact={shake}
+                onInspect={origin => reward.kind === 'card' ? setDetail({ card: reward.card, origin }) : setWildcardDetail(reward.rarity)} />;
+            })}
+          </div>)}
+        </div>
       </div>
       <footer className="pack-opening-footer glass-panel">
         <div className="pack-result-summary" aria-label="开包结果">{complete && CARD_RARITIES.map(rarity => {

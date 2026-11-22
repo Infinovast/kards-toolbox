@@ -1,6 +1,6 @@
 # 参与贡献
 
-[中文](CONTRIBUTING.md) | [English](CONTRIBUTING_en.md)
+中文 | [English](CONTRIBUTING_en.md)
 
 感谢您的贡献。欢迎提交问题反馈和 Pull Request。功能与使用说明见 [README](README.md)，环境、资源准备及构建命令见 [构建与运行](docs/build-and-run.md)，代码结构见 [项目架构](docs/architecture.md)。
 

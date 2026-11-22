@@ -14,10 +14,10 @@ export function packRewardRarity(reward: PackReward): PackRarity {
 }
 
 export const PACK_FLIP_TIMINGS = {
-  Standard: { lift: 250, flip: 500, settle: 200, impact: 0 },
-  Limited: { lift: 350, flip: 700, settle: 300, impact: 0.25 },
-  Special: { lift: 500, flip: 1000, settle: 450, impact: 0.4 },
-  Elite: { lift: 700, flip: 1400, settle: 600, impact: 0.6 },
+  Standard: { lift: 125, flip: 265, settle: 115, impact: null },
+  Limited: { lift: 195, flip: 435, settle: 160, impact: null },
+  Special: { lift: 550, flip: 1120, settle: 430, impact: { distance: 8, duration: 420 } },
+  Elite: { lift: 840, flip: 1550, settle: 380, impact: { distance: 17, duration: 570 } },
 } as const;
 
 export function cardPackPool(cards: KardsCardRecord[], pack: CardPackAsset): KardsCardRecord[] {

@@ -1,6 +1,6 @@
 # Reporting security issues
 
-[中文](SECURITY.md) | [English](SECURITY_en.md)
+[中文](SECURITY.md) | English
 
 Verify the issue against the current source or latest release. Include the version, operating system, conditions needed to reproduce it, affected functionality, and minimal reproduction steps. The maintainer does not guarantee fix deadlines or long-term security support for older versions.
 

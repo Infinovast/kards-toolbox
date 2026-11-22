@@ -1,6 +1,6 @@
 # Third-party content and licenses
 
-[中文](THIRD_PARTY_NOTICES.md) | [English](THIRD_PARTY_NOTICES_en.md)
+[中文](THIRD_PARTY_NOTICES.md) | English
 
 ## Project source
 
