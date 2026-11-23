@@ -9,6 +9,8 @@ import type { CardDataSource } from '../lib/cardData';
 import { applyCardData, cancelCardDataCheck, checkCardData, deleteDownloadedCardData, initializeCardDataSync, rollbackCardData, useCardDataSync } from '../lib/cardDataSync';
 import { requestConfirmation } from '../lib/appDialogs';
 
+const CARD_DATA_VERSION = 'v53';
+
 const labels: Record<string, string> = { cardId: '卡牌标识', imageUrl: '当前卡图地址', thumbUrl: '缩略图地址', reserved: '预备状态', title: '卡名', text: '卡牌文本', description: '描述', kredits: '费用', attack: '攻击力', defense: '防御力', rarity: '稀有度', faction: '阵营', type: '类型', set: '扩展包', image: '卡图路径', attributes: '词条与衍生关系', operationCost: '行动费用', can_create: '衍生卡', exile: '流亡', permanent_pool: '常驻卡池', id: '卡牌标识', import_id: '卡组码 ID' };
 const kindLabels = { added: '新增', changed: '修改', removed: '移除' };
 function fieldName(path: string) { const [field, ...rest] = path.split('.'); return `${labels[field] || field}${rest.length ? `（${rest.join('.')}）` : ''}`; }
@@ -68,8 +70,9 @@ export default function CardDataUpdater({ cards, onApplied }: { cards: KardsCard
         <button onClick={() => void removeData('all')} disabled={busy || !hasDownloadedData} className="flex items-center gap-2 rounded border border-kards-border px-3 py-2 text-sm text-kards-text hover:border-red-500/60 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-40"><Trash2 className="h-4 w-4" />删除全部下载数据</button>
       </div>
     </div>
-    <dl className="mt-3 grid grid-cols-2 gap-x-5 gap-y-2 border-t border-kards-border pt-3 text-xs sm:grid-cols-4">
+    <dl className="mt-3 grid grid-cols-2 gap-x-5 gap-y-2 border-t border-kards-border pt-3 text-xs md:grid-cols-5">
       <div><dt className="text-kards-text-muted">当前牌库</dt><dd className="mt-1 text-kards-text">{cards.length.toLocaleString()} 张 · {sourceLabel(sync.stored.active?.source)}</dd></div>
+      <div><dt className="text-kards-text-muted">数据版本</dt><dd className="mt-1 text-kards-text">{CARD_DATA_VERSION}</dd></div>
       <div><dt className="text-kards-text-muted">最近获取</dt><dd className="mt-1 text-kards-text">{timeText(sync.stored.lastCheckedAt)}</dd></div>
       <div><dt className="text-kards-text-muted">最近应用</dt><dd className="mt-1 text-kards-text">{timeText(sync.stored.active?.appliedAt)}</dd></div>
       <div><dt className="text-kards-text-muted">更新来源</dt><dd className="mt-1 text-kards-text">{source === 'kardscom' ? 'kards.com' : 'kardsplayer.com'}</dd></div>

@@ -81,8 +81,8 @@ func run() error {
 	// Windows paths are case-insensitive, so casing must not affect the lock.
 	instanceID := fmt.Sprintf("kards-toolbox-%x", sha256.Sum256([]byte(strings.ToLower(profile))))
 	return wails.Run(&options.App{
-		Title: appName, Width: 1280, Height: 820, MinWidth: 980, MinHeight: 640,
-		BackgroundColour: options.NewRGB(17, 17, 17),
+		Title: appName, Width: 1360, Height: 820, MinWidth: 980, MinHeight: 640,
+		BackgroundColour: options.NewRGB(25, 26, 27),
 		AssetServer:      &assetserver.Options{Assets: frontend, Handler: serveNews(packs)},
 		OnStartup: func(ctx context.Context) {
 			app.ctx = ctx

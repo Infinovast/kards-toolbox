@@ -33,7 +33,10 @@ const cards: KardsCardRecord[] = JSON.parse(readFileSync('public/data/cards.json
 for (const cloth of TABLECLOTHS.filter(item => item.type === 'wallpaper' && item.nation)) {
   const card = cards.find(card => card.cardId === cloth.cardId);
   assert.ok(card || cloth.cardType === 'infantry', `wallpaper name has a source: ${cloth.file}`);
-  assert.equal(cloth.name, `${factionLabel(cloth.nation)}：${card?.json.title?.['zh-Hans'] || typeLabel(cloth.cardType)}`);
+  const expectedName = cloth.id === 'wallpaper-germany-t_loading_germany_c'
+    ? '德国：第 22 步兵团（异画）'
+    : `${factionLabel(cloth.nation)}：${card?.json.title?.['zh-Hans'] || typeLabel(cloth.cardType)}`;
+  assert.equal(cloth.name, expectedName);
   for (const previous of cloth.previousFiles || []) assert.equal(resolveSelectedTablecloth(previous), cloth.file);
 }
 assert.equal(TABLECLOTHS.find(item => item.cardId === 'escort_group')?.name, '英国：护航船队');

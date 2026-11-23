@@ -134,7 +134,7 @@
     },
     {
       "id": "wallpaper-germany-t_loading_germany_c",
-      "name": "德国：步兵",
+      "name": "德国：第 22 步兵团（异画）",
       "file": "/assets/tablecloths/wallpaper/Germany/germany_infantry.png",
       "type": "wallpaper",
       "nation": "Germany",
@@ -142,7 +142,7 @@
         "/assets/tablecloths/wallpaper/Germany/t_loading_germany_c.png"
       ],
       "cardType": "infantry",
-      "description": "战斗中的德军步兵。"
+      "description": "第 22 步兵团隶属于德国国防军第 1 步兵师，服役时间贯穿整个第二次世界大战。该师曾参与入侵法国和波兰，并在随后的巴巴罗萨行动期间加入北方集团军群第 18 军。1945 年哥尼斯堡陷落后，该师的残余部队向苏军投降。"
     },
     {
       "id": "wallpaper-japan-japan_campaign_po2",

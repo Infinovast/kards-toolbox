@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import type { KardsCardRecord } from '../types/card';
+import { CARD_RARITIES, type KardsCardRecord } from '../types/card';
 import { CARD_PACKS, type CardPackKind } from './assetCatalog';
 import { cardPackPool, drawCardPack, packRewardRarity, PACK_RULES } from './cardPacks';
 import { isGeneratedCard } from './cardFilters';
@@ -12,8 +12,16 @@ for (const pack of CARD_PACKS) {
   const pool = cardPackPool(cards, pack);
   assert.ok(pool.length > 0, pack.id);
   assert.ok(pool.every(card => !isGeneratedCard(card)), `${pack.id} excludes generated cards`);
-  assert.ok(pool.every(card => pack.category === 'expansion' ? card.json.set === pack.set
-    : pack.nations!.some(nation => nation.toLowerCase() === card.json.faction?.toLowerCase())));
+  if (pack.source === 'Core') {
+    assert.deepEqual(pool, ordinary.filter(card => card.json.permanent_pool
+      && CARD_RARITIES.some(rarity => rarity === card.json.rarity)));
+    assert.ok(pool.some(card => card.json.set !== pack.set), 'Core includes permanent cards from other sets');
+    assert.ok(cards.some(card => card.json.set === pack.set && !card.json.permanent_pool && !pool.includes(card)),
+      'Core excludes nonpermanent cards from Base');
+  } else {
+    assert.ok(pool.every(card => pack.category === 'expansion' ? card.json.set === pack.set
+      : pack.nations!.some(nation => nation.toLowerCase() === card.json.faction?.toLowerCase())));
+  }
   const drawn = drawCardPack(pool, pack.kind, () => 0);
   assert.equal(drawn.length, PACK_RULES[pack.kind].count);
   assert.ok(drawn.every(reward => reward.kind === 'card' ? pool.includes(reward.card) : pack.kind === 'officer'));

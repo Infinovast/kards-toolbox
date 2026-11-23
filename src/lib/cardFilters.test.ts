@@ -126,6 +126,8 @@ const generatedCatalog = mergedCatalog.filter(isGeneratedCard);
 assert.equal(generatedCatalog.length, 147);
 for (const card of mergedCatalog.filter(card => card.json.attributes?.some(attribute => attribute.startsWith('VeteranOf:')))) {
   assert.ok(matchesCardFilters(card, { ...EMPTY_CARD_FILTERS, expansion: card.json.set!, status: ['veteran'] }), 'veterans match their inherited expansion and generated category');
+  assert.equal(matchesCardFilters(card, { ...EMPTY_CARD_FILTERS, status: ['reserved'] }), !!card.reserved, 'reserved veterans appear in the reserve filter');
+  assert.equal(cardStatusLabel(card), card.reserved ? '预备卡，老兵形态' : '现役，老兵形态');
   assert.ok(!matchesCardFilters(card, { ...EMPTY_CARD_FILTERS, status: ['active'] }));
   assert.ok(!isInBuilderPool(card, card.json.faction!, card.json.faction!), 'normalizing the set must not make veteran forms constructible');
   assert.ok(validateDeck(new Map([[card.importId, 1]]), new Map([[card.importId, card]]), 'Germany', 'Britain', DEFAULT_DECK_RULES.standard).some(warning => warning.includes('是衍生卡')), 'standard validation still rejects normalized veteran forms');

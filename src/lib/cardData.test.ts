@@ -8,15 +8,22 @@ const veteranRecords = records.filter(card => card.json.attributes?.some(attribu
 assert.equal(veteranRecords.length, 44);
 for (const veteran of veteranRecords) {
   const baseId = veteran.json.attributes.find(attribute => attribute.startsWith('VeteranOf:')).slice('VeteranOf:'.length);
-  assert.equal(veteran.json.set, records.find(card => card.cardId === baseId).json.set, `${veteran.cardId} stores its base expansion`);
+  const base = records.find(card => card.cardId === baseId);
+  assert.equal(veteran.json.set, base.json.set, `${veteran.cardId} stores its base expansion`);
+  assert.equal(veteran.reserved, base.reserved, `${veteran.cardId} stores its base reserve status`);
 }
 const oldVeteranRecords = records.map(card => veteranRecords.includes(card) ? { ...card, json: { ...card.json, set: 'Special' } } : card);
 assert.deepEqual(validateCardRecords(oldVeteranRecords), validateCardRecords(records), 'stored snapshots and freshly fetched API catalogues normalize all veteran expansions');
 assert.equal(compareCardData(oldVeteranRecords, records).length, 0, 'source-only special-form labels do not produce spurious update changes');
+const oldReserveRecords = records.map(card => veteranRecords.includes(card) ? { ...card, reserved: false } : card);
+assert.deepEqual(validateCardRecords(oldReserveRecords), validateCardRecords(records), 'older snapshots inherit reserve status even with already normalized expansions');
+assert.equal(compareCardData(oldReserveRecords, records).length, 0, 'source-only reserve flags do not produce spurious update changes');
 const veteran = veteranRecords[0], baseId = veteran.json.attributes.find(attribute => attribute.startsWith('VeteranOf:')).slice('VeteranOf:'.length);
 const baseRecord = records.find(card => card.cardId === baseId);
 assert.equal(validateCardRecords([{ ...veteran, json: { ...veteran.json, set: 'Special' } }, { ...baseRecord, json: { ...baseRecord.json, set: 'FutureExpansion' } }])[0].json.set, 'FutureExpansion', 'a veteran resolves a later-page base and inherits future expansion changes');
 assert.equal(validateCardRecords([{ ...veteran, json: { ...veteran.json, set: 'Special' } }])[0].json.set, 'Special', 'incomplete API pages retain unresolved data until the complete catalogue arrives');
+assert.equal(validateCardRecords([{ ...veteran, reserved: true }, { ...baseRecord, reserved: false }])[0].reserved, false, 'veterans follow their base when it returns to active duty');
+assert.equal(validateCardRecords([{ ...veteran, reserved: true }])[0].reserved, true, 'a missing base preserves the supplied veteran reserve flag');
 const mergedWeather = mergeWeatherCardRecords(records);
 assert.equal(mergedWeather.length, 1664, 'bundled and active catalogues include 18 missing local weather variants');
 assert.equal(mergedWeather.filter(card => card.cardId.startsWith('temp_')).length, 18);

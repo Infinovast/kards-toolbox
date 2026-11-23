@@ -25,6 +25,25 @@ assert.deepEqual([veteran.json.attack, veteran.json.defense, veteran.json.operat
 assert.equal(cardDisplayTitle(veteran, 'zh-Hans'), '第 50 步兵团（老兵）');
 assert.deepEqual(cardRelations(base), [{ cardId: veteran.cardId, label: '老兵形态' }]);
 assert.deepEqual(cardRelations(veteran), [{ cardId: base.cardId, label: '原卡' }]);
+const relationSource = (cardId: string) => cards.find(card => card.cardId === cardId)!;
+const specialUnits = cardRelations(relationSource('baker_street_irregulars'), cards);
+assert.deepEqual(specialUnits.map(relation => relation.cardId).sort(), [
+  'no_1_commando', 'no_9_commando', 'no_10_commando', 'no_3_commando', 'no_43_commando',
+  '10th_para_battalion', '1st_airborne', '2nd_parachute', '5th_parachute_brigade',
+  '2nd_para_c', '6th_airlanding_brigade', '7th_scottish_borderers', 'ox_and_bucks',
+].sort());
+const blitzDoctrine = relationSource('blitz_doctrine');
+const [ordinaryRelation, ...lightTanks] = cardRelations(blitzDoctrine, cards);
+assert.deepEqual(ordinaryRelation, { cardId: 'contest_doctrine', label: '可生成' });
+assert.equal(lightTanks.length, 25);
+assert.ok(lightTanks.some(relation => relation.cardId === 'panzer_ib'), 'reserved tanks qualify');
+assert.ok(!lightTanks.some(relation => relation.cardId === 'panzer_ib_vet'), 'reserved veteran forms are generated');
+const contestDoctrine = relationSource('contest_doctrine');
+const mediumHeavyTanks = cardRelations(contestDoctrine, cards);
+assert.equal(mediumHeavyTanks.length, 17);
+const updatedTank = { ...relationSource('panzer_ib'), json: { ...relationSource('panzer_ib').json, kredits: 4 } };
+assert.deepEqual(cardRelations(blitzDoctrine, [updatedTank]), [ordinaryRelation]);
+assert.deepEqual(cardRelations(contestDoctrine, [updatedTank]), [{ cardId: updatedTank.cardId, label: '可开发' }]);
 assert.deepEqual(cardKeywords(veteran, 'zh-Hans'), ['老兵', '伏击']);
 assert.deepEqual(cardKeywords(base, 'zh-Hans'), []);
 assert.ok(base.json.attributes!.includes('OnlySpawnable'));

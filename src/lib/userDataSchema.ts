@@ -55,7 +55,8 @@ export function validateUserDataValue(key: string, value: unknown) {
         && optional(value.showDeckFolders, item => typeof item === 'boolean')
         && optional(value.showWelcomePage, item => typeof item === 'boolean')
         && optional(value.isDarkMode, item => typeof item === 'boolean')
-        && optional(value.lightThemeColor, item => typeof item === 'string');
+        && optional(value.lightThemeColor, item => typeof item === 'string')
+        && optional(value.darkThemeColor, item => typeof item === 'string' && /^#[a-f\d]{6}$/i.test(item));
       break;
     case 'kards_builder_draft':
       valid = object(value) && nation(value.mainNation) && nation(value.allyNation) && typeof value.deckName === 'string'

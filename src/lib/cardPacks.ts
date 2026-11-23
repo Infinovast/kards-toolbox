@@ -1,6 +1,6 @@
 import { CARD_RARITIES, type KardsCardRecord } from '../types/card';
 import type { CardPackAsset, CardPackKind } from './assetCatalog';
-import { isGeneratedCard } from './cardFilters';
+import { isGeneratedCard, isPermanentPoolCard } from './cardFilters';
 
 export const PACK_RULES = {
   standard: { count: 5, probabilities: { Standard: 74.6, Limited: 19.9, Special: 4, Elite: 1.5 }, guarantee: '至少 1 张限定或以上' },
@@ -21,10 +21,14 @@ export const PACK_FLIP_TIMINGS = {
 } as const;
 
 export function cardPackPool(cards: KardsCardRecord[], pack: CardPackAsset): KardsCardRecord[] {
-  return cards.filter(card => !isGeneratedCard(card) && CARD_RARITIES.includes(card.json.rarity as typeof CARD_RARITIES[number])
-    && (pack.category === 'nation'
+  return cards.filter(card => {
+    if (!CARD_RARITIES.includes(card.json.rarity as PackRarity)) return false;
+    if (pack.source === 'Core') return isPermanentPoolCard(card);
+    if (isGeneratedCard(card)) return false;
+    return pack.category === 'nation'
       ? pack.nations?.some(nation => nation.toLowerCase() === card.json.faction?.toLowerCase())
-      : card.json.set === pack.set));
+      : card.json.set === pack.set;
+  });
 }
 
 export function drawCardPack(pool: KardsCardRecord[], kind: CardPackKind, random = Math.random): PackReward[] {

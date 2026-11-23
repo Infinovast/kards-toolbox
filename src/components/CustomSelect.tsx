@@ -5,6 +5,7 @@ import { Check, ChevronDown, ChevronRight } from 'lucide-react';
 export interface SelectOption {
   value: string;
   label: string;
+  triggerLabel?: string;
   labelClassName?: string;
   icon?: ReactNode;
   iconPosition?: 'start' | 'end';
@@ -205,7 +206,7 @@ export default function CustomSelect(props: Props) {
           <span className="sr-only">{selected.map(option => option.label).join('、')}</span>
         </> : <>
           {selected[0]?.icon && <span className="custom-select-icon" aria-hidden="true">{selected[0].icon}</span>}
-          <span className="truncate">{selected[0]?.iconOnly ? <span className="sr-only">{selected[0].label}</span> : selected[0]?.label || placeholder}</span>
+          <span className="truncate">{selected[0]?.iconOnly ? <span className="sr-only">{selected[0].label}</span> : selected[0]?.triggerLabel ?? selected[0]?.label ?? placeholder}</span>
         </>}
       </span>
       <ChevronDown aria-hidden="true" className={`h-3.5 w-3.5 shrink-0 ${open ? 'rotate-180' : ''}`} />

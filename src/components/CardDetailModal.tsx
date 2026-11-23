@@ -38,6 +38,7 @@ export default function CardDetailModal({ card: initialCard, headquarters: initi
   const currentOrigin = useRef(origin);
   const relatedHistory = useRef<CardDetailItem[]>([]);
   const panel = useRef<HTMLElement>(null);
+  const rightPanel = useRef<HTMLDivElement>(null);
   const art = useRef<HTMLDivElement>(null);
   const backdrop = useRef<HTMLDivElement>(null);
   const entrance = useRef<Animation | null>(null);
@@ -67,13 +68,14 @@ export default function CardDetailModal({ card: initialCard, headquarters: initi
     document.addEventListener('click', repeat, true);
     return () => document.removeEventListener('click', repeat, true);
   }, [origin, !!onSourceDoubleClick]);
-  const cancelPaging = useCardDetailPaging({ ref: overlay, enabled: true, ready: arrived && !isClosing, items: sequence,
+  const cancelPaging = useCardDetailPaging({ ref: overlay, scrollRef: rightPanel, enabled: true, ready: arrived && !isClosing, items: sequence,
     item: card ? { card } : headquarters ? { headquarters } : undefined, mode: 'modal',
     onSelect: item => { setCard(item.card || null); setHeadquarters(item.headquarters); },
     onReveal: async item => { currentOrigin.current = await onNavigate?.(item); },
     onMoving: moving => { entrance.current?.cancel(); setArrived(!moving); },
   });
   useEffect(() => { setCard(initialCard || null); setHeadquarters(initialHeadquarters); currentOrigin.current = origin; relatedHistory.current = []; }, [initialCard, initialHeadquarters]);
+  useLayoutEffect(() => { if (rightPanel.current) rightPanel.current.scrollTop = 0; }, [card, headquarters]);
   useLayoutEffect(() => {
     const element = art.current;
     if (!element || !origin || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -147,7 +149,7 @@ export default function CardDetailModal({ card: initialCard, headquarters: initi
   }, []);
   const cardsById = useMemo(() => new Map(cards.map(item => [item.cardId, item])), [cards]);
   const keywords = card ? cardKeywordItems(card, language) : [];
-  const relatedCards = (card ? cardRelations(card) : []).flatMap(relation => {
+  const relatedCards = (card ? cardRelations(card, cards) : []).flatMap(relation => {
     const related = cardsById.get(relation.cardId);
     return related ? [{ ...relation, card: related }] : [];
   });
@@ -170,7 +172,7 @@ export default function CardDetailModal({ card: initialCard, headquarters: initi
         if (!(event.target as HTMLElement).closest('.card-detail-panel, .card-detail-art, .card-detail-close, .card-browsing-tip')) requestClose();
       }} className="card-detail-dialog custom-scrollbar">
       <button data-dialog-cancel aria-label="关闭卡牌详情" disabled={!arrived || isClosing} onClick={requestClose} className="card-detail-close"><X className="h-5 w-5" /></button>
-      <div className="card-detail-layout">
+      <div className="card-detail-layout" data-many-related-cards={relatedCards.length >= 3 || undefined}>
         <aside inert={!arrived || isClosing} className="card-detail-panel custom-scrollbar">
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <h2 className="flex shrink-0 items-center gap-3 text-lg font-bold"><span className="h-7 w-7">{card ? <FilterIcon src={TYPE_ICONS[type]} /> : <Shield className="h-7 w-7" />}</span>{card ? typeLabel(type) : '总部'}</h2>
@@ -190,7 +192,7 @@ export default function CardDetailModal({ card: initialCard, headquarters: initi
         <div ref={art} className="card-detail-art">{card ? <CardFace card={card} initialSource={card === initialCard ? origin?.image : undefined} /> : <img src={headquarters!.image} alt={title} className="card-face" />}
           <CardBrowsingTip className="card-detail-tip" />
         </div>
-        <div inert={!arrived || isClosing} className="card-detail-panel custom-scrollbar">
+        <div ref={rightPanel} inert={!arrived || isClosing} className="card-detail-panel custom-scrollbar overscroll-y-contain">
           <h1 className="text-2xl font-bold">{title}</h1>
           {englishName && <p className="mt-1 text-xs text-kards-text-muted" lang="en">{englishName}</p>}
           {card && cardText(card, language) && <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-kards-text"><CardText text={cardText(card, language)} /></p>}

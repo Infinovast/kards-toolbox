@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Download, Search, Trash2, X } from 'lucide-react';
 import { CardFace } from './CardFace';
 import { SET_ICONS } from '../lib/assetCatalog';
@@ -12,7 +12,8 @@ import CardDetailModal from './CardDetailModal';
 import { captureCardDetailOrigin, type CardDetailOrigin } from '../lib/cardDetailOrigin';
 import useCardPoolLayout from '../lib/useCardPoolLayout';
 import { CardText } from './CardText';
-import CardFilterSelects, { CardStatusSelect, expansionLabel, expansionOptions, FilterIcon } from './CardFilterSelects';
+import CardFilterSelects, { CardStatusSelect, expansionLabel, FilterIcon } from './CardFilterSelects';
+import { BuilderExpansionFilter } from './BuilderFilters';
 import { cardRelations, cardStatusLabel } from '../lib/cardDetails';
 import CardKeywordList from './CardKeywordList';
 import CardRarity from './CardRarity';
@@ -65,7 +66,8 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange, aut
   const closeDetails = () => { setSelectedCard(null); setSelectedHeadquarters(null); };
   const detailRef = useDismissiblePanel(detailMode === 'sidebar' && (!!selectedCard || !!selectedHeadquarters), closeDetails);
   const cardsByCardId = useMemo(() => new Map(cards.map(card => [card.cardId, card])), [cards]);
-  const relations = selectedCard ? cardRelations(selectedCard) : [];
+  const relations = detailMode === 'sidebar' && selectedCard ? cardRelations(selectedCard, cards) : [];
+  useLayoutEffect(() => { if (detailRef.current) detailRef.current.scrollTop = 0; }, [detailMode, selectedCard, selectedHeadquarters]);
   useEffect(() => {
     if (autoFocusSearch) searchRef.current?.querySelector('input')?.focus();
   }, [autoFocusSearch]);
@@ -114,7 +116,7 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange, aut
     return revealDetailItem(item, 'pool', expandedStack && item.headquarters ? headquartersDialogRef.current : pool.ref.current);
   };
   useCardDetailPaging({
-    ref: detailRef, enabled: detailMode === 'sidebar' && !!(selectedCard || selectedHeadquarters), items: detailSequence,
+    ref: detailRef, scrollRef: detailRef, enabled: detailMode === 'sidebar' && !!(selectedCard || selectedHeadquarters), items: detailSequence,
     item: selectedCard ? { card: selectedCard } : selectedHeadquarters ? { headquarters: selectedHeadquarters } : undefined, mode: 'sidebar',
     onSelect: item => { setSelectedCard(item.card || null); setSelectedHeadquarters(item.headquarters || null); },
     onReveal: revealSource,
@@ -177,17 +179,17 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange, aut
               <SearchClearButton label="清除卡牌搜索" value={filters.query} onClear={() => selectFilter({ ...filters, query: '' })} />
             </div>
             <CardStatusSelect value={filters.status} onChange={status => selectFilter({ ...filters, status })} />
-            <CustomSelect className="filter-expansion-select" label="扩展包筛选" value={filters.expansion} onChange={expansion => selectFilter({ ...filters, expansion })} options={expansionOptions(expansions, language)} />
+            <BuilderExpansionFilter value={filters.expansion} onChange={expansion => selectFilter({ ...filters, expansion })} expansions={expansions} language={language} forceDropdown />
             <div role="group" aria-label="卡牌排序" className="library-sort-controls">
               <CustomSelect label="卡牌排序依据" value={sortKey} onChange={value => { setSortKey(value as CardSortKey); setPage(1); }} options={[...CARD_SORT_OPTIONS]} />
               <button type="button" className="library-sort-direction" aria-label={`排序方向：${sortDirection === 'asc' ? '升序' : '降序'}`} aria-pressed={sortDirection === 'desc'} title={sortDirection === 'asc' ? '升序，点击切换降序' : '降序，点击切换升序'} onClick={() => { setSortDirection(value => value === 'asc' ? 'desc' : 'asc'); setPage(1); }}>
                 {sortKey === 'nameZh' || sortKey === 'nameEn' ? <span>{sortDirection === 'asc' ? 'A-Z' : 'Z-A'}</span> : sortDirection === 'asc' ? <ArrowUp aria-hidden="true" className="h-4 w-4" /> : <ArrowDown aria-hidden="true" className="h-4 w-4" />}
               </button>
             </div>
+            <button type="button" onClick={resetFilters} className="library-clear-filters"><Trash2 className="h-3.5 w-3.5" aria-hidden="true" />{filters.query.trim() && !hasCardFilterConditions(filters) ? '清除搜索' : '清除筛选'}</button>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="library-result-count">找到 <strong>{filteredCards.length.toLocaleString()}</strong> 张</span>
-            <button type="button" onClick={resetFilters} className="library-clear-filters"><Trash2 className="h-3.5 w-3.5" aria-hidden="true" />{filters.query.trim() && !hasCardFilterConditions(filters) ? '清除搜索' : '清除筛选'}</button>
             {cacheAvailability?.cards === filteredCards && cacheAvailability.missing && <button disabled={download.status === 'running' || download.status === 'paused'} onClick={async () => {
               if (filteredCards.length > 100 && !await requestConfirmation(`缓存当前筛选的 ${filteredCards.length.toLocaleString()} 张卡牌大图+缩略图？`)) return;
               startImageDownload(filteredCards);
@@ -229,7 +231,7 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange, aut
         onSelect={(headquarters, origin) => { setDetailOrigin(origin); setSelectedCard(null); setSelectedHeadquarters(headquarters); }} />}
 
       {detailMode === 'sidebar' && (selectedCard || selectedHeadquarters) && (
-        <aside ref={detailRef} role="dialog" aria-modal="false" aria-label={selectedCard ? '卡牌详情' : '总部详情'} tabIndex={-1} className="glass-panel custom-scrollbar absolute bottom-5 right-5 top-5 z-30 flex w-[300px] max-w-[calc(100%-40px)] flex-col overflow-y-auto rounded-lg border border-kards-border p-4 shadow-xl">
+        <aside ref={detailRef} role="dialog" aria-modal="false" aria-label={selectedCard ? '卡牌详情' : '总部详情'} tabIndex={-1} className="glass-panel custom-scrollbar absolute bottom-5 right-5 top-5 z-30 flex w-[300px] max-w-[calc(100%-40px)] flex-col overflow-y-auto overscroll-y-contain rounded-lg border border-kards-border p-4 shadow-xl">
           <button onClick={closeDetails} aria-label="关闭卡牌详情" className="absolute right-3 top-3 z-10 rounded-full bg-black/60 p-1 text-white"><X className="h-4 w-4" /></button>
           <div className="detail-sidebar-content">
             {selectedCard && <>

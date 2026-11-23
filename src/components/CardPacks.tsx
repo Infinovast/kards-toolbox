@@ -16,27 +16,19 @@ import './cardPacks.css';
 const RARITY_LABELS = { Standard: '普通', Limited: '限定', Special: '特殊', Elite: '精英' };
 const ELITE_LIFT = 26;
 
-function PackSourceIcon({ pack }: { pack: CardPackAsset }) {
-  const [index, setIndex] = useState(0);
-  const container = useRef<HTMLSpanElement>(null);
-  const nations = pack.nations || [];
-  useEffect(() => {
-    if (nations.length < 2) return;
-    const timer = window.setInterval(() => {
-      const rect = container.current?.getBoundingClientRect();
-      if (!document.hidden && rect && rect.bottom > 0 && rect.top < innerHeight) setIndex(value => (value + 1) % nations.length);
-    }, 2000);
-    return () => clearInterval(timer);
-  }, [nations.length]);
-  const src = pack.category === 'expansion' ? SET_ICONS[pack.set || ''] : factionIcon(nations[index % nations.length], 'white');
-  return <span ref={container} className="pack-source-icon" aria-hidden="true"><span key={src} className="pack-source-icon-entry"><FilterIcon src={src || SET_ICONS.All} /></span></span>;
+function PackSourceIcon({ pack, rotation }: { pack: CardPackAsset; rotation: number }) {
+  const nations = pack.nations;
+  const nation = nations?.length ? nations[rotation % nations.length] : undefined;
+  const src = pack.category === 'expansion' ? SET_ICONS[pack.set || ''] : factionIcon(nation, 'white');
+  return <span className="pack-source-icon" aria-hidden="true"><span key={src} className="pack-source-icon-entry"><FilterIcon src={src || SET_ICONS.All} /></span></span>;
 }
 
 function PackInfo({ pack, kind }: { pack: CardPackAsset; kind: CardPackKind }) {
   const id = useId();
   const [visible, setVisible] = useState(false);
   const label = kind === 'standard' ? '标准包' : '军官包';
-  const content = pack.category === 'expansion' && pack.source !== 'Core' ? `${pack.name}套装` : pack.name;
+  const content = pack.source === 'Core' ? '来自常备卡池的'
+    : pack.category === 'expansion' ? `${pack.name}套装` : pack.name;
   return <span className="pack-info" onPointerEnter={() => setVisible(true)} onPointerLeave={() => setVisible(false)}>
     <button type="button" className="pack-info-button" aria-label={`${label}说明`} aria-describedby={visible ? id : undefined}
       onFocus={() => setVisible(true)} onBlur={() => setVisible(false)} onClick={() => setVisible(value => !value)}
@@ -146,10 +138,11 @@ function PackRevealCard({ reward, index, requested, onRequest, onComplete, onZoo
 }
 
 export default function CardPacks({ cards, history, onOpenPack }: { cards: KardsCardRecord[]; history: PackHistory; onOpenPack: (kind: CardPackKind, rewards: PackReward[]) => Promise<void> }) {
-  const [category, setCategory] = useState<CardPackAsset['category']>('nation');
+  const [category, setCategory] = useState<CardPackAsset['category']>('expansion');
   const [kind, setKind] = useState<CardPackKind>('standard');
   const [source, setSource] = useState('Britain');
   const [opened, setOpened] = useState<{ pack: CardPackAsset; cards: PackReward[]; serial: number } | null>(null);
+  const [emblemRotation, setEmblemRotation] = useState(0);
   const [opening, setOpening] = useState(false);
   const openingLock = useRef(false);
   const [requested, setRequested] = useState<number[]>([]);
@@ -166,6 +159,13 @@ export default function CardPacks({ cards, history, onOpenPack }: { cards: Kards
   const pool = useMemo(() => cardPackPool(cards, selected), [cards, selected]);
   const rules = PACK_RULES[opened?.pack.kind || kind];
   const complete = !!opened && revealed.length === opened.cards.length;
+  useEffect(() => {
+    if (category !== 'nation' || opened) return;
+    const timer = window.setInterval(() => {
+      if (!document.hidden) setEmblemRotation(rotation => rotation + 1);
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [category, opened]);
   const detailSequence = useMemo(() => [...new Map((opened?.cards || []).filter((_, index) => revealed.includes(index))
     .flatMap(reward => reward.kind === 'card' ? [[reward.card.cardId, { card: reward.card }] as const] : [])).values()], [opened, revealed]);
   const open = async (pack: CardPackAsset = opened?.pack || selected) => {
@@ -265,9 +265,9 @@ export default function CardPacks({ cards, history, onOpenPack }: { cards: Kards
         <PackHistorySummary history={history} />
         <span className="pack-reveal-progress" role="status" aria-live="polite">已翻开 {revealed.length} / {opened.cards.length}</span>
       </> : <>
-        <div role="group" aria-label="卡包来源" className="pack-segmented" data-second={category === 'expansion'}>
+        <div role="group" aria-label="卡包来源" className="pack-segmented" data-second={category === 'nation'}>
           <span className="pack-segmented-indicator" aria-hidden="true" />
-          {([{ id: 'nation', name: '国家卡包' }, { id: 'expansion', name: '扩展卡包' }] as const).map(item => <button key={item.id} type="button" aria-pressed={category === item.id}
+          {([{ id: 'expansion', name: '扩展卡包' }, { id: 'nation', name: '国家卡包' }] as const).map(item => <button key={item.id} type="button" aria-pressed={category === item.id}
             onClick={() => { setCategory(item.id); setError(''); }}>{item.id === 'nation' ? <Flag className="h-4 w-4" /> : <Layers3 className="h-4 w-4" />}{item.name}</button>)}
         </div>
         <PackHistorySummary history={history} />
@@ -308,13 +308,13 @@ export default function CardPacks({ cards, history, onOpenPack }: { cards: Kards
         <div key={`${category}-${kind}`} role="group" aria-label="选择卡包" data-category={category} className="pack-selection-grid">
           {options.map(pack => <button key={pack.id} type="button" aria-pressed={selected.id === pack.id} aria-label={`${pack.name}${kind === 'standard' ? '标准包' : '军官包'}`}
             disabled={opening} onClick={() => { setSource(pack.source); setError(''); }} onDoubleClick={() => { void open(pack); }} className="pack-choice card-action">
-            <span className="pack-choice-art"><img src={pack.file} alt="" />{selected.id === pack.id && <Check className="pack-choice-check h-5 w-5" />}</span>
-            <span className="pack-choice-name"><PackSourceIcon pack={pack} />{pack.name}</span>
+            <span className="pack-choice-art"><img src={pack.file} alt="" />{selected.id === pack.id && <Check size={26} className="pack-choice-check" aria-hidden="true" />}</span>
+            <span className="pack-choice-name glass-panel"><PackSourceIcon pack={pack} rotation={emblemRotation} />{pack.name}</span>
           </button>)}
         </div>
       </div>
       <footer className="pack-selection-footer glass-panel">
-        <div className="pack-selection-description"><h2><span className="pack-selected-source"><PackSourceIcon key={selected.source} pack={selected} />{selected.name}</span><span className="pack-selected-kind">{kind === 'standard' ? '标准包' : '军官包'}</span></h2><span className="text-xs text-kards-text-muted">卡池 {pool.length.toLocaleString()} 张</span></div>
+        <div className="pack-selection-description"><h2><span className="pack-selected-source"><PackSourceIcon key={selected.id} pack={selected} rotation={emblemRotation} />{selected.name}</span><span className="pack-selected-kind">{kind === 'standard' ? '标准包' : '军官包'}</span></h2><span className="text-xs text-kards-text-muted">卡池 {pool.length.toLocaleString()} 张</span></div>
         <div className="pack-probabilities" aria-label="单卡基础出卡概率">{CARD_RARITIES.map(rarity => <span key={rarity}><WildcardSymbol rarity={rarity} /><span>{RARITY_LABELS[rarity]}<strong>{rules.probabilities[rarity]}%</strong></span></span>)}</div>
         <button type="button" onClick={() => { void open(); }} disabled={!pool.length || opening} className="pack-open-button">{opening ? '打开中…' : '打开卡包'}</button>
       </footer>

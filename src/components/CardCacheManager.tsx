@@ -43,6 +43,9 @@ export default function CardCacheManager({ cards }: { cards: KardsCardRecord[] }
       if (result.batch && batchSeen.current !== result.batch.startedAt) {
         batchSeen.current = result.batch.startedAt;
         setScope('recent');
+      } else if (!result.batch) {
+        batchSeen.current = '';
+        setScope('all');
       }
     }).catch(() => { if (active) { setSnapshot(undefined); setError('读取本地缓存清单失败，请重新读取。'); } });
     return () => { active = false; };
@@ -119,22 +122,30 @@ export default function CardCacheManager({ cards }: { cards: KardsCardRecord[] }
     catch (error) { setActionError(error instanceof Error ? error.message : '整理缓存失败'); }
     finally { setDeleting(false); pendingAction.current = false; }
   };
-  const allImageKeys = snapshot ? [...snapshot.imageKeys.full, ...snapshot.imageKeys.thumbnail, ...snapshot.deckImageEntries.map(entry => entry.key)] : [];
+  const imageStats = [
+    { label: '已缓存卡牌大图', spaceLabel: '卡牌大图占用空间', count: snapshot?.cachedFull, bytes: snapshot?.storageBytes.full, keys: snapshot?.imageKeys.full, deleteLabel: '全部卡牌大图', buttonText: '删除全部大图' },
+    { label: '已缓存卡牌缩略图', spaceLabel: '卡牌缩略图占用空间', count: snapshot?.cachedThumbnail, bytes: snapshot?.storageBytes.thumbnail, keys: snapshot?.imageKeys.thumbnail, deleteLabel: '全部卡牌缩略图', buttonText: '删除全部缩略图' },
+    { label: '已生成卡组图片', spaceLabel: '卡组图片占用空间', count: snapshot?.deckImages, bytes: snapshot?.storageBytes.deckImages, keys: snapshot?.deckImageEntries.map(entry => entry.key), deleteLabel: '全部卡组图片缓存', buttonText: '删除全部卡组图片' },
+  ];
 
   return <section aria-label="本地缓存" className="mb-8 rounded-lg glass-panel p-5 md:p-6">
-    <div className="flex items-center justify-between gap-3"><h3 className="text-lg font-bold text-kards-text">本地缓存</h3><span className="text-xs text-kards-text-muted">随缓存变更自动更新</span></div>
+    <h3 className="text-lg font-bold text-kards-text">本地缓存</h3>
     <dl aria-label="缓存统计" className="mt-5 grid grid-cols-4 gap-3 text-xs lg:gap-6 lg:text-sm">
       <div className="min-w-0"><dt className="text-kards-text-muted">卡牌数据</dt><dd className="mt-2 text-base font-bold tabular-nums text-kards-text">{cards.length.toLocaleString()} <span className="text-xs font-normal">张</span></dd></div>
-      <div className="min-w-0"><dt className="text-kards-text-muted">已缓存卡牌大图</dt><dd className="mt-2 text-base font-bold tabular-nums text-kards-text">{snapshot ? snapshot.cachedFull.toLocaleString() : '—'} <span className="text-xs font-normal">张</span><span className="mt-1 block text-xs font-normal text-kards-text-muted" aria-label="卡牌大图占用空间">{snapshot ? storageSize(snapshot.storageBytes.full) : '—'}</span></dd></div>
-      <div className="min-w-0"><dt className="text-kards-text-muted">已缓存卡牌缩略图</dt><dd className="mt-2 text-base font-bold tabular-nums text-kards-text">{snapshot ? snapshot.cachedThumbnail.toLocaleString() : '—'} <span className="text-xs font-normal">张</span><span className="mt-1 block text-xs font-normal text-kards-text-muted" aria-label="卡牌缩略图占用空间">{snapshot ? storageSize(snapshot.storageBytes.thumbnail) : '—'}</span></dd></div>
-      <div className="min-w-0"><dt className="text-kards-text-muted">已生成卡组图片</dt><dd className="mt-2 text-base font-bold tabular-nums text-kards-text">{snapshot ? snapshot.deckImages.toLocaleString() : '—'} <span className="text-xs font-normal">张</span><span className="mt-1 block text-xs font-normal text-kards-text-muted" aria-label="卡组图片占用空间">{snapshot ? storageSize(snapshot.storageBytes.deckImages) : '—'}</span></dd></div>
+      {imageStats.map(({ label, spaceLabel, count, bytes, keys, deleteLabel, buttonText }) => <div key={label} className="min-w-0">
+        <dt className="text-kards-text-muted">{label}</dt>
+        <dd className="mt-2">
+          <div className="text-base font-bold tabular-nums text-kards-text">{count?.toLocaleString() ?? '—'} <span className="text-xs font-normal">张</span></div>
+          <div className="mt-1 text-xs text-kards-text-muted" aria-label={spaceLabel}>{bytes === undefined ? '—' : storageSize(bytes)}</div>
+          <div className="mt-2">{deleteButton(keys ?? [], deleteLabel, buttonText)}</div>
+        </dd>
+      </div>)}
     </dl>
     <p className="mt-3 text-xs text-kards-text-muted">空间包含旧缓存，按有效缓存内容统计，不含存储索引与待回收碎片。</p>
-    <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-kards-border pt-4">
-      <CustomSelect label="缓存查看范围" value={scope} onChange={setScope} options={[{ value: 'all', label: '全部牌库' }, ...(snapshot?.batch ? [{ value: 'recent', label: `最近批量缓存（${snapshot.batch.importIds.length} 张）` }] : [])]} />
-      <div className="relative min-w-40 flex-1"><Search className="absolute left-3 top-3 h-4 w-4 text-kards-text-muted" /><input aria-label="搜索缓存卡牌" value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Escape' && query && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); setQuery(''); } }} placeholder="搜索卡名或编号" className="w-full rounded border border-kards-border bg-kards-input-bg py-2 pl-9 pr-9 text-sm text-kards-text" /><SearchClearButton label="清除缓存卡牌搜索" value={query} onClear={() => setQuery('')} /></div>
-    </div>
-    {scope === 'recent' && snapshot?.batch && <time dateTime={snapshot.batch.startedAt} className="mt-3 block text-xs text-kards-text-muted">{new Date(snapshot.batch.startedAt).toLocaleString('zh-CN', { hour12: false })}</time>}
+    {snapshot?.batch && <div className="mt-4 flex flex-wrap items-center gap-3">
+      <CustomSelect label="缓存查看范围" value={scope} onChange={setScope} options={[{ value: 'all', label: '全部牌库' }, { value: 'recent', label: `最近批量缓存（${snapshot.batch.importIds.length} 张）` }]} />
+      {scope === 'recent' && <time dateTime={snapshot.batch.startedAt} className="text-xs text-kards-text-muted">{new Date(snapshot.batch.startedAt).toLocaleString('zh-CN', { hour12: false })}</time>}
+    </div>}
     <div className="my-4 flex flex-wrap items-center justify-between gap-3">
       <div className="inline-flex overflow-hidden rounded border border-kards-border" role="group" aria-label="缓存状态分类">
         {(['cached', 'missing', 'failed'] as const).map((kind, index) => <button type="button" key={kind} aria-pressed={status === kind} onClick={() => setStatus(kind)} className={`px-3 py-2 text-xs tabular-nums lg:text-sm ${index ? 'border-l border-kards-border' : ''} ${status === kind ? 'bg-kards-gold/15 text-kards-text' : 'text-kards-text-muted hover:bg-kards-panel-hover hover:text-kards-text'}`}>{labels[kind]}（{counts[kind].toLocaleString()}）</button>)}
@@ -144,13 +155,6 @@ export default function CardCacheManager({ cards }: { cards: KardsCardRecord[] }
     </div>
     <details aria-label="缓存维护" className="mb-4 border-y border-kards-border py-2 text-sm text-kards-text">
       <summary className="cursor-pointer py-1 text-kards-text-muted">缓存维护<span className="ml-2 text-xs">删除、清理与空间整理</span></summary>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {deleteButton(filtered.flatMap(entry => [entry.full, entry.thumbnail].filter(part => part.status === 'cached' || part.status === 'failed').map(part => part.key)), `当前筛选的 ${filtered.length} 张卡牌的图片缓存和失败记录`, '删除当前筛选缓存')}
-        {deleteButton(snapshot?.imageKeys.full || [], '全部卡牌大图', '删除全部大图')}
-        {deleteButton(snapshot?.imageKeys.thumbnail || [], '全部卡牌缩略图', '删除全部缩略图')}
-        {deleteButton(snapshot?.deckImageEntries.map(entry => entry.key) || [], '全部卡组图片缓存', '删除全部卡组图片')}
-        {deleteButton(allImageKeys, '全部图片缓存', '删除全部图片缓存')}
-      </div>
       {!!snapshot?.unusedImageKeys.length && <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-kards-text-muted"><span>旧缓存与失败记录 · {snapshot.unusedImageKeys.length.toLocaleString()} 项</span>{deleteButton(snapshot.unusedImageKeys, '未使用的旧卡图缓存与失败记录', '清理旧缓存')}</div>}
       {window.kardsDesktop?.compactCardPack && <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-kards-text-muted"><span>可回收空间 {storageSize(snapshot?.packDeadBytes || 0)}</span><button type="button" disabled={!snapshot || busy || !snapshot.packDeadBytes} onClick={() => void compact()} className="rounded border border-kards-border px-2 py-1 text-kards-text disabled:opacity-40">整理卡图缓存</button></div>}
       <details className="my-3 text-xs"><summary className="cursor-pointer py-1">已生成卡组图片列表（{snapshot?.deckImages || 0} 份）</summary>
@@ -159,6 +163,22 @@ export default function CardCacheManager({ cards }: { cards: KardsCardRecord[] }
     </details>
     {(error || actionError || snapshot?.recordError) && <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded border border-red-500/40 p-3 text-sm text-kards-text"><p>{error || actionError || snapshot?.recordError}</p>{(error || snapshot?.recordError) && <button type="button" onClick={() => setReadAttempt(value => value + 1)} className="shrink-0 rounded border border-kards-border px-3 py-1 hover:border-kards-gold">重新读取</button>}</div>}
     {message && <p role="status" className="mb-4 text-sm text-kards-text">{message}</p>}
+    <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="cache-search relative min-w-40 flex-1">
+        <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-kards-text-muted" />
+        <input aria-label="搜索缓存卡牌" value={query} onChange={event => setQuery(event.target.value)}
+          onKeyDown={event => {
+            if (event.key === 'Escape' && query && !event.nativeEvent.isComposing) {
+              event.preventDefault();
+              event.stopPropagation();
+              setQuery('');
+            }
+          }}
+          placeholder="搜索卡名或编号" className="glass-panel h-9 w-full rounded border border-kards-input-border pl-9 pr-9 text-sm text-kards-text" />
+        <SearchClearButton label="清除缓存卡牌搜索" value={query} onClear={() => setQuery('')} />
+      </div>
+      {deleteButton(filtered.flatMap(entry => [entry.full, entry.thumbnail].filter(part => part.status === 'cached' || part.status === 'failed').map(part => part.key)), `当前筛选的 ${filtered.length} 张卡牌的图片缓存和失败记录`, '删除当前筛选缓存')}
+    </div>
     {!snapshot && !error ? <p role="status" className="py-6 text-sm text-kards-text-muted">正在读取本地缓存清单…</p> : !filtered.length ? <p role="status" className="border-y border-kards-border py-6 text-sm text-kards-text-muted">{query ? '没有符合搜索条件的卡牌。' : status === 'cached' ? '当前范围尚无完整缓存的卡牌。' : status === 'missing' ? '当前范围没有未缓存的卡牌。' : '当前范围没有缓存失败的卡牌。'}</p> : <div aria-label="卡牌缓存图片清单" className="grid grid-cols-3 gap-2 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10">
       {visibleEntries.map(entry => {
         const title = cardDisplayTitle(entry.card, 'zh-Hans');

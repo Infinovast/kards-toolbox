@@ -1,15 +1,16 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import type { CardFilters } from '../lib/cardFilters';
+import type { CardLanguage } from '../types/card';
 import { CARD_SUBTYPES } from '../lib/cardSubtypes';
 import { SUBCLASS_ICONS } from '../lib/assetCatalog';
 import CustomSelect from './CustomSelect';
 import SymbolFilter from './SymbolFilter';
 import { cardTypeOptions, CostFilterButtons, expansionOptions, FilterIcon, nationOptions, rarityOptions } from './CardFilterSelects';
 
-export function BuilderExpansionFilter({ value, onChange, expansions }: { value: string; onChange: (value: string) => void; expansions: string[] }) {
+export function BuilderExpansionFilter({ value, onChange, expansions, forceDropdown = false, language = 'zh-Hans' }: { value: string; onChange: (value: string) => void; expansions: string[]; forceDropdown?: boolean; language?: CardLanguage }) {
   const ref = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState(false);
-  const options = expansionOptions(expansions, 'zh-Hans');
+  const options = expansionOptions(expansions, language);
   useLayoutEffect(() => {
     const element = ref.current, row = element?.parentElement;
     if (!element || !row) return;
@@ -27,8 +28,9 @@ export function BuilderExpansionFilter({ value, onChange, expansions }: { value:
     [row, ...siblings].forEach(item => observer.observe(item));
     return () => observer.disconnect();
   }, [options.length]);
-  return <div ref={ref} className="builder-expansion-filter" data-collapsed={collapsed}>
-    <SymbolFilter label="扩展包" options={options} value={[value]} onChange={selected => onChange(selected[0])} collapsed={collapsed} multiple={false} />
+  const isCollapsed = collapsed || forceDropdown;
+  return <div ref={ref} className="builder-expansion-filter" data-collapsed={isCollapsed}>
+    <SymbolFilter label="扩展包" options={options} value={[value]} onChange={selected => onChange(selected[0])} collapsed={isCollapsed} multiple={false} />
   </div>;
 }
 

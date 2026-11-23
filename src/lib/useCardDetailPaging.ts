@@ -1,8 +1,9 @@
 import { useEffect, useRef, type RefObject } from 'react';
 import { detailItemId, nextDetailFrame, type CardDetailItem } from './cardDetailPaging';
 
-export default function useCardDetailPaging({ ref, enabled, ready = true, items, item, mode, onSelect, onReveal, onMoving }: {
+export default function useCardDetailPaging({ ref, scrollRef, enabled, ready = true, items, item, mode, onSelect, onReveal, onMoving }: {
   ref: RefObject<HTMLElement | null>;
+  scrollRef?: RefObject<HTMLElement | null>;
   enabled: boolean;
   ready?: boolean;
   items: CardDetailItem[];
@@ -54,6 +55,12 @@ export default function useCardDetailPaging({ ref, enabled, ready = true, items,
     };
     const wheel = (event: WheelEvent) => {
       if (event.ctrlKey || !event.deltaY) return;
+      const scrollPanel = scrollRef?.current;
+      if (scrollPanel && event.target instanceof Node && scrollPanel.contains(event.target)
+        && scrollPanel.scrollHeight > scrollPanel.clientHeight) {
+        event.stopPropagation();
+        return;
+      }
       event.preventDefault(); event.stopPropagation();
       const now = performance.now(), gap = now - lastInput;
       lastInput = now;
@@ -64,6 +71,6 @@ export default function useCardDetailPaging({ ref, enabled, ready = true, items,
     };
     root.addEventListener('wheel', wheel, { passive: false });
     return () => { disposed = true; animation?.cancel(); root.removeEventListener('wheel', wheel); };
-  }, [ref, enabled, mode]);
+  }, [ref, scrollRef, enabled, mode]);
   return () => cancel.current();
 }

@@ -1,8 +1,8 @@
-import { ArrowRight, ArrowRightLeft, Image, Plus, Shield, Upload } from 'lucide-react';
+import { ArrowRight, ArrowRightLeft, Image, Newspaper, Plus, Shield, Upload } from 'lucide-react';
 import { LOGOS } from '../lib/assetCatalog';
 import './welcomePage.css';
 
-export type WelcomeAction = 'import' | 'create' | 'ready' | 'compare' | 'image' | 'search' | 'cards' | 'packs' | 'decks';
+export type WelcomeAction = 'import' | 'create' | 'ready' | 'compare' | 'image' | 'search' | 'cards' | 'packs' | 'news' | 'decks';
 
 export default function WelcomePage({ showWelcomePage, onShowWelcomePageChange, onAction }: {
   showWelcomePage: boolean;
@@ -53,14 +53,18 @@ export default function WelcomePage({ showWelcomePage, onShowWelcomePageChange, 
             <span className="welcome-action-copy"><span>开个卡包试试手气</span><small>挑选卡包，体验模拟开包与翻牌</small></span>
             <ArrowRight className="welcome-action-arrow" aria-hidden="true" />
           </button>
+          <button type="button" className="welcome-action" onClick={() => onAction('news')}>
+            <Newspaper className="welcome-action-icon" aria-hidden="true" />
+            <span className="welcome-action-copy"><span>浏览新闻</span><small>了解 KARDS 最新消息</small></span>
+            <ArrowRight className="welcome-action-arrow" aria-hidden="true" />
+          </button>
         </section>
       </div>
     </div>
 
     <footer className="welcome-footer glass-panel">
       <div>
-        <label className="welcome-preference"><input type="checkbox" checked={showWelcomePage} onChange={event => onShowWelcomePageChange(event.target.checked)} />显示欢迎页</label>
-        <p>启动时显示，随时可点击左上角 Logo 返回。</p>
+        <label className="welcome-preference"><input type="checkbox" checked={showWelcomePage} onChange={event => onShowWelcomePageChange(event.target.checked)} />启动时显示欢迎页</label>
       </div>
       <button type="button" className="welcome-open-decks" onClick={() => onAction('decks')}>进入我的卡组<ArrowRight aria-hidden="true" /></button>
     </footer>

@@ -75,6 +75,10 @@ export function isGeneratedCard(card: KardsCardRecord) {
   return isVeteranCard(card) || ['OnlySpawnable', 'Special'].includes(card.json.set || '');
 }
 
+export function isPermanentPoolCard(card: KardsCardRecord) {
+  return !!card.json.permanent_pool && !isGeneratedCard(card);
+}
+
 function generatedCategory(card: KardsCardRecord) {
   if (card.json.attributes?.some(attribute => attribute.startsWith('VeteranOf:'))) return 'veteran';
   if (weatherCardIds.has(card.cardId)) return 'weather';
@@ -87,7 +91,7 @@ function matchesStatus(card: KardsCardRecord, status: string) {
   if (status === 'All') return true;
   if (status === 'active') return !card.reserved && !isGeneratedCard(card);
   if (status === 'reserved') return !!card.reserved;
-  if (status === 'permanent') return !!card.json.permanent_pool && !isGeneratedCard(card);
+  if (status === 'permanent') return isPermanentPoolCard(card);
   if (status === 'generated') return isGeneratedCard(card);
   return isGeneratedCard(card) && generatedCategory(card) === status;
 }

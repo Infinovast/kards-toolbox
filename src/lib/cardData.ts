@@ -100,14 +100,16 @@ export function validateCardRecords(values: unknown, source: CardDataSource = 'k
     seenCardIds.add(card.cardId);
     return card;
   });
-  // Veteran forms inherit their base set. Resolve after collecting records so
-  // bases from later API pages and existing local snapshots work identically.
+  // Resolve veteran metadata after collecting records so bases from later
+  // API pages and existing local snapshots work identically.
   const byId = new Map(cards.map(card => [card.cardId, card]));
   return cards.map(card => {
-    if (card.json.set !== 'Special') return card;
     const baseId = card.json.attributes?.find(attribute => attribute.startsWith('VeteranOf:'))?.slice('VeteranOf:'.length);
-    const set = baseId && byId.get(baseId)?.json.set;
-    return set && set !== 'Special' ? { ...card, json: { ...card.json, set } } : card;
+    const base = baseId ? byId.get(baseId) : undefined;
+    if (!base) return card;
+    const set = base.json.set;
+    const json = card.json.set === 'Special' && set && set !== 'Special' ? { ...card.json, set } : card.json;
+    return { ...card, reserved: base.reserved, json };
   });
 }
 

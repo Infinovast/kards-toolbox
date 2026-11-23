@@ -41,25 +41,33 @@ function imageVersions(src: string, width: number) {
 }
 
 async function fillArticleImages(article: HTMLElement, cover: NewsArticle['cover'], signal: AbortSignal) {
+  const bodyWidth = article.querySelector<HTMLElement>('.article-body')!.clientWidth;
   const pictures = [...article.querySelectorAll<HTMLElement>('.article-image')].map((element, index) => {
     element.setAttribute('aria-label', element.getAttribute('aria-label') || `图片 ${index + 1}`);
-    const width = Math.max(1, Math.min(1600, Math.ceil(element.clientWidth * devicePixelRatio)));
-    return { element, versions: imageVersions(element.dataset.imageSrc!, width) };
+    const sourceWidth = Number.parseFloat(element.style.getPropertyValue('--image-width')) || bodyWidth;
+    const width = Math.max(1, Math.min(1600, Math.ceil(Math.min(bodyWidth, sourceWidth) * devicePixelRatio)));
+    return { element, width, versions: imageVersions(element.dataset.imageSrc!, width) };
   });
   if (cover) {
     const element = article.querySelector<HTMLElement>('.article-art')!;
     const filledWidth = cover.width && cover.height ? element.clientHeight * cover.width / cover.height : 0;
     const width = Math.max(1, Math.min(cover.width ?? 1920, 1920, Math.ceil(Math.max(element.clientWidth, filledWidth) * devicePixelRatio)));
-    pictures.unshift({ element, versions: imageVersions(cover.src, width) });
+    pictures.unshift({ element, width, versions: imageVersions(cover.src, width) });
   }
   for (const pass of [0, 1]) {
-    for (const { element, versions } of pictures) {
+    for (const { element, width, versions } of pictures) {
       if (signal.aborted) return;
       if (!versions[pass]) continue;
       const image = await loadImage(versions[pass], signal);
       if (signal.aborted) return;
       if (image) {
         image.alt = '';
+        if (element.dataset.imageSrc && !element.style.getPropertyValue('--image-width')) {
+          element.style.setProperty('--image-ratio', `${image.naturalWidth} / ${image.naturalHeight}`);
+          if (versions.length === 1 || (pass === 1 && image.naturalWidth < width)) {
+            element.style.setProperty('--image-width', `${image.naturalWidth}px`);
+          }
+        }
         element.replaceChildren(image);
         delete element.dataset.failed;
       } else if (!element.firstChild && pass === versions.length - 1) {

@@ -8,7 +8,7 @@
 
 KARDS Toolbox is a local tool for KARDS players to browse cards, build and manage decks, and simulate opening card packs.
 
-Current version: **1.3.8**.
+Current version: **1.4.0**.
 
 ## Screenshots
 

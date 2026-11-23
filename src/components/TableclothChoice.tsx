@@ -1,7 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { Check } from 'lucide-react';
 import { HEADQUARTERS, type TableclothAsset } from '../lib/cardAssets';
+import AssetSelectionMark from './AssetSelectionMark';
 
 export default function TableclothChoice({ item, selected, onChoose }: {
   item: TableclothAsset;
@@ -66,12 +66,10 @@ export default function TableclothChoice({ item, selected, onChoose }: {
     <button ref={anchor} type="button" aria-label={'选择桌布 ' + item.name} aria-pressed={selected}
       aria-describedby={open ? id : undefined} onClick={() => { hide(); onChoose(item.file); }}
       onMouseEnter={show} onMouseLeave={leave} onFocus={show} onBlur={hide}
-      className={`aspect-video military-border overflow-hidden cursor-pointer group relative ${selected ? 'ring-2 ring-kards-gold' : 'hover:brightness-110 opacity-80 hover:opacity-100'}`}>
+      className="tablecloth-choice aspect-video military-border overflow-hidden cursor-pointer group relative">
       <img src={item.file} className="w-full h-full object-cover" alt="" />
+      {selected && <AssetSelectionMark />}
       <span className="absolute bottom-0 left-0 right-0 truncate bg-black/65 px-2 py-1 text-[10px] text-white">{item.name}</span>
-      <span className="absolute inset-0 bg-kards-gold/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-        <Check className={`w-6 h-6 text-kards-text ${selected ? 'opacity-100' : 'opacity-0'}`} />
-      </span>
     </button>
     {open && description && createPortal(<div ref={tooltip} id={id} role="tooltip" className="tablecloth-description"
       data-side={position?.side} style={position?.style || { width: Math.min(420, window.innerWidth - 24), visibility: 'hidden' }}

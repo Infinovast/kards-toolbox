@@ -1,22 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { Download, History, Image as ImageIcon, LoaderCircle, Palette, RotateCcw, X } from 'lucide-react';
+import { Download, History, Image as ImageIcon, Library, LoaderCircle, Palette, RotateCcw, X } from 'lucide-react';
 import type { KardsCardRecord } from '../types/card';
 import { decodeDeckCode } from '../lib/deckCode';
 import { extractDeckCodeFromText, inferDeckTitleFromText } from '../lib/deckImport';
 import { defaultDeckName } from '../lib/deckName';
 import { CARD_BACKS, cardBackForDeck, headquartersForDeck, tableclothForHeadquarters } from '../lib/cardAssets';
+import { factionIcon } from '../lib/assetCatalog';
+import { factionLabel } from '../types/card';
 import { renderDeckImage, renderDeckMiniImage, downloadDeckImage } from '../lib/deckRenderer';
 import { listDeckImageCodes, readDeckImage, saveDeckImage, type DeckImageKind } from '../lib/deckImageCache';
 import { useCardImageCacheRevision } from '../lib/cardImages';
 import { handleDialogKeys, useDismissiblePanel } from '../lib/dialogKeyboard';
 import DeckImageHistoryItem from './DeckImageHistoryItem';
+import type { ExistingCompareDeck } from './DeckComparePage';
 
 interface ImageDeck { code: string; name: string; headquartersId?: string; cardBackUrl?: string }
 interface Props {
   cards: KardsCardRecord[];
   decks: ImageDeck[];
+  existingDecks: ExistingCompareDeck[];
   tablecloth: string;
   onOpenTableclothPicker: (current: string, onChoose: (tablecloth: string) => void) => void;
   customCategories: { backs: { id: string; url: string }[] }[];
@@ -37,7 +41,7 @@ function imageOptions(deck: ImageDeck, tablecloth: string, customCategories: Pro
   return { background, cardBackUrl, cardBackId };
 }
 
-export default function DeckImagePage({ cards, decks, tablecloth: defaultTablecloth, customCategories, onOpenTableclothPicker }: Props) {
+export default function DeckImagePage({ cards, decks, existingDecks, tablecloth: defaultTablecloth, customCategories, onOpenTableclothPicker }: Props) {
   const reducedMotion = useReducedMotion();
   const cacheRevision = useCardImageCacheRevision();
   const [tableclothOverride, setTableclothOverride] = useState<string>();
@@ -53,6 +57,7 @@ export default function DeckImagePage({ cards, decks, tablecloth: defaultTablecl
   const [historyError, setHistoryError] = useState('');
   const [historyRevision, setHistoryRevision] = useState(0);
   const [enlarged, setEnlarged] = useState<{ image: string; title: string } | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const historyButton = useRef<HTMLButtonElement>(null);
   const inputRevision = useRef(0);
   const lastClipboardCode = useRef('');
@@ -169,6 +174,10 @@ export default function DeckImagePage({ cards, decks, tablecloth: defaultTablecl
             aria-invalid={!!parsed.error} aria-describedby="deck-image-input-status"
             className="w-full rounded border border-kards-input-border bg-kards-input-bg px-3 py-2 text-sm text-kards-text placeholder:text-kards-text-muted focus:border-kards-text-muted focus:outline-none focus:ring-1 focus:ring-kards-text-muted" />
         </div>
+        <button type="button" disabled={!existingDecks.length || previews.full.loading || previews.mini.loading}
+          onClick={() => setPickerOpen(true)} className="deck-compare-analyze is-secondary deck-image-picker-button">
+          <Library className="h-4 w-4" />选择现有卡组
+        </button>
         <button type="button" disabled={!parsed.deck || previews.full.loading || previews.mini.loading}
           onClick={() => {
             if (!parsed.deck) return;
@@ -189,6 +198,17 @@ export default function DeckImagePage({ cards, decks, tablecloth: defaultTablecl
         {parsed.error || (parsed.deck ? `${parsed.deck.name} · ${1 + [...parsed.deck.counts.values()].reduce((sum, count) => sum + count, 0)} 张` : '检测到剪贴板中的卡组码时会自动填入，也可粘贴游戏内的完整卡组文本。')}
       </p>
     </div>
+    {pickerOpen && createPortal(<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setPickerOpen(false)} />
+      <section role="dialog" aria-modal="true" aria-label="选择现有卡组" tabIndex={-1} onKeyDown={handleDialogKeys} className="deck-compare-picker glass-panel">
+        <header><h2>选择卡组</h2><button type="button" data-dialog-cancel aria-label="关闭现有卡组选择" onClick={() => setPickerOpen(false)}><X className="h-5 w-5" /></button></header>
+        <ul className="custom-scrollbar">{existingDecks.map(item => <li key={item.id}><button type="button" disabled={item.code === parsed.code} onClick={() => {
+          setInput({ text: item.code, title: item.name }); setTableclothOverride(undefined); setPickerOpen(false);
+        }}><span className="deck-compare-picker-name"><span>{item.name}</span>{item.hasReserved && <span className="text-xs text-kards-text-muted">含预备卡</span>}</span>
+          <span className="deck-compare-picker-nations">{[item.mainNation, ...(item.allyNation && item.allyNation !== item.mainNation ? [item.allyNation] : [])].map((nation, index) => <img key={nation} src={factionIcon(nation)} alt={`${index === 0 ? '主国' : '盟国'}：${factionLabel(nation)}`} title={`${index === 0 ? '主国' : '盟国'}：${factionLabel(nation)}`} />)}</span>
+        </button></li>)}</ul>
+      </section>
+    </div>, document.body)}
     <div className="relative min-h-0 flex-1">
       <div className="h-full overflow-y-auto p-5">
         {saveError && <p role="alert" className="mb-4 text-sm text-kards-text">{saveError}<button type="button" onClick={() => setRetry(value => value + 1)} className="ml-2 underline underline-offset-4">重试生成</button></p>}

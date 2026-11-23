@@ -59,3 +59,23 @@ export function generateLightModeColors(baseHex: string) {
     '--rgb-panel-overlay-inv': '0, 0, 0'
   };
 }
+
+export function generateDarkModeColors(baseHex: string) {
+  const { h, s, l } = hexToHsl(baseHex);
+  const lightness = Math.min(20, l);
+  const background = hslToHex(h, s, lightness);
+  const panel = hslToHex(h, s, lightness + 4);
+
+  return {
+    '--color-kards-bg': background,
+    '--color-kards-panel': panel,
+    '--color-kards-panel-alt': hslToHex(h, s, lightness + 1),
+    '--color-kards-panel-hover': hslToHex(h, s, lightness + 8),
+    '--color-kards-input-bg': hslToHex(h, s, Math.max(0, lightness - 2)),
+    '--color-kards-modal-bg': panel,
+    '--color-kards-modal-overlay': `rgba(${hexToRgb(hslToHex(h, s, Math.max(0, lightness - 8)))}, 0.85)`,
+    '--bg-pattern': `radial-gradient(circle at center, ${panel} 0%, ${background} 100%)`,
+    '--rgb-panel-overlay': hexToRgb(panel) || '35, 36, 38',
+    '--rgb-panel-overlay-inv': '255, 255, 255'
+  };
+}
