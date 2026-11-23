@@ -23,7 +23,7 @@ export function staticAssetReader(root: string, salt = packSalt(), packPath = pa
   return async (relativePath: string) => {
     const normalized = normalizeAssetPath(relativePath);
     try {
-      const file = await insideFile(privateRoot, normalized);
+      const file = await insideFile(privateRoot, normalized.slice('assets/'.length));
       return { buffer: await fs.readFile(file), mime: mimeForFile(file) || 'application/octet-stream' };
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;

@@ -229,8 +229,8 @@ input, textarea { caret-color: var(--color-kards-gold); }
 .ready-deck-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 16px 12px; font-size: 12px; font-variant-numeric: tabular-nums; }
 .ready-deck-rarities { display: flex; gap: 10px; }
 .ready-deck-rarities > span { display: inline-flex; align-items: center; gap: 4px; }
-.ready-deck-rarity-icon { position: relative; display: inline-block; flex-shrink: 0; overflow: hidden; width: 15px; height: 20px; }
-.ready-deck-rarity-icon img { position: absolute; max-width: none; }
+.ready-deck-rarity-icon { display: inline-block; flex-shrink: 0; width: 15px; height: 20px; }
+.ready-deck-rarity-icon img { display: block; width: auto; height: 100%; margin: 0 auto; }
 @media (max-width: 600px) { .ready-deck-grid { grid-template-columns: minmax(0, 1fr); } }
 .builder-filter-bar { display: grid; grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr); align-items: center; flex-shrink: 0; gap: 12px; min-width: 0; padding: 8px; overflow-x: auto; border: 1px solid var(--color-kards-border); border-radius: var(--radius-lg); }
 .library-filter-bar { display: flex; justify-content: flex-start; }
@@ -456,10 +456,10 @@ input, textarea { caret-color: var(--color-kards-gold); }
 .keyword-symbol { width: 18px; height: 18px; flex-shrink: 0; object-fit: contain; filter: brightness(0.3); }
 .dark .keyword-symbol { filter: none; }
 .card-rarity-value { display: inline-flex; align-items: center; gap: 5px; }
-.card-rarity-wildcard { display: inline-block; position: relative; overflow: hidden; width: 22px; flex-shrink: 0; vertical-align: middle; cursor: zoom-in; }
+.card-rarity-wildcard { display: inline-block; width: 22px; flex-shrink: 0; vertical-align: middle; cursor: zoom-in; }
 .card-rarity-wildcard:hover { filter: brightness(1.15); }
 .card-rarity-wildcard:focus-visible { outline: 2px solid var(--color-kards-status); outline-offset: 3px; }
-.card-rarity-wildcard img, .wildcard-preview img { position: absolute; max-width: none; }
+.card-rarity-wildcard img, .wildcard-preview img { display: block; width: 100%; }
 .wildcard-preview { position: fixed; z-index: 110; overflow: hidden; pointer-events: none; filter: drop-shadow(0 8px 24px #0006); }
 @media (max-width: 900px) {
   .card-detail-overlay { padding: 16px; }

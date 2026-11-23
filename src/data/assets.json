@@ -178,232 +178,40 @@
   },
   "wildcards": {
     "Common": {
-      "Elite": {
-        "file": "/assets/wildcards/Common/Wildcard_Elite.png",
-        "crop": {
-          "x": 0.2666015625,
-          "y": 0.2158203125,
-          "width": 0.484375,
-          "height": 0.6650390625
-        }
-      },
-      "Limited": {
-        "file": "/assets/wildcards/Common/Wildcard_Limited.png",
-        "crop": {
-          "x": 0.2666015625,
-          "y": 0.2158203125,
-          "width": 0.484375,
-          "height": 0.6650390625
-        }
-      },
-      "Special": {
-        "file": "/assets/wildcards/Common/Wildcard_Special.png",
-        "crop": {
-          "x": 0.267578125,
-          "y": 0.2158203125,
-          "width": 0.482421875,
-          "height": 0.6650390625
-        }
-      },
-      "Standard": {
-        "file": "/assets/wildcards/Common/Wildcard_Standard.png",
-        "crop": {
-          "x": 0.2666015625,
-          "y": 0.2158203125,
-          "width": 0.484375,
-          "height": 0.6650390625
-        }
-      }
+      "Elite": "/assets/wildcards/elite/Wildcard_elite.png",
+      "Limited": "/assets/wildcards/limited/Wildcard_limited.png",
+      "Special": "/assets/wildcards/special/Wildcard_special.png",
+      "Standard": "/assets/wildcards/standard/Wildcard_standard.png"
     },
     "Britain": {
-      "Elite": {
-        "file": "/assets/wildcards/Britain/Wildcard_Elite_BRI.png",
-        "crop": {
-          "x": 0.265625,
-          "y": 0.171875,
-          "width": 0.5078125,
-          "height": 0.69140625
-        }
-      },
-      "Limited": {
-        "file": "/assets/wildcards/Britain/Wildcard_Limited_BRI.png",
-        "crop": {
-          "x": 0.265625,
-          "y": 0.171875,
-          "width": 0.5078125,
-          "height": 0.69140625
-        }
-      },
-      "Special": {
-        "file": "/assets/wildcards/Britain/Wildcard_Special_BRI.png",
-        "crop": {
-          "x": 0.265625,
-          "y": 0.171875,
-          "width": 0.5078125,
-          "height": 0.69140625
-        }
-      },
-      "Standard": {
-        "file": "/assets/wildcards/Britain/Wildcard_Standard_BRI_2x.png",
-        "crop": {
-          "x": 0.16015625,
-          "y": 0.1484375,
-          "width": 0.69921875,
-          "height": 0.72265625
-        }
-      }
+      "Elite": "/assets/wildcards/elite/Wildcard_elite_bri.png",
+      "Limited": "/assets/wildcards/limited/Wildcard_limited_bri.png",
+      "Special": "/assets/wildcards/special/Wildcard_special_bri.png",
+      "Standard": "/assets/wildcards/standard/Wildcard_standard_bri.png"
     },
     "Germany": {
-      "Elite": {
-        "file": "/assets/wildcards/Germany/Wildcard_Elite_GER.png",
-        "crop": {
-          "x": 0.265625,
-          "y": 0.171875,
-          "width": 0.5078125,
-          "height": 0.69140625
-        }
-      },
-      "Limited": {
-        "file": "/assets/wildcards/Germany/Wildcard_Limited_GER.png",
-        "crop": {
-          "x": 0.265625,
-          "y": 0.171875,
-          "width": 0.5078125,
-          "height": 0.69140625
-        }
-      },
-      "Special": {
-        "file": "/assets/wildcards/Germany/Wildcard_Special_GER.png",
-        "crop": {
-          "x": 0.265625,
-          "y": 0.171875,
-          "width": 0.5078125,
-          "height": 0.69140625
-        }
-      },
-      "Standard": {
-        "file": "/assets/wildcards/Germany/Wildcard_Standard_GER_2x.png",
-        "crop": {
-          "x": 0.15234375,
-          "y": 0.13671875,
-          "width": 0.7109375,
-          "height": 0.74609375
-        }
-      }
+      "Elite": "/assets/wildcards/elite/Wildcard_elite_ger.png",
+      "Limited": "/assets/wildcards/limited/Wildcard_limited_ger.png",
+      "Special": "/assets/wildcards/special/Wildcard_special_ger.png",
+      "Standard": "/assets/wildcards/standard/Wildcard_standard_ger.png"
     },
     "Japan": {
-      "Elite": {
-        "file": "/assets/wildcards/Japan/Wildcard_Elite_JAP.png",
-        "crop": {
-          "x": 0.263671875,
-          "y": 0.171875,
-          "width": 0.5078125,
-          "height": 0.69140625
-        }
-      },
-      "Limited": {
-        "file": "/assets/wildcards/Japan/Wildcard_Limited_JAP.png",
-        "crop": {
-          "x": 0.263671875,
-          "y": 0.171875,
-          "width": 0.5078125,
-          "height": 0.69140625
-        }
-      },
-      "Special": {
-        "file": "/assets/wildcards/Japan/Wildcard_Special_JAP.png",
-        "crop": {
-          "x": 0.263671875,
-          "y": 0.171875,
-          "width": 0.5078125,
-          "height": 0.69140625
-        }
-      },
-      "Standard": {
-        "file": "/assets/wildcards/Japan/Wildcard_Standard_JAP_2x.png",
-        "crop": {
-          "x": 0.16015625,
-          "y": 0.15234375,
-          "width": 0.67578125,
-          "height": 0.69921875
-        }
-      }
+      "Elite": "/assets/wildcards/elite/Wildcard_elite_jap.png",
+      "Limited": "/assets/wildcards/limited/Wildcard_limited_jap.png",
+      "Special": "/assets/wildcards/special/Wildcard_special_jap.png",
+      "Standard": "/assets/wildcards/standard/Wildcard_standard_jap.png"
     },
     "Soviet": {
-      "Elite": {
-        "file": "/assets/wildcards/Soviet/Wildcard_Elite_SOV.png",
-        "crop": {
-          "x": 0.265625,
-          "y": 0.171875,
-          "width": 0.5078125,
-          "height": 0.69140625
-        }
-      },
-      "Limited": {
-        "file": "/assets/wildcards/Soviet/Wildcard_Limited_SOV.png",
-        "crop": {
-          "x": 0.265625,
-          "y": 0.171875,
-          "width": 0.5078125,
-          "height": 0.69140625
-        }
-      },
-      "Special": {
-        "file": "/assets/wildcards/Soviet/Wildcard_Special_SOV.png",
-        "crop": {
-          "x": 0.265625,
-          "y": 0.171875,
-          "width": 0.5078125,
-          "height": 0.69140625
-        }
-      },
-      "Standard": {
-        "file": "/assets/wildcards/Soviet/Wildcard_Standard_SOV_2x.png",
-        "crop": {
-          "x": 0.15234375,
-          "y": 0.13671875,
-          "width": 0.7109375,
-          "height": 0.7421875
-        }
-      }
+      "Elite": "/assets/wildcards/elite/Wildcard_elite_sov.png",
+      "Limited": "/assets/wildcards/limited/Wildcard_limited_sov.png",
+      "Special": "/assets/wildcards/special/Wildcard_special_sov.png",
+      "Standard": "/assets/wildcards/standard/Wildcard_standard_sov.png"
     },
     "USA": {
-      "Elite": {
-        "file": "/assets/wildcards/USA/Wildcard_Elite_USA.png",
-        "crop": {
-          "x": 0.265625,
-          "y": 0.171875,
-          "width": 0.5078125,
-          "height": 0.69140625
-        }
-      },
-      "Limited": {
-        "file": "/assets/wildcards/USA/Wildcard_Limited_USA.png",
-        "crop": {
-          "x": 0.265625,
-          "y": 0.171875,
-          "width": 0.5078125,
-          "height": 0.69140625
-        }
-      },
-      "Special": {
-        "file": "/assets/wildcards/USA/Wildcard_Special_USA.png",
-        "crop": {
-          "x": 0.265625,
-          "y": 0.171875,
-          "width": 0.5078125,
-          "height": 0.69140625
-        }
-      },
-      "Standard": {
-        "file": "/assets/wildcards/USA/Wildcard_Standard_USA_2x.png",
-        "crop": {
-          "x": 0.1484375,
-          "y": 0.140625,
-          "width": 0.72265625,
-          "height": 0.73828125
-        }
-      }
+      "Elite": "/assets/wildcards/elite/Wildcard_elite_usa.png",
+      "Limited": "/assets/wildcards/limited/Wildcard_limited_us.png",
+      "Special": "/assets/wildcards/special/Wildcard_special_us.png",
+      "Standard": "/assets/wildcards/standard/Wildcard_standard_us.png"
     }
   },
   "cardpacks": [

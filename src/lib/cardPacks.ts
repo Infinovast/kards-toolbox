@@ -1,6 +1,8 @@
 import { CARD_RARITIES, type KardsCardRecord } from '../types/card';
-import type { CardPackAsset, CardPackKind } from './assetCatalog';
+import type { CardPackAsset } from './assetCatalog';
 import { isGeneratedCard, isPermanentPoolCard } from './cardFilters';
+
+const MAIN_NATIONS = ['Germany', 'Britain', 'Japan', 'Soviet', 'USA'] as const;
 
 export const PACK_RULES = {
   standard: { count: 5, probabilities: { Standard: 74.6, Limited: 19.9, Special: 4, Elite: 1.5 }, guarantee: '至少 1 张限定或以上' },
@@ -8,7 +10,8 @@ export const PACK_RULES = {
 } as const;
 
 export type PackRarity = typeof CARD_RARITIES[number];
-export type PackReward = { kind: 'card'; card: KardsCardRecord } | { kind: 'wildcard'; rarity: PackRarity };
+export type PackWildcard = { kind: 'wildcard'; rarity: PackRarity; nation?: string };
+export type PackReward = { kind: 'card'; card: KardsCardRecord } | PackWildcard;
 export function packRewardRarity(reward: PackReward): PackRarity {
   return reward.kind === 'wildcard' ? reward.rarity : reward.card.json.rarity as PackRarity;
 }
@@ -31,15 +34,20 @@ export function cardPackPool(cards: KardsCardRecord[], pack: CardPackAsset): Kar
   });
 }
 
-export function drawCardPack(pool: KardsCardRecord[], kind: CardPackKind, random = Math.random): PackReward[] {
+export function packWildcardNation(pack: Pick<CardPackAsset, 'category' | 'nations'>): string | undefined {
+  return pack.category === 'nation' && pack.nations?.length === 1 ? pack.nations[0] : undefined;
+}
+
+export function drawCardPack(pool: KardsCardRecord[], pack: Pick<CardPackAsset, 'source' | 'category' | 'nations' | 'kind'>, random = Math.random): PackReward[] {
   if (!pool.length) throw new Error('这个卡包暂无可用卡牌，请先更新卡牌数据');
+  const { kind } = pack;
   const rules = PACK_RULES[kind];
+  const nation = packWildcardNation(pack);
   const buckets = CARD_RARITIES.map(rarity => {
     const cards = pool.filter(card => card.json.rarity === rarity);
-    // One Common wildcard is one additional candidate, not a separate rarity
-    // roll or a faction-specific wildcard. Pity uses the same candidate pool.
+    // The wildcard shares the same candidate pool for both draws and pity replacements.
     const rewards: PackReward[] = cards.map(card => ({ kind: 'card', card }));
-    if (kind === 'officer' && cards.length) rewards.push({ kind: 'wildcard', rarity });
+    if (kind === 'officer' && cards.length) rewards.push({ kind: 'wildcard', rarity, nation });
     return { rarity, rewards, weight: rules.probabilities[rarity] };
   }).filter(bucket => bucket.rewards.length);
   const limited = buckets.filter(bucket => bucket.rarity !== 'Standard').flatMap(bucket => bucket.rewards);
@@ -61,5 +69,8 @@ export function drawCardPack(pool: KardsCardRecord[], kind: CardPackKind, random
     const offset = [...drawn].reverse().findIndex(reward => packRewardRarity(reward) === 'Standard');
     drawn[offset < 0 ? drawn.length - 1 : drawn.length - 1 - offset] = pick(special);
   }
-  return drawn;
+  if (pack.source !== 'Ally') return drawn;
+  return drawn.map(reward => reward.kind === 'wildcard'
+    ? { ...reward, nation: MAIN_NATIONS[Math.floor(random() * MAIN_NATIONS.length)] }
+    : reward);
 }

@@ -12,8 +12,8 @@ export { validateImageReference } from './staticAssets';
 export { validateCardRecords } from '../src/lib/cardData';
 
 export async function buildStaticPack(root: string, output = path.join(root, 'dist-packs', STATIC_PACK_FILE), salt = packSalt()) {
-  const source = path.join(root, 'assets-private', 'static'), assets = path.join(source, 'assets');
-  try { await fs.access(assets); }
+  const source = path.join(root, 'assets-private', 'static');
+  try { await fs.access(source); }
   catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
     await Kpak.open(output, { salt }); return output;
@@ -23,16 +23,16 @@ export async function buildStaticPack(root: string, output = path.join(root, 'di
   const pack = await Kpak.open(temporary, { salt, writable: true, create: true });
   async function* walk(relative: string): AsyncGenerator<PackWrite> {
     for (const item of (await fs.readdir(path.join(source, relative), { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
-      const name = `${relative}/${item.name}`;
+      const name = path.posix.join(relative, item.name);
       if (item.isDirectory()) yield* walk(name);
       else {
         if (item.isSymbolicLink()) throw new Error(`不打包符号链接：${name}`);
         const mime = mimeForFile(name); if (!mime) throw new Error(`不支持的静态资源：${name}`);
-        yield { key: hashPackKey(normalizeAssetPath(name), salt), buffer: await fs.readFile(await insideFile(source, name)), mime };
+        yield { key: hashPackKey(normalizeAssetPath(`assets/${name}`), salt), buffer: await fs.readFile(await insideFile(source, name)), mime };
       }
     }
   }
-  try { await pack.append(walk('assets')); await fs.rename(temporary, output); }
+  try { await pack.append(walk('')); await fs.rename(temporary, output); }
   finally { await fs.rm(temporary, { force: true }); }
   return output;
 }

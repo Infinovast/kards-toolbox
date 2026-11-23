@@ -133,15 +133,30 @@ async function main() {
     await page.getByRole('button', { name: '打开卡包', exact: true }).click();
     await expect(history.locator('p')).toHaveText('100×1 + 330×1 = 430');
     await expect(page.locator('[data-reward-kind="wildcard"]')).toHaveCount(7);
+    await expect(page.locator('[data-reward-kind="wildcard"] .pack-card-back img').first()).toHaveAttribute('src', '/assets/cardbacks/Allies/neutral.png');
     await page.getByRole('button', { name: '全部翻开', exact: true }).click();
     await expect(page.locator('.pack-reveal-card[data-state="revealed"]')).toHaveCount(7);
     await page.getByRole('button', { name: '查看通用精英万能牌', exact: true }).first().click();
     const wildcard = page.getByRole('dialog', { name: '通用万能牌', exact: true });
     await expect(wildcard.getByAltText('通用精英万能牌')).toBeVisible();
+    await expect(wildcard.getByAltText('通用精英万能牌')).toHaveJSProperty('naturalWidth', 500);
     await page.keyboard.press('Escape');
     await expect(wildcard).toHaveCount(0);
     await expect.poll(async () => (await storeGet('kards_pack_history_v1')).rarities.Elite).toBe(12);
     await page.screenshot({ path: path.join(output, 'officer-wildcards.png') });
+
+    await page.getByRole('button', { name: '选择卡包', exact: true }).click();
+    await page.getByRole('button', { name: '国家卡包', exact: true }).click();
+    await page.getByRole('button', { name: '英国军官包', exact: true }).click();
+    await page.getByRole('button', { name: '打开卡包', exact: true }).click();
+    await expect(page.locator('[data-reward-kind="wildcard"]')).toHaveCount(7);
+    await expect(page.locator('[data-reward-kind="wildcard"] .pack-card-back img').first()).toHaveAttribute('src', '/assets/cardbacks/Allies/neutral.png');
+    await page.getByRole('button', { name: '全部翻开', exact: true }).click();
+    await page.getByRole('button', { name: '查看英国精英万能牌', exact: true }).first().click();
+    const nationalWildcard = page.getByRole('dialog', { name: '英国万能牌', exact: true }).getByAltText('英国精英万能牌');
+    await expect(nationalWildcard).toHaveAttribute('src', '/assets/wildcards/elite/Wildcard_elite_bri.png');
+    await expect(nationalWildcard).toHaveJSProperty('naturalWidth', 500);
+    await page.keyboard.press('Escape');
 
     await page.getByRole('button', { name: '选择卡包', exact: true }).click();
     await page.getByRole('button', { name: '切换到深色模式' }).click();
@@ -157,17 +172,31 @@ async function main() {
         });
         assert.ok(geometry.bounds[0].right <= geometry.bounds[1].left && geometry.bounds[1].right <= geometry.bounds[2].left, `toolbar collision at ${width}, ${theme}`);
         assert.ok(geometry.scroll <= 1 && geometry.body <= 1, `unexpected overflow at ${width}, ${theme}`);
-        await expect(history.getByLabel('精英 12', { exact: true })).toBeVisible();
+        await expect(history.getByLabel('精英 19', { exact: true })).toBeVisible();
         await page.screenshot({ path: path.join(output, `packs-${width}-${theme}.png`) });
         if (theme === 'light') await page.getByRole('button', { name: '切换到深色模式' }).click();
       }
     }
     await page.reload();
     await page.getByRole('button', { name: '卡包', exact: true }).click();
-    await expect(history.locator('p')).toHaveText('100×1 + 330×1 = 430');
-    await expect(history.getByLabel('精英 12', { exact: true })).toBeVisible();
+    await expect(history.locator('p')).toHaveText('100×1 + 330×2 = 760');
+    await expect(history.getByLabel('精英 19', { exact: true })).toBeVisible();
+
+    await page.getByRole('button', { name: '国家卡包', exact: true }).click();
+    await page.getByRole('group', { name: '卡包规格' }).getByRole('button', { name: '军官包', exact: true }).click();
+    await page.getByRole('button', { name: '盟国军官包', exact: true }).click();
+    await page.getByRole('button', { name: '军官包说明', exact: true }).hover();
+    await expect(page.getByRole('tooltip')).toContainText('可能掉落随机主国万能牌');
+    await page.evaluate(() => { Math.random = () => 0.999999; });
+    await page.getByRole('button', { name: '打开卡包', exact: true }).click();
+    await expect(page.locator('[data-reward-kind="wildcard"]')).toHaveCount(7);
+    await page.getByRole('button', { name: '全部翻开', exact: true }).click();
+    await page.getByRole('button', { name: '查看美国特殊万能牌', exact: true }).first().click();
+    const allyWildcard = page.getByRole('dialog', { name: '美国万能牌', exact: true }).getByAltText('美国特殊万能牌');
+    await expect(allyWildcard).toHaveAttribute('src', '/assets/wildcards/special/Wildcard_special_us.png');
+    await expect(allyWildcard).toHaveJSProperty('naturalWidth', 500);
     assert.deepEqual(errors, [], 'no uncaught renderer errors');
-    console.log('Renderer UI checks passed: failed-load protection, save retry, restore rollback, explicit builder saves, exact pack history, Common wildcard reveal, persistence and 980/1280 layouts.');
+    console.log('Renderer UI checks passed: failed-load protection, save retry, restore rollback, explicit builder saves, exact pack history, national, Allied and common wildcard reveals, persistence and 980/1280 layouts.');
   } finally { await browser.close(); }
 }
 

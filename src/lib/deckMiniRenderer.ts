@@ -71,8 +71,7 @@ export async function renderDeckMiniImage(code: string, cards: KardsCardRecord[]
   };
   drawCard(back, 223, 153, 95, -0.14); drawCard(front, 281, 132, 100, 0.14);
   for (const [index, rarity] of ['Elite', 'Special', 'Limited', 'Standard'].entries()) {
-    const asset = WILDCARDS.Common[rarity], image = await load(asset.file), crop = asset.crop;
-    ctx.drawImage(image, image.width * crop.x, image.height * crop.y, image.width * crop.width, image.height * crop.height, 16 + index * 43, 210, 15, 20);
+    contain(await load(WILDCARDS.Common[rarity]), 16 + index * 43, 210, 15, 20);
     ctx.fillStyle = '#fff9e8'; ctx.font = '12px Bahnschrift, Arial, sans-serif'; ctx.fillText(String(summary.rarities[rarity] || 0), 35 + index * 43, 225);
   }
   // Keep whole pixels per module at export resolution so the QR survives the

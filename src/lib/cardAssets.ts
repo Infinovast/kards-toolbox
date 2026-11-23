@@ -68,6 +68,7 @@ export function resolveSelectedTablecloth(value: string | null | undefined, cust
 }
 
 export const DEFAULT_CARD_BACK = CARD_BACKS.find(back => back.id === cardBackData.defaultBackId)?.file || '';
+export const NEUTRAL_CARD_BACK = CARD_BACKS.find(back => back.id === 'cardback-neutral')!.file;
 export const DEFAULT_HEADQUARTERS_BY_NATION: Record<string, string> = {
   USA: 'USA/cherbourg', Soviet: 'Soviet/stalingrad', Britain: 'Britain/alam_el_halfa',
   Japan: 'Japan/truk', Germany: 'Germany/danzig',

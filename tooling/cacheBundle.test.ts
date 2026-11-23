@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { staticAssetReader } from './staticAssets';
+import { buildStaticPack } from './packTools';
 import { Kpak, hashPackKey, maskEntry, normalizeAssetPath, crc32 } from './kpak';
 import { PACK_FOOTER_SIZE } from '../src/lib/cacheBundleFormat';
 
@@ -60,15 +61,16 @@ try {
 
   // Browser assets prefer the private files and fall back to the resource pack.
   const own = Buffer.concat([png, Buffer.from('original')]);
-  const privateRoot = path.join(root, 'assets-private');
-  await fs.mkdir(path.join(privateRoot, 'static/assets'), { recursive: true });
-  await fs.writeFile(path.join(privateRoot, 'static/assets/test.png'), own);
-  const staticFile = path.join(root, 'static.kpak'), statics = await Kpak.open(staticFile, { salt, writable: true, create: true });
-  await statics.append([{ key: key('assets/test.png'), buffer: png, mime: 'image/png' }]);
+  const looseFile = path.join(root, 'assets-private', 'static', 'wildcards', 'elite', 'test.png');
+  const url = '/assets/wildcards/elite/test.png';
+  await fs.mkdir(path.dirname(looseFile), { recursive: true });
+  await fs.writeFile(looseFile, png);
+  const staticFile = await buildStaticPack(root, path.join(root, 'static.kpak'), salt);
+  await fs.writeFile(looseFile, own);
   const readAsset = staticAssetReader(root, salt, staticFile);
-  assert.deepEqual((await readAsset('/assets/test.png'))!.buffer, own);
-  await fs.unlink(path.join(privateRoot, 'static/assets/test.png'));
-  assert.deepEqual((await readAsset('/assets/test.png'))!.buffer, png);
+  assert.deepEqual((await readAsset(url))!.buffer, own);
+  await fs.unlink(looseFile);
+  assert.deepEqual((await readAsset(url))!.buffer, png);
   await assert.rejects(() => readAsset('/assets/../outside.png'));
   console.log('KPAK tests passed: mask/hash, random reads, serialized tail append, rollback/recovery, CRC, delete/compaction, static asset fallback');
 } finally { await fs.rm(root, { recursive: true, force: true }); }

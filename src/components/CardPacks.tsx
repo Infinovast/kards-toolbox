@@ -1,13 +1,13 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { ArrowLeft, Check, Flag, Info, Layers3, RotateCcw, X } from 'lucide-react';
-import { CARD_PACKS, COIN_ICON, SET_ICONS, WILDCARDS, factionIcon, type CardPackAsset, type CardPackKind } from '../lib/assetCatalog';
-import { defaultCardBackForNation } from '../lib/cardAssets';
-import { cardPackPool, drawCardPack, packRewardRarity, PACK_FLIP_TIMINGS, PACK_RULES, type PackReward, type PackRarity } from '../lib/cardPacks';
+import { CARD_PACKS, COIN_ICON, SET_ICONS, WILDCARDS, factionIcon, wildcardAsset, type CardPackAsset, type CardPackKind } from '../lib/assetCatalog';
+import { NEUTRAL_CARD_BACK, defaultCardBackForNation } from '../lib/cardAssets';
+import { cardPackPool, drawCardPack, packRewardRarity, packWildcardNation, PACK_FLIP_TIMINGS, PACK_RULES, type PackReward, type PackWildcard } from '../lib/cardPacks';
 import type { PackHistory } from '../lib/packHistory';
 import { handleDialogKeys } from '../lib/dialogKeyboard';
 import { captureCardDetailOrigin, type CardDetailOrigin } from '../lib/cardDetailOrigin';
 import { revealDetailItem } from '../lib/cardDetailPaging';
-import { CARD_RARITIES, cardDisplayTitle, type KardsCardRecord } from '../types/card';
+import { CARD_RARITIES, cardDisplayTitle, factionLabel, type KardsCardRecord } from '../types/card';
 import { CardFace, RARITY_SLOTS } from './CardFace';
 import CardDetailModal from './CardDetailModal';
 import { FilterIcon } from './CardFilterSelects';
@@ -15,6 +15,9 @@ import './cardPacks.css';
 
 const RARITY_LABELS = { Standard: '普通', Limited: '限定', Special: '特殊', Elite: '精英' };
 const ELITE_LIFT = 26;
+
+const wildcardNationLabel = (nation?: string) => nation ? factionLabel(nation) : '通用';
+const wildcardLabel = ({ nation, rarity }: PackWildcard) => `${wildcardNationLabel(nation)}${RARITY_LABELS[rarity]}万能牌`;
 
 function PackSourceIcon({ pack, rotation }: { pack: CardPackAsset; rotation: number }) {
   const nations = pack.nations;
@@ -29,6 +32,7 @@ function PackInfo({ pack, kind }: { pack: CardPackAsset; kind: CardPackKind }) {
   const label = kind === 'standard' ? '标准包' : '军官包';
   const content = pack.source === 'Core' ? '来自常备卡池的'
     : pack.category === 'expansion' ? `${pack.name}套装` : pack.name;
+  const wildcardSource = pack.source === 'Ally' ? '随机主国' : wildcardNationLabel(packWildcardNation(pack));
   return <span className="pack-info" onPointerEnter={() => setVisible(true)} onPointerLeave={() => setVisible(false)}>
     <button type="button" className="pack-info-button" aria-label={`${label}说明`} aria-describedby={visible ? id : undefined}
       onFocus={() => setVisible(true)} onBlur={() => setVisible(false)} onClick={() => setVisible(value => !value)}
@@ -37,24 +41,17 @@ function PackInfo({ pack, kind }: { pack: CardPackAsset; kind: CardPackKind }) {
       <strong>每个卡包内含：</strong>
       <span role="list" className="pack-info-list"><span role="listitem">{kind === 'standard' ? 5 : 7}张{content}卡牌</span>
         <span role="listitem">{kind === 'standard' ? '至少1张限定或更高稀有度卡牌' : '至少1张特殊或精英卡牌'}</span>
-        {kind === 'officer' && <span role="listitem">可能掉落通用万能牌</span>}</span>
+        {kind === 'officer' && <span role="listitem">可能掉落{wildcardSource}万能牌</span>}</span>
     </span>
   </span>;
 }
 
 function WildcardSymbol({ rarity }: { rarity: string }) {
-  const asset = WILDCARDS.Common[rarity];
-  return <span className="ready-deck-rarity-icon" aria-hidden="true"><img src={asset.file} alt="" style={{
-    width: `${100 / asset.crop.width}%`, height: `${100 / asset.crop.height}%`,
-    left: `${-100 * asset.crop.x / asset.crop.width}%`, top: `${-100 * asset.crop.y / asset.crop.height}%`,
-  }} /></span>;
+  return <span className="ready-deck-rarity-icon" aria-hidden="true"><img src={WILDCARDS.Common[rarity]} alt="" /></span>;
 }
 
-function WildcardArt({ rarity }: { rarity: PackRarity }) {
-  const asset = WILDCARDS.Common[rarity];
-  return <span className="pack-wildcard-art" style={{ aspectRatio: `${asset.crop.width} / ${asset.crop.height}` }}>
-    <img src={asset.file} alt={`通用${RARITY_LABELS[rarity]}万能牌`} draggable={false} style={{ width: `${100 / asset.crop.width}%`, height: `${100 / asset.crop.height}%`, left: `${-100 * asset.crop.x / asset.crop.width}%`, top: `${-100 * asset.crop.y / asset.crop.height}%` }} />
-  </span>;
+function WildcardArt({ reward }: { reward: PackWildcard }) {
+  return <img className="pack-wildcard-art" src={wildcardAsset(reward.nation, reward.rarity)} alt={wildcardLabel(reward)} draggable={false} />;
 }
 
 function PackHistorySummary({ history }: { history: PackHistory }) {
@@ -123,14 +120,14 @@ function PackRevealCard({ reward, index, requested, onRequest, onComplete, onZoo
     return () => { animation.onfinish = null; animation.cancel(); };
   }, [requested, dealt, rarity]);
   return <button ref={button} type="button" data-detail-source={reward.kind === 'card' ? reward.card.cardId : undefined} data-reward-kind={reward.kind} data-state={phase} disabled={!dealt || phase === 'revealing'}
-    aria-label={phase === 'revealed' ? `查看${reward.kind === 'card' ? cardDisplayTitle(reward.card, 'zh-Hans') : `通用${RARITY_LABELS[rarity]}万能牌`}` : `翻开第 ${index + 1} 张卡牌`}
+    aria-label={phase === 'revealed' ? `查看${reward.kind === 'card' ? cardDisplayTitle(reward.card, 'zh-Hans') : wildcardLabel(reward)}` : `翻开第 ${index + 1} 张卡牌`}
     onClick={event => phase === 'revealed' ? onInspect(captureCardDetailOrigin(event.currentTarget, 'pool')) : onRequest()}
     onDragStart={event => event.preventDefault()}
     className="pack-reveal-card card-action" style={{ '--pack-rarity': RARITY_SLOTS[rarity]?.color } as CSSProperties}>
     <span ref={deal} className="pack-reveal-deal">
       <span ref={rotator} className="pack-card-rotator">
-        <span className="pack-card-face pack-card-back"><img src={defaultCardBackForNation(reward.kind === 'card' ? reward.card.json.faction || '' : '')} alt="" draggable={false} /></span>
-        <span className="pack-card-face pack-card-front">{reward.kind === 'card' ? <CardFace card={reward.card} /> : <WildcardArt rarity={rarity} />}</span>
+        <span className="pack-card-face pack-card-back"><img src={reward.kind === 'card' ? defaultCardBackForNation(reward.card.json.faction || '') : NEUTRAL_CARD_BACK} alt="" draggable={false} /></span>
+        <span className="pack-card-face pack-card-front">{reward.kind === 'card' ? <CardFace card={reward.card} /> : <WildcardArt reward={reward} />}</span>
       </span>
     </span>
     <span className="pack-reveal-rarity"><WildcardSymbol rarity={rarity} />{RARITY_LABELS[rarity]}{reward.kind === 'wildcard' ? '万能牌' : ''}</span>
@@ -149,7 +146,7 @@ export default function CardPacks({ cards, history, onOpenPack }: { cards: Kards
   const [revealed, setRevealed] = useState<number[]>([]);
   const [error, setError] = useState('');
   const [detail, setDetail] = useState<{ card: KardsCardRecord; origin?: CardDetailOrigin } | null>(null);
-  const [wildcardDetail, setWildcardDetail] = useState<PackRarity | null>(null);
+  const [wildcardDetail, setWildcardDetail] = useState<PackWildcard | null>(null);
   const stage = useRef<HTMLDivElement>(null);
   const page = useRef<HTMLElement>(null);
   const camera = useRef<Animation | null>(null);
@@ -172,7 +169,7 @@ export default function CardPacks({ cards, history, onOpenPack }: { cards: Kards
     if (openingLock.current) return;
     openingLock.current = true; setOpening(true);
     try {
-      const drawn = drawCardPack(cardPackPool(cards, pack), pack.kind);
+      const drawn = drawCardPack(cardPackPool(cards, pack), pack);
       await onOpenPack(pack.kind, drawn);
       setOpened(current => ({ pack, cards: drawn, serial: (current?.serial || 0) + 1 }));
       setRequested([]); setRevealed([]); setError('');
@@ -290,7 +287,7 @@ export default function CardPacks({ cards, history, onOpenPack }: { cards: Kards
               return <PackRevealCard key={index} reward={reward} index={index} requested={requested.includes(index)}
                 onRequest={() => setRequested(current => [...new Set([...current, index])])}
                 onComplete={() => setRevealed(current => [...new Set([...current, index])])} onZoom={zoomOnCard} onImpact={shake}
-                onInspect={origin => reward.kind === 'card' ? setDetail({ card: reward.card, origin }) : setWildcardDetail(reward.rarity)} />;
+                onInspect={origin => reward.kind === 'card' ? setDetail({ card: reward.card, origin }) : setWildcardDetail(reward)} />;
             })}
           </div>)}
         </div>
@@ -323,9 +320,9 @@ export default function CardPacks({ cards, history, onOpenPack }: { cards: Kards
     {detail && <CardDetailModal card={detail.card} origin={detail.origin} cards={cards} sequence={detailSequence}
       onNavigate={item => revealDetailItem(item, 'pool', stage.current)} onClose={() => setDetail(null)} />}
     {wildcardDetail && <div className="fixed inset-0 z-[80] flex items-center justify-center bg-kards-modal-overlay p-6 backdrop-blur-sm" onClick={() => setWildcardDetail(null)}>
-      <section role="dialog" aria-modal="true" aria-label="通用万能牌" tabIndex={-1} onKeyDown={handleDialogKeys} onClick={event => event.stopPropagation()} className="pack-wildcard-detail">
+      <section role="dialog" aria-modal="true" aria-label={`${wildcardNationLabel(wildcardDetail.nation)}万能牌`} tabIndex={-1} onKeyDown={handleDialogKeys} onClick={event => event.stopPropagation()} className="pack-wildcard-detail">
         <button type="button" data-dialog-cancel aria-label="关闭万能牌详情" onClick={() => setWildcardDetail(null)} className="pack-wildcard-close"><X className="h-5 w-5" /></button>
-        <WildcardArt rarity={wildcardDetail} /><p className="mt-3 text-center text-sm text-kards-text">通用{RARITY_LABELS[wildcardDetail]}万能牌</p>
+        <WildcardArt reward={wildcardDetail} /><p className="mt-3 text-center text-sm text-kards-text">{wildcardLabel(wildcardDetail)}</p>
       </section>
     </div>}
   </section>;

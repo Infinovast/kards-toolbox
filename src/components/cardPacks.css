@@ -16,10 +16,8 @@
 .pack-history-rarities > span { display: inline-flex; align-items: center; gap: 5px; }
 .pack-history-rarities strong { color: var(--pack-history-silver); font-family: "Bahnschrift", "Arial Narrow", sans-serif; font-size: 14px; line-height: 20px; font-variant-numeric: tabular-nums; font-weight: 700; }
 .pack-opening-heading { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: 3px; }
-.pack-wildcard-art { position: relative; display: block; width: 100%; overflow: hidden; }
-.pack-wildcard-art > img { position: absolute; max-width: none; }
-.pack-card-front > .pack-wildcard-art { position: absolute; top: 50%; transform: translateY(-50%); }
-.pack-wildcard-detail { position: relative; width: min(278px, calc((100dvh - 140px) * 0.728)); outline: none; }
+.pack-wildcard-art { display: block; width: 100%; }
+.pack-wildcard-detail { position: relative; width: min(278px, calc((100dvh - 140px) * 500 / 702)); outline: none; }
 .pack-wildcard-close { position: absolute; z-index: 1; top: -36px; right: -8px; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: var(--radius-base); background: var(--color-kards-panel); color: var(--color-kards-text-muted); }
 .pack-wildcard-close:hover, .pack-wildcard-close:focus-visible { background: var(--color-kards-panel-hover); color: var(--color-kards-text); }
 .pack-segmented { position: relative; isolation: isolate; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 4px; border: 1px solid var(--color-kards-input-border); border-radius: var(--radius-base); background: var(--color-kards-input-bg); }

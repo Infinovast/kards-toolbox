@@ -9,11 +9,6 @@ export interface FactionAsset {
   darkText?: boolean;
 }
 
-export interface WildcardAsset {
-  file: string;
-  crop: { x: number; y: number; width: number; height: number };
-}
-
 export type CardPackKind = 'standard' | 'officer';
 export interface CardPackAsset {
   id: string;
@@ -35,11 +30,11 @@ export const SUBCLASS_ICONS: Record<string, string> = manifest.subclasses;
 export const RARITY_ICONS: Record<string, string> = manifest.rarities;
 export const RARITY_COUNT_IMAGES: Record<string, string[]> = manifest.rarityCounts;
 export const SET_ICONS: Record<string, string> = manifest.sets;
-export const WILDCARDS: Record<string, Record<string, WildcardAsset>> = manifest.wildcards;
+export const WILDCARDS: Record<string, Record<string, string>> = manifest.wildcards;
+export const WILDCARD_ASPECT_RATIO = 500 / 702;
 export const CARD_PACKS: CardPackAsset[] = manifest.cardpacks as CardPackAsset[];
 
-export function wildcardAsset(nation?: string, rarity?: string): WildcardAsset | undefined {
-  if (rarity === 'Standard') return WILDCARDS.Common.Standard;
+export function wildcardAsset(nation?: string, rarity?: string): string | undefined {
   const key = Object.keys(WILDCARDS).find(id => id.toLowerCase() === nation?.toLowerCase());
   return (WILDCARDS[key || 'Common'] || WILDCARDS.Common)[rarity || ''];
 }

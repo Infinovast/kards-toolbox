@@ -260,8 +260,7 @@ function CompareDeckInput({ slot, cards, cardsById, existingDecks, deck, text, s
 
 const rarityRows = [{ id: 'Elite', label: '精英' }, { id: 'Special', label: '特殊' }, { id: 'Limited', label: '稀有' }, { id: 'Standard', label: '普通' }];
 function RarityIcon({ id }: { id: string }) {
-  const wildcard = WILDCARDS.Common[id], crop = wildcard.crop;
-  return <span className="ready-deck-rarity-icon" style={{ width: `${20 * crop.width / crop.height}px` }}><img src={wildcard.file} alt="" style={{ width: `${100 / crop.width}%`, height: `${100 / crop.height}%`, left: `${-100 * crop.x / crop.width}%`, top: `${-100 * crop.y / crop.height}%` }} /></span>;
+  return <span className="ready-deck-rarity-icon"><img src={WILDCARDS.Common[id]} alt="" /></span>;
 }
 function difference(a?: number, b?: number, decimals = 0, suffix = '') {
   if (a === undefined || b === undefined) return '—';

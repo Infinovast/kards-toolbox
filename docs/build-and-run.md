@@ -13,8 +13,8 @@ Git 仓库不包含 `assets-private/`、`dist-packs/`、`.env`、构建产物和
 
 桌面开发和构建需要以下两种资源来源之一，素材的使用和再分发须先核实 [第三方许可](../THIRD_PARTY_NOTICES.md)：
 
-- **松散资源**：把有权使用的图片放入 `assets-private/static/assets/`，保持 `src/data/assets.json`、`cardbacks.json`、`headquarters.json`、`tablecloths.json` 和词条清单引用的相对路径。桌面构建从 `assets/kards_logos/` 读取 `KardsLogoBlack_cards_new.png` 和 `KardsLogoWhite_cards_new.png` 作为应用图标。
-- **已有资源包**：把兼容的 `static.kpak` 放入 `dist-packs/static.kpak`。该方式在没有松散资源目录时使用，资源包与构建时的 salt 必须一致。
+- **松散资源**放入 `assets-private/static/`。资源清单中的 `/assets/` 对应此目录，例如 `/assets/kards_logos/` 对应 `assets-private/static/kards_logos/`。万能牌放在 `wildcards/` 下的 `standard`、`limited`、`special` 和 `elite` 目录中。桌面构建读取 `kards_logos/` 中的 `KardsLogoBlack_cards_new.png` 和 `KardsLogoWhite_cards_new.png` 作为应用图标。
+- **已有资源包**放入 `dist-packs/static.kpak`。没有松散资源目录时，资源包须包含当前清单中的路径，并使用与构建一致的 salt。
 
 可先执行 `npx tsx scripts/build-packs.ts --static-only` 生成或验证静态包；桌面构建也会自动执行这一步。资源缺失时，纯网页构建 `npm run build:web` 仍可生成界面，但运行时缺少对应图像，桌面构建无法完成。
 

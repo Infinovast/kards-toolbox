@@ -2,15 +2,15 @@ import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
-import { CARD_BACK_CATEGORIES, CARD_BACKS, DEFAULT_HEADQUARTERS_BY_NATION, DEFAULT_TABLECLOTH, HEADQUARTERS, HEADQUARTERS_STACKS, TABLECLOTHS, USER_TABLECLOTHS, cardBackForDeck, cardBackIsAvailable, defaultCardBackForNation, defaultHeadquartersForNation, headquartersForDeck, headquartersOptions, resolveSelectedTablecloth, tableclothForHeadquarters } from './cardAssets';
+import { CARD_BACK_CATEGORIES, CARD_BACKS, DEFAULT_HEADQUARTERS_BY_NATION, DEFAULT_TABLECLOTH, HEADQUARTERS, HEADQUARTERS_STACKS, NEUTRAL_CARD_BACK, TABLECLOTHS, USER_TABLECLOTHS, cardBackForDeck, cardBackIsAvailable, defaultCardBackForNation, defaultHeadquartersForNation, headquartersForDeck, headquartersOptions, resolveSelectedTablecloth, tableclothForHeadquarters } from './cardAssets';
 import manifest from '../data/assets.json';
-import { CARD_PACKS, FACTION_ASSETS, SUBCLASS_ICONS, WILDCARDS, cardFactionIcon, factionIcon, wildcardAsset } from './assetCatalog';
+import { CARD_PACKS, FACTION_ASSETS, SUBCLASS_ICONS, WILDCARDS, WILDCARD_ASPECT_RATIO, cardFactionIcon, factionIcon, wildcardAsset } from './assetCatalog';
 import { ALL_CARD_KEYWORDS } from './cardKeywords';
 import { CARD_SUBTYPES } from './cardSubtypes';
-import { factionLabel, typeLabel, type KardsCardRecord } from '../types/card';
+import { CARD_RARITIES, factionLabel, typeLabel, type KardsCardRecord } from '../types/card';
 import { staticAssetReader } from '../../tooling/staticAssets';
 
-const privateAssets = path.resolve('assets-private/static/assets');
+const privateAssets = path.resolve('assets-private/static');
 const readAsset = staticAssetReader(process.cwd());
 const assetBuffer = async (url: string) => { const asset = await readAsset(url); assert.ok(asset, `asset exists: ${url}`); return asset.buffer; };
 assert.deepEqual(HEADQUARTERS_STACKS.map(stack => stack.id), ['USA', 'Soviet', 'Britain', 'Japan', 'Germany', 'Common']);
@@ -75,6 +75,7 @@ assert.equal(cardBackForDeck({ mainNation: 'USA', allyNation: 'Finland', cardBac
 assert.equal(cardBackForDeck({ mainNation: 'USA', allyNation: 'France', cardBackUrl: '/assets/cardbacks/Allies/Finland/cardback-001.png' }), defaultCardBackForNation('USA'));
 const neutralBack = CARD_BACKS.find(item => item.id === 'cardback-neutral')!;
 assert.equal(cardBackIsAvailable(neutralBack, 'Germany', 'Japan'), true);
+assert.equal(NEUTRAL_CARD_BACK, '/assets/cardbacks/Allies/neutral.png');
 
 for (const [nation, asset] of Object.entries(FACTION_ASSETS)) {
   assert.equal(factionIcon(nation.toLowerCase(), 'white'), asset.white || asset.icon);
@@ -92,11 +93,18 @@ assert.equal(SUBCLASS_ICONS.commandos, '/assets/subclass/infantry.png');
 assert.equal(new Set(CARD_PACKS.map(pack => pack.id)).size, CARD_PACKS.length);
 assert.equal(Object.keys(WILDCARDS).length, 6);
 assert.ok(Object.values(WILDCARDS).every(group => Object.keys(group).length === 4));
-for (const nation of ['USA', 'Britain', 'Germany', 'Japan', 'Soviet']) {
-  for (const rarity of ['Elite', 'Special', 'Limited']) assert.equal(wildcardAsset(nation.toLowerCase(), rarity), WILDCARDS[nation][rarity]);
-  assert.equal(wildcardAsset(nation, 'Standard'), WILDCARDS.Common.Standard, 'ordinary rarity always uses the common wildcard');
+for (const [nation, group] of Object.entries(WILDCARDS)) {
+  for (const rarity of CARD_RARITIES) {
+    const file = group[rarity];
+    assert.equal(wildcardAsset(nation.toLowerCase(), rarity), file);
+    assert.ok(file.startsWith(`/assets/wildcards/${rarity.toLowerCase()}/`), file);
+    const { width, height } = await sharp(await assetBuffer(file)).metadata();
+    assert.equal(width / height, WILDCARD_ASPECT_RATIO, file);
+  }
 }
-for (const nation of ['France', 'Italy', 'Finland', 'Poland', 'Anzac', 'Neutral', undefined]) assert.equal(wildcardAsset(nation, 'Standard'), WILDCARDS.Common.Standard);
+for (const nation of ['France', 'Italy', 'Finland', 'Poland', 'Anzac', 'Neutral', undefined]) {
+  for (const rarity of CARD_RARITIES) assert.equal(wildcardAsset(nation, rarity), WILDCARDS.Common[rarity]);
+}
 assert.equal(wildcardAsset('USA', 'unknown'), undefined);
 
 // Check exact-case paths and coverage so moves/additions cannot silently leave broken URLs.
