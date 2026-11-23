@@ -3,6 +3,7 @@ import { createServer as createViteServer } from 'vite';
 import path from 'node:path';
 import { config } from 'dotenv';
 import { staticAssetMiddleware } from './tooling/staticMiddleware';
+import { newsMiddleware } from './tooling/newsMiddleware';
 
 async function startServer() {
   const app = express();
@@ -13,6 +14,7 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.resolve('dist');
+    app.use(newsMiddleware);
     app.use(express.static(distPath));
     app.get('*', (_req, res) => res.sendFile(path.join(distPath, 'index.html')));
   }

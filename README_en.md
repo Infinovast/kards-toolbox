@@ -8,7 +8,7 @@
 
 KARDS Toolbox is a local tool for KARDS players to browse cards, build and manage decks, and simulate opening card packs.
 
-Current version: **1.3.7**.
+Current version: **1.3.8**.
 
 ## Screenshots
 
@@ -61,11 +61,13 @@ The control names below are English descriptions of the Chinese interface shown 
 
 Ability scores are the core of deck analysis. By estimating a deck's economy, control, effect chains, and net costs, the tool scores five capabilities to help players understand and improve their decks. Scores range from 0 to 100; a higher score indicates greater capacity in that dimension.
 
-1. **Development tempo**: Can the deck establish a board promptly, play cards in succession, and accelerate deployment through ramp and cost reductions?
-2. **Offense**: Can the deck keep threatening the enemy headquarters through unit attacks, stat growth, and direct damage?
-3. **Removal and control**: Can the deck handle enemy units through pinning, suppression, and taking control, while disrupting the opponent through forced discards, cost increases, and lockouts?
-4. **Hand sustain**: After accounting for costs such as discards and self-damage, can the deck keep replenishing playable cards and avoid running out of cards in hand?
-5. **Defense**: Can the deck withstand attacks and stay alive through board presence, trades, repairs, and protection such as immunity, Smokescreen, and Guard?
+| Ability score | Description |
+| --- | --- |
+| Development tempo | Can the deck establish a board promptly, play cards in succession, and accelerate deployment through ramp and cost reductions? |
+| Offense | Can the deck keep threatening the enemy headquarters through unit attacks, stat growth, and direct damage? |
+| Removal and control | Can the deck handle enemy units through pinning, suppression, and taking control, while disrupting the opponent through forced discards, cost increases, and lockouts? |
+| Hand sustain | After accounting for costs such as discards and self-damage, can the deck keep replenishing playable cards and avoid running out of cards in hand? |
+| Defense | Can the deck withstand attacks and stay alive through board presence, trades, repairs, and protection such as immunity, Smokescreen, and Guard? |
 
 ## Run from source
 

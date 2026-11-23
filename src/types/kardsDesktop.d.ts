@@ -44,6 +44,6 @@ declare global {
   interface Window {
     kardsDesktop?: KardsDesktopBridge;
     go?: { main?: { App?: import('../lib/wailsDesktop').WailsApp } };
-    runtime?: { ClipboardSetText?: (text: string) => Promise<boolean> };
+    runtime?: { ClipboardSetText?: (text: string) => Promise<boolean>; BrowserOpenURL?: (url: string) => void };
   }
 }

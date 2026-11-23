@@ -83,7 +83,7 @@ func run() error {
 	return wails.Run(&options.App{
 		Title: appName, Width: 1280, Height: 820, MinWidth: 980, MinHeight: 640,
 		BackgroundColour: options.NewRGB(17, 17, 17),
-		AssetServer:      &assetserver.Options{Assets: frontend, Handler: packs},
+		AssetServer:      &assetserver.Options{Assets: frontend, Handler: serveNews(packs)},
 		OnStartup: func(ctx context.Context) {
 			app.ctx = ctx
 			setWindowIcons(systemDarkTheme())

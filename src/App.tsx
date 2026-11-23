@@ -23,7 +23,8 @@ import {
   Edit2,
   ArrowRightLeft,
   Tag,
-  Palette
+  Palette,
+  Newspaper
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import localforage from 'localforage';
@@ -70,6 +71,7 @@ import WelcomePage, { type WelcomeAction } from './components/WelcomePage';
 import DeckComparePage, { type ComparedDeck, type DeckCompareSelectionRequest } from './components/DeckComparePage';
 import CardDataUpdater from './components/CardDataUpdater';
 import CardCacheManager from './components/CardCacheManager';
+import NewsPage from './components/NewsPage';
 import CustomSelect from './components/CustomSelect';
 import { nationOptions } from './components/CardFilterSelects';
 import { loadCardDatabase, type KardsCardRecord } from './types/card';
@@ -78,7 +80,7 @@ import { factionAsset, factionIcon, LOGOS } from './lib/assetCatalog';
 
 // --- Types ---
 type Nation = 'Germany' | 'Soviet' | 'USA' | 'Japan' | 'Britain' | 'Finland' | 'Italy' | 'France' | 'Poland' | 'Anzac';
-type AppPage = 'welcome' | 'decks' | 'cards' | 'packs' | 'builder' | 'about' | 'settings' | 'deck-image' | 'deck-compare';
+type AppPage = 'welcome' | 'decks' | 'cards' | 'packs' | 'news' | 'builder' | 'about' | 'settings' | 'deck-image' | 'deck-compare';
 
 interface Deck {
   id: string;
@@ -282,6 +284,8 @@ export default function App() {
   const lastClipboardPromptRef = useRef<string | null>(null);
   const [backupStatus, setBackupStatus] = useState<string | null>(null);
   const [activeMenu, setActiveMenu] = useState<AppPage>('welcome');
+  const [newsArticleId, setNewsArticleId] = useState<string>();
+  const [newsDataSaver, setNewsDataSaver] = useState(true);
   const [deckCompareOpened, setDeckCompareOpened] = useState(false);
   const [deckCompareSelection, setDeckCompareSelection] = useState<DeckCompareSelectionRequest>();
   const deckGrid = useDeckGridLayout(dataLoaded && activeMenu === 'decks' && !settings.showDeckFolders, settings.uiScale, settings.deckGap);
@@ -290,6 +294,7 @@ export default function App() {
   const initialPageSelected = useRef(false);
   const settingsPageRef = useRef<HTMLElement>(null);
   useEffect(() => { if (activeMenu === 'settings') settingsPageRef.current?.focus(); }, [activeMenu]);
+  useEffect(() => { if (activeMenu !== 'news') setNewsArticleId(undefined); }, [activeMenu]);
   const [builderDeck, setBuilderDeck] = useState<BuilderDeck | null>(null);
   const builderExitRequest = useRef<((afterLeave?: () => void) => void) | null>(null);
   const [builderRevision, setBuilderRevision] = useState(0);
@@ -375,11 +380,14 @@ export default function App() {
         event.preventDefault();
         if (selectedDeckId || hoveredDeckId) closeDeckDetails();
         else if (searchQuery) setSearchQuery('');
+      } else if (event.key === 'Escape' && activeMenu === 'news' && newsArticleId && !event.repeat && !document.querySelector('dialog[open]')) {
+        event.preventDefault();
+        setNewsArticleId(undefined);
       }
     };
     document.addEventListener('keydown', keydown);
     return () => document.removeEventListener('keydown', keydown);
-  }, [activeMenu, aboutReturnMenu, searchQuery, selectedDeckId, hoveredDeckId, closeDeckDetails]);
+  }, [activeMenu, aboutReturnMenu, searchQuery, selectedDeckId, hoveredDeckId, closeDeckDetails, newsArticleId]);
   
   const [customCategories, setCustomCategories] = useState<{id: string, name: string, backs: {id: string, url: string, name: string}[]}[]>([]);
 
@@ -1448,7 +1456,7 @@ export default function App() {
       <UserDataSaveStatus />
       {automaticBackupDialog}
       {/* --- Top Bar --- */}
-      <header className="h-14 bg-kards-gray flex items-center justify-between px-6 border-b border-kards-border z-20 transition-colors duration-300">
+      <header className={`h-14 flex items-center justify-between px-6 border-b border-kards-border z-20 transition-colors duration-300 ${activeMenu === 'news' ? 'bg-kards-gray/50 backdrop-blur-md' : 'bg-kards-gray'}`}>
         <div className="flex items-center gap-8 max-xl:gap-3">
           <button type="button" onClick={openWelcomePage} aria-label="打开欢迎页" title="欢迎页" className="flex items-center gap-3 rounded hover:opacity-80">
             <img 
@@ -1461,9 +1469,11 @@ export default function App() {
           </button>
           <nav className="flex items-center gap-6 max-xl:gap-3">
             <h1 className="shrink-0 whitespace-nowrap text-kards-text font-bold border-l border-kards-border pl-6 cursor-default tracking-widest">
-              {activeMenu === 'welcome' ? '欢迎' : activeMenu === 'deck-compare' ? '卡组对比' : activeMenu === 'cards' ? '卡牌' : activeMenu === 'packs' ? '卡包' : activeMenu === 'deck-image' ? '卡组生图' : activeMenu === 'builder' ? '卡组构筑' : activeMenu === 'about' ? '关于' : activeMenu === 'settings' ? '设置' : '卡组'}
+              {activeMenu === 'welcome' ? '欢迎' : activeMenu === 'deck-compare' ? '卡组对比' : activeMenu === 'cards' ? '卡牌' : activeMenu === 'packs' ? '卡包' : activeMenu === 'news' ? (newsArticleId ? '新闻详情' : '新闻') : activeMenu === 'deck-image' ? '卡组生图' : activeMenu === 'builder' ? '卡组构筑' : activeMenu === 'about' ? '关于' : activeMenu === 'settings' ? '设置' : '卡组'}
             </h1>
             <div className="flex items-center gap-3">
+              {activeMenu === 'news' && <button type="button" className="builder-reserved-toggle" aria-pressed={newsDataSaver}
+                onClick={() => setNewsDataSaver(enabled => !enabled)}>省流模式</button>}
               {activeMenu === 'decks' && <>
               <div className="relative"><input
                 type="text" 
@@ -1513,6 +1523,7 @@ export default function App() {
           <SidebarButton active={activeMenu === 'decks'} onClick={() => setActiveMenu('decks')} icon={<Library className="w-8 h-8" />} label="卡组" />
           <SidebarButton active={activeMenu === 'cards'} onClick={() => { setAutoFocusCardSearch(false); setActiveMenu('cards'); }} icon={<img src={effectiveIsDarkMode ? LOGOS.cards.beige : LOGOS.cards.black} alt="" className="h-8 w-8 object-contain" />} label="卡牌" />
           <SidebarButton active={activeMenu === 'packs'} onClick={() => setActiveMenu('packs')} icon={<img src={LOGOS.pack} alt="" className="pack-navigation-icon h-8 w-8 object-contain" />} label="卡包" />
+          <SidebarButton active={activeMenu === 'news'} onClick={() => setActiveMenu('news')} icon={<Newspaper className="w-7 h-7" aria-hidden="true" />} label="新闻" />
           <div aria-label="应用工具" className="mt-auto flex flex-col gap-1 border-t border-kards-border pt-1">
             <SidebarButton active={activeMenu === 'deck-compare'} onClick={openDeckCompare} icon={<ArrowRightLeft className="w-6 h-6" />} label="卡组对比" />
             <SidebarButton active={activeMenu === 'deck-image'} onClick={() => { setClipboardDeckCandidate(null); setActiveMenu('deck-image'); }} icon={<ImageIcon className="w-6 h-6" />} label="卡组生图" />
@@ -1569,8 +1580,9 @@ export default function App() {
           </div>
 
           {/* Scrollable Content Container */}
-          <div ref={deckGrid.ref} className={`h-full w-full ${activeMenu === 'packs' || activeMenu === 'deck-image' ? 'overflow-hidden' : 'overflow-y-auto'} no-scrollbar relative z-10 flex flex-col items-center ${['welcome', 'deck-compare', 'cards', 'packs', 'builder', 'settings', 'deck-image'].includes(activeMenu) ? '' : 'p-12'}`}>
+          <div ref={deckGrid.ref} className={`h-full w-full ${['packs', 'deck-image', 'news'].includes(activeMenu) ? 'overflow-hidden' : 'overflow-y-auto'} no-scrollbar relative z-10 flex flex-col items-center ${['welcome', 'deck-compare', 'cards', 'packs', 'news', 'builder', 'settings', 'deck-image'].includes(activeMenu) ? '' : 'p-12'}`}>
             {activeMenu === 'welcome' && <WelcomePage showWelcomePage={settings.showWelcomePage} onShowWelcomePageChange={showWelcomePage => setSettings(current => ({ ...current, showWelcomePage }))} onAction={handleWelcomeAction} />}
+            {activeMenu === 'news' && <NewsPage articleId={newsArticleId} onSelectArticle={setNewsArticleId} dataSaver={newsDataSaver} />}
             {activeMenu === 'deck-compare' && cardDatabaseLoading && <p className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</p>}
             {activeMenu === 'deck-compare' && cardDatabaseError && <p role="alert" className="p-6 text-red-400">{cardDatabaseError}</p>}
             {deckCompareOpened && !cardDatabaseLoading && !cardDatabaseError && <div className={`h-full w-full shrink-0 ${activeMenu === 'deck-compare' ? '' : 'hidden'}`}>
