@@ -267,13 +267,13 @@ with sync_playwright() as p:
     expect(table.locator('[data-parameter="ratio"] .is-emphasized')).to_have_count(0)
     assert table.locator('.deck-compare-difference-pill').count() > 0
     for pill in table.locator('.deck-compare-difference-pill').all():
-        assert re.fullmatch(r'\d+(?:\.\d+)?(?: K)?', pill.inner_text()), 'Table differences are unsigned absolute values'
+        assert re.fullmatch(r'\d+(?:\.\d+)?K?', pill.inner_text()), 'Table differences are unsigned absolute values'
     for icon in table.locator('.ready-deck-rarity-icon img').all():
         expect(icon).to_be_visible()
         assert icon.evaluate('(img) => Math.abs(img.width / img.height - img.naturalWidth / img.naturalHeight) < 0.02'), 'Wildcard artwork retains its native aspect ratio'
     for row in table.locator('tbody tr').all():
         cells = row.locator('td')
-        values = [float(cells.nth(i).inner_text().replace(' K', '')) for i in range(2)] if row.get_attribute('data-parameter') != 'ratio' else None
+        values = [float(cells.nth(i).inner_text().removesuffix('K')) for i in range(2)] if row.get_attribute('data-parameter') != 'ratio' else None
         if values:
             smaller = row.get_attribute('data-parameter') in ['cost', 'unitDeployment', 'unitOperation']
             target = min(values) if smaller else max(values)

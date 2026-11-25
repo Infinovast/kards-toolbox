@@ -17,6 +17,7 @@ import { captureCardDetailOrigin } from '../lib/cardDetailOrigin';
 import { revealDetailItem, type CardDetailItem } from '../lib/cardDetailPaging';
 import ReservedBadge from './ReservedBadge';
 import DeckNationCounts from './DeckNationCounts';
+import KreditLabel from './KreditLabel';
 import './deckCompare.css';
 
 export interface ComparedDeck {
@@ -262,16 +263,31 @@ const rarityRows = [{ id: 'Elite', label: '精英' }, { id: 'Special', label: '�
 function RarityIcon({ id }: { id: string }) {
   return <span className="ready-deck-rarity-icon"><img src={WILDCARDS.Common[id]} alt="" /></span>;
 }
-function difference(a?: number, b?: number, decimals = 0, suffix = '') {
-  if (a === undefined || b === undefined) return '—';
+function difference(a: number, b: number, decimals = 0) {
   const value = Number(Math.abs(b - a).toFixed(decimals));
-  return value ? `${value.toFixed(decimals)}${suffix}` : '—';
+  return value ? value.toFixed(decimals) : null;
 }
+
+const averageCostRows = [
+  { key: 'cost', label: '平均花费' },
+  { key: 'unitDeployment', label: '平均单位部署' },
+  { key: 'unitOperation', label: '平均单位行动' },
+] as const;
+
 function ComparisonTable({ left, right }: { left: ComparedDeck | null; right: ComparedDeck | null }) {
   const decks = [left, right];
-  const rows: { key: string; label: ReactNode; value: (deck: ComparedDeck) => ReactNode; amount?: (deck: ComparedDeck) => number; emphasize?: 'larger' | 'smaller'; delta?: (a: ComparedDeck, b: ComparedDeck) => string }[] = [
+  const rows: { key: string; label: ReactNode; value: (deck: ComparedDeck) => ReactNode; amount?: (deck: ComparedDeck) => number; emphasize?: 'larger' | 'smaller'; delta?: (a: ComparedDeck, b: ComparedDeck) => ReactNode }[] = [
     ...DECK_COST_CATEGORIES.map(({ key, label, color }) => ({ key, label: <span className="deck-compare-parameter"><i className="deck-cost-swatch" style={{ backgroundColor: color }} />{label}</span>, value: (deck: ComparedDeck) => deck.curve.totals[key], amount: (deck: ComparedDeck) => deck.curve.totals[key], emphasize: 'larger' as const, delta: (a: ComparedDeck, b: ComparedDeck) => difference(a.curve.totals[key], b.curve.totals[key]) })),
-    ...[{ key: 'cost', label: '平均花费' }, { key: 'unitDeployment', label: '平均单位部署' }, { key: 'unitOperation', label: '平均单位行动' }].map(({ key, label }) => ({ key, label, value: (deck: ComparedDeck) => <>{deck.curve.averages[key as keyof typeof deck.curve.averages].toFixed(2)} <span className="deck-compare-unit">K</span></>, amount: (deck: ComparedDeck) => Number(deck.curve.averages[key as keyof typeof deck.curve.averages].toFixed(2)), emphasize: 'smaller' as const, delta: (a: ComparedDeck, b: ComparedDeck) => difference(a.curve.averages[key as keyof typeof a.curve.averages], b.curve.averages[key as keyof typeof b.curve.averages], 2, ' K') })),
+    ...averageCostRows.map(({ key, label }) => ({
+      key, label,
+      value: (deck: ComparedDeck) => <KreditLabel cost={deck.curve.averages[key].toFixed(2)} compact />,
+      amount: (deck: ComparedDeck) => Number(deck.curve.averages[key].toFixed(2)),
+      emphasize: 'smaller' as const,
+      delta: (a: ComparedDeck, b: ComparedDeck) => {
+        const cost = difference(a.curve.averages[key], b.curve.averages[key], 2);
+        return cost === null ? null : <KreditLabel cost={cost} compact />;
+      },
+    })),
     { key: 'ratio', label: '单位 / 指令比', value: deck => `${deck.curve.totals.army + deck.curve.totals.air} : ${deck.curve.totals.order + deck.curve.totals.countermeasure}` },
     ...rarityRows.map(({ id, label }) => ({ key: id, label: <span className="deck-compare-parameter"><RarityIcon id={id} />{label}</span>, value: (deck: ComparedDeck) => deck.curve.rarities[id] || 0, amount: (deck: ComparedDeck) => deck.curve.rarities[id] || 0, emphasize: 'larger' as const, delta: (a: ComparedDeck, b: ComparedDeck) => difference(a.curve.rarities[id] || 0, b.curve.rarities[id] || 0) })),
   ];
@@ -279,13 +295,13 @@ function ComparisonTable({ left, right }: { left: ComparedDeck | null; right: Co
     <h2 id="compare-summary-heading">数据对比</h2>
     <table className="deck-compare-table"><thead><tr><th scope="col">参数</th>{decks.map((deck, i) => <th scope="col" className={`is-${i === 0 ? 'left' : 'right'}`} key={i}>{deck?.name || '待分析'}</th>)}<th scope="col" title="两侧卡组数值的绝对差距">差距</th></tr></thead>
       <tbody>{rows.map(row => {
-        const delta = left && right && row.delta ? row.delta(left, right) : '—';
+        const delta = left && right ? row.delta?.(left, right) : null;
         const advantage = left && right && row.amount ? (row.amount(left) - row.amount(right)) * (row.emphasize === 'smaller' ? -1 : 1) : 0;
         const emphasizedSide = advantage > 0 ? 'left' : advantage < 0 ? 'right' : undefined;
         return <tr key={row.key} data-parameter={row.key}><th scope="row">{row.label}</th>{decks.map((deck, i) => {
           const side = i === 0 ? 'left' : 'right';
           return <td key={i} className={emphasizedSide === side ? `is-emphasized is-${side}` : undefined}>{deck ? row.value(deck) : '—'}</td>;
-        })}<td className="deck-compare-difference">{delta === '—' ? delta : <span className={`deck-compare-difference-pill${emphasizedSide ? ` is-${emphasizedSide}` : ''}`}>{delta}</span>}</td></tr>;
+        })}<td className="deck-compare-difference">{delta == null ? '—' : <span className={`deck-compare-difference-pill${emphasizedSide ? ` is-${emphasizedSide}` : ''}`}>{delta}</span>}</td></tr>;
       })}</tbody>
     </table>
   </section>;

@@ -353,13 +353,14 @@ input, textarea { caret-color: var(--color-kards-gold); }
 .kredit-label > strong { font-size: var(--kredit-value-size, 23px); line-height: 1.1; }
 .kredit-label > span { display: flex; flex-direction: column; align-self: flex-start; padding-top: var(--kredit-unit-offset, 3px); font-size: var(--kredit-unit-size, 10px); line-height: 1.1; }
 .kredit-label small { font-size: var(--kredit-plus-size, 8px); line-height: 1; }
+.kredit-label-compact { --kredit-value-size: 1em; --kredit-unit-size: .55em; --kredit-unit-offset: 1px; font-weight: inherit; }
+.kredit-label-compact > strong { font-weight: inherit; }
 .deck-cost-kredit { --kredit-value-size: clamp(28px, 3vw, 34px); --kredit-unit-size: 14px; --kredit-plus-size: 12px; --kredit-unit-offset: 4px; display: flex; align-items: center; justify-content: center; height: 44px; border-top: 2px solid var(--color-kards-text-muted); }
 .deck-cost-legend { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 24px; font-size: 15px; font-weight: 700; }
 .deck-cost-legend > div { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
 .deck-cost-swatch { width: 24px; height: 24px; }
 .deck-cost-averages { display: flex; justify-content: center; gap: 18px; margin-top: 18px; color: var(--color-kards-text-muted); font-size: 12px; line-height: 18px; white-space: nowrap; }
-.deck-cost-averages small { font-size: 11px; }
-.deck-cost-averages b { font-weight: 700; }
+.deck-cost-averages small, .deck-cost-averages .kredit-label-compact { font-size: 11px; }
 .deck-cost-rarities { justify-content: center; gap: 18px; margin-top: 14px; font-size: 12px; line-height: 18px; }
 .deck-ability-chart { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--color-kards-border); font-size: 12px; line-height: 18px; }
 .deck-ability-legend { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px 18px; margin-bottom: 6px; color: var(--color-kards-text-muted); font-size: 11px; }

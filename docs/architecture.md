@@ -47,6 +47,7 @@ Go 桌面层 → 固定数据源、图片下载、文件对话框、剪贴板
 | `src/lib/cardKeywords.ts`、`cardSort.ts` | 词条读取 `src/data/cardKeywords.json` 统一清单，派生 16 个属性词条、7 个战斗词条及全部文字强调；牌库主排序及费用、类型次级排序 |
 | `src/components/PageIndicator.tsx`、`src/lib/pagination.ts` | 共用首尾页、邻近页及省略号导航，支持点击与键盘；滚轮翻页由卡池区域负责 |
 | `src/data/cardSubtypes.json`、`src/lib/cardSubtypes.ts` | 本地子类定义、卡牌映射及详情展示 |
+| `src/data/cardHistory.json`、`src/lib/cardHistory.ts` | 按卡牌 ID 建立历史改动索引，卡牌详情首次打开时载入 |
 | `src/lib/deckRenderer.ts`、`deckRenderCounter.ts` | Canvas 生图及共享计数器绘制 |
 | `src/lib/deckImageCode.ts`、`deckImageQr.worker.ts`、`deckImageImport.ts` | 含卡组名、总部、卡背标识和卡组码的二维码载荷、后台识别及图片导入 |
 | `src/lib/cardAssets.ts`、`src/data/` | 卡背、总部、桌布和战备卡组清单 |

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Shield, X } from 'lucide-react';
 import { CardFace } from './CardFace';
@@ -20,6 +20,9 @@ import { cardKeywordItems } from '../lib/cardKeywords';
 import { isGeneratedCard } from '../lib/cardFilters';
 import type { CardDetailItem } from '../lib/cardDetailPaging';
 import useCardDetailPaging from '../lib/useCardDetailPaging';
+import KreditLabel from './KreditLabel';
+
+const CardHistory = lazy(() => import('./CardHistory'));
 
 export default function CardDetailModal({ card: initialCard, headquarters: initialHeadquarters, origin, cards, sequence = [], onNavigate, language = 'zh-Hans', onClose, onSourceDoubleClick }: {
   card?: KardsCardRecord;
@@ -45,7 +48,7 @@ export default function CardDetailModal({ card: initialCard, headquarters: initi
   const exit = useRef<Animation | null>(null);
   const backdropExit = useRef<Animation | null>(null);
   const closing = useRef(false);
-  const requestCloseRef = useRef<() => void>(() => {});
+  const requestCloseRef = useRef<() => void>(() => { });
   const [isClosing, setIsClosing] = useState(false);
   const [arrived, setArrived] = useState(!origin);
   const close = useRef(onClose);
@@ -68,7 +71,8 @@ export default function CardDetailModal({ card: initialCard, headquarters: initi
     document.addEventListener('click', repeat, true);
     return () => document.removeEventListener('click', repeat, true);
   }, [origin, !!onSourceDoubleClick]);
-  const cancelPaging = useCardDetailPaging({ ref: overlay, scrollRef: rightPanel, enabled: true, ready: arrived && !isClosing, items: sequence,
+  const cancelPaging = useCardDetailPaging({
+    ref: overlay, scrollRef: rightPanel, enabled: true, ready: arrived && !isClosing, items: sequence,
     item: card ? { card } : headquarters ? { headquarters } : undefined, mode: 'modal',
     onSelect: item => { setCard(item.card || null); setHeadquarters(item.headquarters); },
     onReveal: async item => { currentOrigin.current = await onNavigate?.(item); },
@@ -197,8 +201,8 @@ export default function CardDetailModal({ card: initialCard, headquarters: initi
           {englishName && <p className="mt-1 text-xs text-kards-text-muted" lang="en">{englishName}</p>}
           {card && cardText(card, language) && <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-kards-text"><CardText text={cardText(card, language)} /></p>}
           {card && <dl className="card-detail-section grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-3 text-sm">
-            <dt>部署费用</dt><dd>{card.json.kredits ?? '—'} K</dd>
-            {isUnit && <><dt>行动费用</dt><dd>{card.json.operationCost ?? '—'} K</dd><dt>攻击 / 生命</dt><dd>{card.json.attack ?? '—'} / {card.json.defense ?? '—'}</dd></>}
+            <dt>部署费用</dt><dd><KreditLabel cost={card.json.kredits} compact /></dd>
+            {isUnit && <><dt>行动费用</dt><dd><KreditLabel cost={card.json.operationCost} compact /></dd><dt>攻击 / 防御</dt><dd>{card.json.attack ?? '—'} / {card.json.defense ?? '—'}</dd></>}
             {card.json.set && card.json.set !== 'OnlySpawnable' && <><dt>扩展包</dt><dd className="flex items-center gap-1"><span className="h-5 w-5 shrink-0"><FilterIcon src={SET_ICONS[card.json.set] || SET_ICONS.All} /></span>{setName}</dd></>}
             <dt>卡组码 ID</dt><dd>{card.importId || '无'}</dd>
             <dt>卡牌 ID</dt><dd className="break-all">{card.cardId}</dd>
@@ -211,6 +215,7 @@ export default function CardDetailModal({ card: initialCard, headquarters: initi
               title={related.label + '：' + cardDisplayTitle(related.card, language)} aria-label={related.label + '：' + cardDisplayTitle(related.card, language)}
               onClick={() => { if (card) relatedHistory.current.push({ card }); setCard(related.card); setHeadquarters(undefined); currentOrigin.current = undefined; }} className="card-action w-[86px]"><CardFace card={related.card} /></button>)}</div>
           </section>}
+          {card && <Suspense fallback={null}><CardHistory cardId={card.cardId} /></Suspense>}
         </div>
       </div>
     </section>

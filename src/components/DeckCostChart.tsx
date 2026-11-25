@@ -94,7 +94,7 @@ export function DeckAnalysisContent({ curve, abilities, costMax = curve.max }: {
             { label: '平均花费', value: curve.averages.cost },
             { label: '平均单位部署', value: curve.averages.unitDeployment },
             { label: '平均单位行动', value: curve.averages.unitOperation },
-          ].map(({ label, value }) => <span key={label}>{label}：<small>{value.toFixed(2)}</small><b> K</b></span>)}
+          ].map(({ label, value }) => <span key={label}>{label}：<KreditLabel cost={value.toFixed(2)} compact /></span>)}
           <span>单位/指令比：<small>{curve.totals.army + curve.totals.air} : {curve.totals.order + curve.totals.countermeasure}</small></span>
         </div>
         <DeckRaritySummary rarities={curve.rarities} className="deck-cost-rarities" />

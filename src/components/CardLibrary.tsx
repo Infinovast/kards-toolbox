@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Download, Search, Trash2, X } from 'lucide-react';
 import { CardFace } from './CardFace';
 import { SET_ICONS } from '../lib/assetCatalog';
@@ -30,6 +30,7 @@ import useCardDetailPaging from '../lib/useCardDetailPaging';
 import useSearchContentWidth from '../lib/useSearchContentWidth';
 import { readCardImageCache, useCardImageCacheRevision } from '../lib/cardImages';
 import { requestConfirmation } from '../lib/appDialogs';
+import KreditLabel from './KreditLabel';
 import { type CardLanguage } from '../types/card';
 import {
   cardText,
@@ -39,6 +40,8 @@ import {
   typeLabel,
   type KardsCardRecord,
 } from '../types/card';
+
+const CardHistory = lazy(() => import('./CardHistory'));
 
 export default function CardLibrary({ cards, detailMode, onDetailModeChange, autoFocusSearch = false }: {
   cards: KardsCardRecord[];
@@ -243,8 +246,8 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange, aut
               <dl className="mt-4 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-kards-border pt-4 text-sm text-kards-text">
                 <dt>阵营</dt><dd><CardNationality faction={selectedCard.json.faction} exile={selectedCard.json.exile} type={selectedCard.json.type} size="sm" /></dd><dt>类型</dt><dd>{typeLabel(selectedCard.json.type)}</dd>
                 <CardSubtypeInfo cardId={selectedCard.cardId} language={language} />
-                <dt>部署费用</dt><dd>{selectedCard.json.kredits ?? '—'} K</dd>
-                {!['order', 'countermeasure'].includes(selectedCard.json.type || '') && <><dt>行动费用</dt><dd>{selectedCard.json.operationCost ?? '—'} K</dd><dt>攻击 / 生命</dt><dd>{selectedCard.json.attack ?? '—'} / {selectedCard.json.defense ?? '—'}</dd></>}
+                <dt>部署费用</dt><dd><KreditLabel cost={selectedCard.json.kredits} compact /></dd>
+                {!['order', 'countermeasure'].includes(selectedCard.json.type || '') && <><dt>行动费用</dt><dd><KreditLabel cost={selectedCard.json.operationCost} compact /></dd><dt>攻击 / 防御</dt><dd>{selectedCard.json.attack ?? '—'} / {selectedCard.json.defense ?? '—'}</dd></>}
                 {!isGeneratedCard(selectedCard) && <><dt className="self-center">稀有度</dt><dd className="flex items-center"><CardRarity rarity={selectedCard.json.rarity} faction={selectedCard.json.faction} /></dd></>}
                 <dt>状态</dt><dd>{cardStatusLabel(selectedCard)}</dd>
                 {selectedCard.json.set && selectedCard.json.set !== 'OnlySpawnable' && <><dt>扩展包</dt><dd className="flex items-center gap-1"><span className="h-5 w-5 shrink-0"><FilterIcon src={SET_ICONS[selectedCard.json.set] || SET_ICONS.All} /></span>{expansionLabel(selectedCard.json.set, language)}</dd></>}
@@ -258,6 +261,7 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange, aut
                     : <p key={`${label}:${cardId}`} className="break-all text-xs text-kards-text-muted">{label}：{cardId}（本地缺少资料，请在设置中更新）</p>;
                 })}
               </div></section>}
+              <Suspense fallback={null}><CardHistory cardId={selectedCard.cardId} /></Suspense>
             </>}
             {selectedHeadquarters && <>
               <img src={selectedHeadquarters.image} alt={selectedHeadquarters.name} className="mx-auto mb-4 max-h-[55vh] w-full object-contain" />

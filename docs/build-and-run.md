@@ -51,6 +51,19 @@ npm run build:cache-bundle
 npm run test:desktop -- -Executable build/wails/kards_toolbox.exe -CardsPack release/cards.kpak
 ```
 
+## 更新卡牌历史数据
+
+把原始 Word 放在 `references/kards_changes/`。源文档更新时，在项目根目录先导出独立的 JSON，再对照差异手动更新应用使用的 `src/data/cardHistory.json`。
+
+```powershell
+python -m pip install 'python-docx==1.2.0'
+python -X utf8 scripts/parse_kards_changes.py 'references/kards_changes/实际文件名.docx' references/kards_changes/cardHistory.export.json
+git diff --no-index -- src/data/cardHistory.json references/kards_changes/cardHistory.export.json
+```
+
+合并时保留随应用发布的数据中已有的人工修订。遇到旧译名、同名牌或点名卡牌的版本备注时，在 `scripts/card-history-mappings.json` 中维护导出用的别名和逐段映射。导出的 `unresolved` 记录尚未确认的卡牌关联，`needs_review` 记录原文内容疑点。
+导出文件中的 `sourceName` 用于核对 Word 原文，应用数据保留 `card` 和已有的 `note`。手工合并时，卡牌条目的 `status` 仅保留 `discarded`（废案）和 `unannounced`（暗改），`unmarked`（原文未标色）条目省略该字段。
+
 ## Windows 分发
 
 发布前关闭正在运行的打包程序，再进行检查和打包。以下打包命令已经包含桌面构建，无需先单独执行 `build:desktop`。

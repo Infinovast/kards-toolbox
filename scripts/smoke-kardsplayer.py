@@ -89,11 +89,11 @@ with sync_playwright() as p:
     detail = page.get_by_role('dialog', name='卡牌详情', exact=True)
     def stat(label, value):
         expect(detail.locator('dt', has_text=label).locator('xpath=following-sibling::dd[1]')).to_have_text(value)
-    stat('部署费用', '2 K'); stat('行动费用', '1 K'); stat('攻击 / 生命', '3 / 2')
+    stat('部署费用', '2 K'); stat('行动费用', '1 K'); stat('攻击 / 防御', '3 / 2')
     stat('状态', '现役'); stat('常备卡池', '是')
     detail.get_by_role('button', name='老兵形态第 50 步兵团（老兵）', exact=True).click()
     expect(detail.get_by_role('heading', name='第 50 步兵团（老兵）', exact=True)).to_be_visible()
-    stat('攻击 / 生命', '4 / 3'); stat('卡组码 ID', 'Cr')
+    stat('攻击 / 防御', '4 / 3'); stat('卡组码 ID', 'Cr')
     expect(detail.get_by_label('卡牌词条', exact=True)).to_have_text('伏击')
     detail.get_by_role('button', name='原卡第 50 步兵团', exact=True).click()
     expect(detail.get_by_role('heading', name='第 50 步兵团', exact=True)).to_be_visible()

@@ -43,13 +43,12 @@
 .deck-compare-table thead th:not(:first-child) { color:var(--color-kards-text); font-size:14px; }
 .deck-compare-table thead th.is-left, .deck-compare-table thead th.is-right { color:var(--compare-deck-color); overflow-wrap:anywhere; }
 .deck-compare-table th:first-child { width:28%; }
-.deck-compare-table th:last-child { width:18%; text-align:right; }
+.deck-compare-table th:last-child { width:max(18%, 80px); text-align:right; }
 .deck-compare-table tbody th { color:var(--color-kards-text-muted); font-weight:500; }
 .deck-compare-table tbody td { font-weight:400; }
 .deck-compare-table tbody td.is-emphasized { color:var(--compare-deck-color); font-weight:700; }
 .deck-compare-table tbody td:last-child { color:var(--color-kards-text-muted); text-align:right; }
 .deck-compare-difference-pill { display:inline-block; min-width:40px; padding:2px 9px; border:1px solid var(--color-kards-border); border-radius:999px; background:var(--color-kards-panel-hover); color:var(--compare-deck-color,var(--color-kards-text-muted)); text-align:center; white-space:nowrap; }
-.deck-compare-unit { font-size:11px; font-weight:400; }
 .deck-compare-parameter { display:inline-flex; align-items:center; gap:8px; }
 .deck-compare-parameter .ready-deck-rarity-icon { display:inline-block; height:20px; }
 .deck-compare-marker { position:relative; display:inline-block; width:14px; height:14px; margin-right:7px; vertical-align:-2px; background:var(--compare-deck-color); }
