@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState }
 import { createPortal } from 'react-dom';
 import { Shield, X } from 'lucide-react';
 import { CardFace } from './CardFace';
+import { CardDetailArt } from './CardDetailArt';
 import { expansionLabel, FilterIcon } from './CardFilterSelects';
 import { cardRelations, cardStatusLabel } from '../lib/cardDetails';
 import { handleDialogKeys } from '../lib/dialogKeyboard';
@@ -10,7 +11,7 @@ import ReservedBadge from './ReservedBadge';
 import { CardText } from './CardText';
 import type { HeadquartersAsset } from '../lib/cardAssets';
 import { captureCardDetailOrigin, type CardDetailOrigin } from '../lib/cardDetailOrigin';
-import { SET_ICONS, TYPE_ICONS } from '../lib/assetCatalog';
+import { alternateCardArt, SET_ICONS, TYPE_ICONS } from '../lib/assetCatalog';
 import CardNationality from './CardNationality';
 import CardKeywordList from './CardKeywordList';
 import CardRarity from './CardRarity';
@@ -193,8 +194,8 @@ export default function CardDetailModal({ card: initialCard, headquarters: initi
             <dt>卡池</dt><dd>{card.json.permanent_pool ? '常备卡池' : '轮换卡池'}</dd>
           </dl> : <dl className="card-detail-section grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 text-sm"><dt>稀有度</dt><dd>{headquarters?.rarity || '普通'}</dd></dl>}
         </aside>
-        <div ref={art} className="card-detail-art">{card ? <CardFace card={card} initialSource={card === initialCard ? origin?.image : undefined} /> : <img src={headquarters!.image} alt={title} className="card-face" />}
-          <CardBrowsingTip className="card-detail-tip" />
+        <div ref={art} className="card-detail-art">{card ? <CardDetailArt key={card.cardId} card={card} disabled={!arrived || isClosing} initialSource={card === initialCard ? origin?.image : undefined} /> : <img src={headquarters!.image} alt={title} className="card-face" />}
+          <CardBrowsingTip className="card-detail-tip" alternateArt={!!card && alternateCardArt(card.cardId).length > 0} />
         </div>
         <div ref={rightPanel} inert={!arrived || isClosing} className="card-detail-panel custom-scrollbar overscroll-y-contain">
           <h1 className="text-2xl font-bold">{title}</h1>

@@ -60,9 +60,13 @@ async function main() {
     await page.getByRole('button', { name: '卡组生图', exact: true }).click();
     const input = page.getByLabel('卡组码', { exact: true });
     await expect(input).toHaveValue('');
-    const changeTablecloth = page.getByRole('button', { name: '更换桌布', exact: true });
-    await expect(changeTablecloth).toBeDisabled();
-    const changeBounds = await changeTablecloth.boundingBox();
+    const appearance = page.getByRole('button', { name: '外观', exact: true });
+    const openTablecloth = async () => {
+      await appearance.click();
+      await page.getByRole('group', { name: '生图外观' }).getByRole('button', { name: '桌布', exact: true }).click();
+    };
+    await expect(appearance).toBeDisabled();
+    const changeBounds = await appearance.boundingBox();
     const historyBounds = await page.getByRole('button', { name: '历史记录', exact: true }).boundingBox();
     assert.ok(changeBounds.x + changeBounds.width <= historyBounds.x, 'change tablecloth sits to the left of history');
     await page.getByRole('button', { name: '历史记录', exact: true }).click();
@@ -109,6 +113,10 @@ async function main() {
     }
 
     await input.fill(codeB); await waitImages();
+    await appearance.click();
+    await expect(page.getByRole('button', { name: '卡牌异画', exact: true })).toBeDisabled();
+    await page.keyboard.press('Escape');
+    await expect(appearance).toBeFocused();
     const imageB = await full.getAttribute('src');
     await clipboard(`剪贴板生图\n${codeA}`);
     await expect(input).toHaveValue(codeB); // Unchanged clipboard must not replace manual edits.
@@ -134,12 +142,12 @@ async function main() {
 
     // Reuse the image picker, including headquarters descriptions, without changing the app background.
     const applicationTablecloth = await page.locator('[data-tablecloth]').getAttribute('data-tablecloth');
-    await changeTablecloth.click();
+    await openTablecloth();
     await expect(page.getByRole('heading', { name: '切换桌布', exact: true })).toBeVisible();
     await page.keyboard.press('Escape');
-    await expect(changeTablecloth).toBeFocused();
+    await expect(appearance).toBeFocused();
     assert.equal(await full.getAttribute('src'), imageA, 'cancel leaves the preview unchanged');
-    await changeTablecloth.click();
+    await openTablecloth();
     const hqTablecloth = require('../src/data/tablecloths.json').tablecloths.find(item => item.type === 'headquarters');
     const headquarters = require('../src/data/headquarters.json').headquarters.find(item => item.groupId === hqTablecloth.headquartersId);
     const headquartersChoice = page.getByRole('button', { name: `选择桌布 ${hqTablecloth.name}`, exact: true });
@@ -153,7 +161,7 @@ async function main() {
     const changedFull = await full.getAttribute('src');
     const changedMini = await mini.getAttribute('src');
     await expect.poll(() => read(codeA)).toBe(changedFull);
-    await changeTablecloth.click();
+    await openTablecloth();
     await expect(headquartersChoice).toHaveAttribute('aria-pressed', 'true');
     await page.keyboard.press('Escape');
     assert.equal(await page.locator('[data-tablecloth]').getAttribute('data-tablecloth'), applicationTablecloth);
@@ -209,8 +217,117 @@ async function main() {
     if (await prompt.count()) await page.keyboard.press('Escape');
     await page.getByRole('button', { name: '卡组生图', exact: true }).click();
     await expect(input).toHaveValue(codeB); await waitImages();
+
+    // Both PNGs use the chosen artwork when the card is also the mini cover.
+    await page.evaluate(() => { delete window.kardsDesktop.renderDeckImage; });
+    const altCode = '%%11|30;;;';
+    await input.fill(altCode); await waitImages();
+    const baseFull = await full.getAttribute('src');
+    const baseMini = await mini.getAttribute('src');
+    const openArtwork = async () => {
+      await appearance.click();
+      await expect(page.getByRole('button', { name: '卡牌异画', exact: true })).toBeEnabled();
+      await page.getByRole('button', { name: '卡牌异画', exact: true }).click();
+      return page.getByRole('group', { name: '卡牌异画选项' });
+    };
+    const artwork = await openArtwork();
+    const first = artwork.getByRole('button', { name: '古德里安（异画 1）', exact: true });
+    const second = artwork.getByRole('button', { name: '古德里安（异画 2）', exact: true });
+    await expect(first).toHaveAttribute('aria-pressed', 'false');
+    await expect(second).toHaveAttribute('aria-pressed', 'false');
+    await expect.poll(() => second.locator('img').evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
+    await page.screenshot({ path: path.join(output, 'alternate-art-menu.png') });
+    await second.click();
+    await waitImages();
+    const alternateFull = await full.getAttribute('src');
+    assert.notEqual(alternateFull, baseFull);
+    assert.notEqual(await mini.getAttribute('src'), baseMini);
+    await expect.poll(() => read(altCode)).toBe(alternateFull);
+    await openArtwork();
+    await expect(second).toHaveAttribute('aria-pressed', 'true');
+    await first.click();
+    await waitImages();
+    assert.notEqual(await full.getAttribute('src'), alternateFull);
+    await openArtwork();
+    await expect(first).toHaveAttribute('aria-pressed', 'true');
+    await expect(second).toHaveAttribute('aria-pressed', 'false');
+    await first.click();
+    await waitImages();
+    assert.equal(await full.getAttribute('src'), baseFull);
+    assert.equal(await mini.getAttribute('src'), baseMini);
+
+    await page.getByRole('button', { name: '卡牌', exact: true }).click();
+    const settings = page.getByRole('button', { name: '卡牌库设置' });
+    await settings.click();
+    const filter = page.getByRole('button', { name: '筛选异画卡牌' });
+    await expect(filter).toHaveAttribute('aria-pressed', 'false');
+    await filter.click();
+    const cardCount = Object.keys(require('../src/data/assets.json').alternateCardArt).length;
+    await expect(page.locator('.library-result-count')).toContainText(String(cardCount));
+    await expect(page.getByRole('button', { name: /^展开.+总部$/ })).toHaveCount(0);
+    await page.getByRole('textbox', { name: '搜索卡牌' }).fill('fast_heinz');
+    await page.getByRole('button', { name: '查看古德里安', exact: true }).click();
+    const detail = page.getByRole('dialog', { name: '卡牌详情：古德里安', exact: true });
+    const flip = detail.getByRole('button', { name: '切换异画', exact: true });
+    await expect(detail.getByText('点击卡牌可以切换异画~')).toBeVisible();
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await flip.click();
+    await expect(flip.getByRole('img', { name: '古德里安异画 1' })).toBeVisible();
+    const rotor = flip.locator('.card-detail-flip-rotor');
+    await expect.poll(() => rotor.evaluate(el => new DOMMatrixReadOnly(getComputedStyle(el).transform).m11)).toBe(-1);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await flip.click();
+    await expect(flip.getByRole('img', { name: '古德里安异画 2' })).toBeVisible();
+    await flip.click();
+    await expect(flip).toHaveAttribute('aria-pressed', 'false');
+    await page.keyboard.press('Escape');
+    await expect(detail).toHaveCount(0);
+    await settings.click();
+    await page.getByRole('combobox', { name: '卡牌详情样式' }).click();
+    await page.getByRole('option', { name: '侧栏', exact: true }).click();
+    await page.getByRole('button', { name: '查看古德里安', exact: true }).click();
+    const sidebar = page.getByRole('dialog', { name: '卡牌详情', exact: true });
+    await expect(sidebar.getByText('点击卡牌可以切换异画~')).toBeVisible();
+    await sidebar.getByRole('button', { name: '切换异画' }).click();
+    await expect(sidebar.getByRole('img', { name: '古德里安异画 1' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: '清除筛选', exact: true }).click();
+    await settings.click();
+    await expect(filter).toHaveAttribute('aria-pressed', 'false');
+    await page.keyboard.press('Escape');
+
+    const testDeck = {
+      id: 'alternate-art-test', code: altCode, name: '异画测试卡组', mainNation: 'Germany', allyNation: 'Germany', totalCards: 2, warnings: [],
+    };
+    await page.evaluate(deck => window.__store('kards_decks', [deck], true), testDeck);
+    await expect.poll(() => page.evaluate(() => window.__store('kards_decks'))).toEqual([testDeck]);
+    await page.reload();
+    await page.getByRole('button', { name: '卡组', exact: true }).click();
+    const enterDecks = page.getByRole('button', { name: '进入我的卡组' });
+    if (await enterDecks.isVisible()) await enterDecks.click();
+    await page.getByRole('button', { name: '选择卡组 异画测试卡组', exact: true }).click();
+    await page.getByRole('button', { name: '生成本地卡组图片' }).click();
+    const previewDialog = page.getByRole('dialog').filter({ has: page.getByRole('heading', { name: '本地卡组图片 - 异画测试卡组' }) });
+    const previewImage = previewDialog.getByRole('img', { name: '本地卡组图片' });
+    await expect(previewImage).toBeVisible();
+    const standardPreview = await previewImage.getAttribute('src');
+    const modalAppearance = previewDialog.getByRole('button', { name: '外观', exact: true });
+    await modalAppearance.click();
+    await previewDialog.getByRole('button', { name: '卡牌异画', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await expect(modalAppearance).toBeFocused();
+    await expect(previewImage).toBeVisible();
+    await modalAppearance.click();
+    await previewDialog.getByRole('button', { name: '卡牌异画', exact: true }).click();
+    await previewDialog.getByRole('button', { name: '古德里安（异画 1）', exact: true }).click();
+    await expect(previewImage).toBeVisible();
+    assert.notEqual(await previewImage.getAttribute('src'), standardPreview);
+    await previewDialog.getByRole('button', { name: '切换到迷你分享图' }).click();
+    await expect(previewDialog.getByRole('img', { name: '迷你分享图' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(previewDialog).toHaveCount(0);
     assert.deepEqual(errors, []);
-    console.log('Deck image page renderer smoke passed: clipboard, dual PNGs, header charts, image zoom, history thumbnails, legacy caches, errors/retries, stale requests, themes and minimum window');
+    console.log('Deck image page renderer smoke passed: clipboard, dual PNGs, header charts, zoom, history, retries, stale requests, themes, minimum window, alternate artwork, library filter and card flips');
   } finally { await browser.close(); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

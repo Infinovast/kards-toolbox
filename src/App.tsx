@@ -54,6 +54,7 @@ import TableclothBackground from './components/TableclothBackground';
 import TableclothChoice from './components/TableclothChoice';
 import AssetSelectionMark from './components/AssetSelectionMark';
 import CardDetailModal from './components/CardDetailModal';
+import DeckImageAppearance from './components/DeckImageAppearance';
 import type { CardDetailOrigin } from './lib/cardDetailOrigin';
 import { revealDetailItem, type CardDetailItem } from './lib/cardDetailPaging';
 import DeckBuilder, { type BuilderDeck } from './components/DeckBuilder';
@@ -573,7 +574,7 @@ export default function App() {
   const [collectionToDelete, setCollectionToDelete] = useState<Collection | null>(null);
   const [collectionToRename, setCollectionToRename] = useState<Collection | null>(null);
   const [renameCollectionName, setRenameCollectionName] = useState('');
-  const [deckImageModal, setDeckImageModal] = useState<{show: boolean, deck: Pick<Deck, 'name' | 'code' | 'headquartersId' | 'cardBackUrl' | 'allyNation'> | null, loading: boolean, miniLoading: boolean, imageUrl: string | null, miniImageUrl: string | null, view: 'full' | 'mini', error: string | null, tablecloth: string}>({show: false, deck: null, loading: false, miniLoading: false, imageUrl: null, miniImageUrl: null, view: 'full', error: null, tablecloth: DEFAULT_TABLECLOTH});
+  const [deckImageModal, setDeckImageModal] = useState<{show: boolean, deck: Pick<Deck, 'name' | 'code' | 'headquartersId' | 'cardBackUrl' | 'allyNation'> | null, loading: boolean, miniLoading: boolean, imageUrl: string | null, miniImageUrl: string | null, view: 'full' | 'mini', error: string | null, tablecloth: string, alternateArt?: ReadonlyMap<string, string>}>({show: false, deck: null, loading: false, miniLoading: false, imageUrl: null, miniImageUrl: null, view: 'full', error: null, tablecloth: DEFAULT_TABLECLOTH});
   const [tableclothPickerForImage, setTableclothPickerForImage] = useState(false);
   const [deckImageDownloadError, setDeckImageDownloadError] = useState('');
   const pageTableclothPicker = useRef<{ tablecloth: string; onChoose: (tablecloth: string) => void } | null>(null);
@@ -585,7 +586,7 @@ export default function App() {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'tablecloth' | 'cardback', id: string, catId?: string } | null>(null);
 
-  const getOrGenerateDeckImage = async (deck: Pick<Deck, 'name' | 'code' | 'headquartersId' | 'cardBackUrl' | 'allyNation'> & { mainNation?: string }, backgroundOverride?: string) => {
+  const getOrGenerateDeckImage = async (deck: Pick<Deck, 'name' | 'code' | 'headquartersId' | 'cardBackUrl' | 'allyNation'> & { mainNation?: string }, backgroundOverride?: string, alternateArt?: ReadonlyMap<string, string>) => {
     const mainNation = deck.mainNation || decodeDeckCode(deck.code).mainNation;
     const headquarters = headquartersForDeck(deck.headquartersId, mainNation);
     const background = backgroundOverride || tableclothForHeadquarters(headquarters?.groupId) || selectedTablecloth;
@@ -593,7 +594,7 @@ export default function App() {
     const cardBackUrl = cardBackForDeck({ ...deck, mainNation });
     const customBack = customCategories.flatMap(category => category.backs).find(back => back.url === cardBackUrl);
     const cardBackId = CARD_BACKS.find(back => back.file === cardBackUrl)?.id || (customBack ? `custom:${customBack.id}` : undefined);
-    const imageData = await renderDeckImage(deck.code, cardDatabase, deck.name, background, deck.headquartersId, limit, cardBackId);
+    const imageData = await renderDeckImage(deck.code, cardDatabase, deck.name, background, deck.headquartersId, limit, cardBackId, alternateArt);
     await saveDeckImage(deck.code, imageData);
     return imageData;
   };
@@ -614,15 +615,13 @@ export default function App() {
     }
   };
 
-  const chooseTableclothForDeckImage = async (tablecloth: string) => {
-    setShowTableclothModal(false);
-    setTableclothPickerForImage(false);
+  const regenerateDeckImage = async (tablecloth: string, alternateArt: ReadonlyMap<string, string> | undefined) => {
     const deck = deckImageModal.deck;
     if (!deck) return;
     const request = ++deckImageRequest.current;
-    setDeckImageModal(current => ({ ...current, loading: true, miniImageUrl: null, view: 'full', imageUrl: null, error: null, tablecloth }));
+    setDeckImageModal(current => ({ ...current, loading: true, miniImageUrl: null, view: 'full', imageUrl: null, error: null, tablecloth, alternateArt }));
     try {
-      const imageData = await getOrGenerateDeckImage(deck, tablecloth);
+      const imageData = await getOrGenerateDeckImage(deck, tablecloth, alternateArt);
       if (request !== deckImageRequest.current) return;
       setDeckImageModal(current => ({ ...current, loading: false, miniImageUrl: null, view: 'full', imageUrl: imageData, tablecloth }));
     } catch (err: any) {
@@ -641,7 +640,7 @@ export default function App() {
       const cardBackUrl = cardBackForDeck({ ...deck, mainNation });
       const customBack = customCategories.flatMap(category => category.backs).find(back => back.url === cardBackUrl);
       const cardBackId = CARD_BACKS.find(back => back.file === cardBackUrl)?.id || (customBack ? `custom:${customBack.id}` : undefined);
-      const mini = await renderDeckMiniImage(deck.code, cardDatabase, deck.name, deckImageModal.tablecloth, deck.headquartersId, cardBackUrl, cardBackId);
+      const mini = await renderDeckMiniImage(deck.code, cardDatabase, deck.name, deckImageModal.tablecloth, deck.headquartersId, cardBackUrl, cardBackId, deckImageModal.alternateArt);
       if (request !== deckImageRequest.current) return;
       await saveDeckImage(deck.code, mini, 'mini');
       if (request !== deckImageRequest.current) return;
@@ -666,7 +665,10 @@ export default function App() {
       pageTableclothPicker.current.onChoose(tablecloth);
       closeTableclothPicker();
     }
-    else if (tableclothPickerForImage) return chooseTableclothForDeckImage(tablecloth);
+    else if (tableclothPickerForImage) {
+      closeTableclothPicker();
+      return regenerateDeckImage(tablecloth, deckImageModal.alternateArt);
+    }
     else setSelectedTablecloth(tablecloth);
   };
   const activeTableclothChoice = pageTableclothPicker.current?.tablecloth || (tableclothPickerForImage ? deckImageModal.tablecloth : selectedTablecloth);
@@ -2728,7 +2730,10 @@ export default function App() {
               </div>
               <div className="m-3 flex flex-wrap items-center justify-end gap-2">
                 <button disabled={deckImageModal.loading || deckImageModal.miniLoading || !deckImageModal.imageUrl} onClick={generateMiniDeckImage} className="mr-auto rounded border border-kards-border px-4 py-2 text-sm font-bold disabled:opacity-40">{deckImageModal.miniLoading ? '正在生成迷你分享图…' : deckImageModal.view === 'mini' ? '切换到完整卡组图' : '切换到迷你分享图'}</button>
-                <button disabled={deckImageModal.loading || deckImageModal.miniLoading || !deckImageModal.deck} onClick={() => openTableclothPicker(true)} className="flex items-center gap-2 rounded border border-kards-border px-4 py-2 text-sm font-bold disabled:opacity-40"><Palette className="h-4 w-4" />更换桌布</button>
+                <DeckImageAppearance code={deckImageModal.deck?.code} cards={cardDatabase} selection={deckImageModal.alternateArt}
+                  disabled={deckImageModal.loading || deckImageModal.miniLoading || !deckImageModal.deck}
+                  onTablecloth={() => openTableclothPicker(true)}
+                  onAlternateArt={selection => { void regenerateDeckImage(deckImageModal.tablecloth, selection); }} />
                 {deckImageModal.imageUrl && <button data-dialog-confirm disabled={deckImageModal.miniLoading} onClick={() => {
                   const mini = deckImageModal.view === 'mini';
                   const image = mini ? deckImageModal.miniImageUrl : deckImageModal.imageUrl;

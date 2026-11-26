@@ -33,6 +33,11 @@ export const SET_ICONS: Record<string, string> = manifest.sets;
 export const WILDCARDS: Record<string, Record<string, string>> = manifest.wildcards;
 export const WILDCARD_ASPECT_RATIO = 500 / 702;
 export const CARD_PACKS: CardPackAsset[] = manifest.cardpacks as CardPackAsset[];
+const ALTERNATE_CARD_ART = new Map<string, readonly string[]>(Object.entries(manifest.alternateCardArt));
+
+export function alternateCardArt(cardId: string): readonly string[] {
+  return ALTERNATE_CARD_ART.get(cardId) || [];
+}
 
 export function wildcardAsset(nation?: string, rarity?: string): string | undefined {
   const key = Object.keys(WILDCARDS).find(id => id.toLowerCase() === nation?.toLowerCase());

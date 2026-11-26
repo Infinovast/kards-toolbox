@@ -16,6 +16,8 @@ Git 仓库不包含 `assets-private/`、`dist-packs/`、`.env`、构建产物和
 - **松散资源**放入 `assets-private/static/`。资源清单中的 `/assets/` 对应此目录，例如 `/assets/kards_logos/` 对应 `assets-private/static/kards_logos/`。万能牌放在 `wildcards/` 下的 `standard`、`limited`、`special` 和 `elite` 目录中。桌面构建读取 `kards_logos/` 中的 `KardsLogoBlack_cards_new.png` 和 `KardsLogoWhite_cards_new.png` 作为应用图标。
 - **已有资源包**放入 `dist-packs/static.kpak`。没有松散资源目录时，资源包须包含当前清单中的路径，并使用与构建一致的 salt。
 
+卡牌异画以 AVIF 放在 `assets-private/static/altart/`，文件与卡牌 ID 的对应关系见 `src/data/assets.json`。桌面构建检查清单中的异画并随 `static.kpak` 嵌入 EXE。
+
 可先执行 `npx tsx scripts/build-packs.ts --static-only` 生成或验证静态包；桌面构建也会自动执行这一步。资源缺失时，纯网页构建 `npm run build:web` 仍可生成界面，但运行时缺少对应图像，桌面构建无法完成。
 
 默认使用源码中的公开 `DEFAULT_PACK_SALT`。如需兼容自有资源包，可在本地 `.env` 设置 `KARDS_PACK_SALT`，网页和桌面构建应保持一致。该值只参与资源包散列和混淆，不是保护秘密的加密密钥；不要把真实凭据放入资源包或构建环境。`.env*` 均不提交。

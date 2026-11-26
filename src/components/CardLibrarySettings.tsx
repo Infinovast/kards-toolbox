@@ -4,11 +4,13 @@ import { Settings } from 'lucide-react';
 import { CARD_LANGUAGES, type CardLanguage } from '../types/card';
 import CustomSelect from './CustomSelect';
 
-export default function CardLibrarySettings({ language, onLanguageChange, detailMode, onDetailModeChange }: {
+export default function CardLibrarySettings({ language, onLanguageChange, detailMode, onDetailModeChange, alternateArtOnly, onToggleAlternateArt }: {
   language: CardLanguage;
   onLanguageChange: (language: CardLanguage) => void;
   detailMode: 'modal' | 'sidebar';
   onDetailModeChange: (mode: 'modal' | 'sidebar') => void;
+  alternateArtOnly: boolean;
+  onToggleAlternateArt: () => void;
 }) {
   const id = useId();
   const trigger = useRef<HTMLButtonElement>(null);
@@ -65,7 +67,7 @@ export default function CardLibrarySettings({ language, onLanguageChange, detail
 
   return <>
     <button ref={trigger} type="button" className="library-settings-button" aria-label="卡牌库设置" title="卡牌库设置"
-      aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? id : undefined} onKeyDown={handleKeys}
+      aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? id : undefined} data-alternate-art-filter={alternateArtOnly || undefined} onKeyDown={handleKeys}
       onClick={() => { setPosition({ visibility: 'hidden' }); setOpen(value => !value); }}>
       <Settings aria-hidden="true" className="h-4 w-4" />
     </button>
@@ -76,6 +78,8 @@ export default function CardLibrarySettings({ language, onLanguageChange, detail
       <div className="library-settings-row"><span>详情样式</span><CustomSelect label="卡牌详情样式" value={detailMode}
         onChange={value => { onDetailModeChange(value as 'modal' | 'sidebar'); setOpen(false); }}
         options={[{ value: 'modal', label: '浮窗' }, { value: 'sidebar', label: '侧栏' }]} /></div>
+      <button type="button" className="library-alternate-art-filter" aria-pressed={alternateArtOnly}
+        onClick={() => { onToggleAlternateArt(); setOpen(false); }}>筛选异画卡牌</button>
     </div>, document.body)}
   </>;
 }

@@ -2,6 +2,7 @@ import { isVeteranCard, type KardsCardRecord } from '../types/card';
 import { cardHasSubtype } from './cardSubtypes';
 import { cardHasKeyword, cardKeywordItems, KEYWORD_FILTER_GROUPS } from './cardKeywords';
 import cardStatusGroups from '../data/cardStatusGroups.json';
+import { alternateCardArt } from './assetCatalog';
 
 export interface CardFilters {
   query: string;
@@ -15,6 +16,7 @@ export interface CardFilters {
   rarity: string[];
   expansion: string;
   status: string[];
+  alternateArtOnly?: boolean;
 }
 
 export const EMPTY_CARD_FILTERS: CardFilters = { query: '', factions: [], cardType: [], subtypes: [], keywords: [], keywordMode: 'or', keywordCount: 0, cost: [], rarity: [], expansion: 'All', status: [] };
@@ -64,7 +66,7 @@ function matchesCardSearch(card: KardsCardRecord, query: string) {
 
 export function hasCardFilterConditions(filters: CardFilters) {
   return !!(filters.factions.length || filters.cardType.length || filters.subtypes.length || filters.keywords.length || filters.keywordCount
-    || filters.cost.length || filters.rarity.length || filters.status.length || filters.expansion !== 'All');
+    || filters.cost.length || filters.rarity.length || filters.status.length || filters.expansion !== 'All' || filters.alternateArtOnly);
 }
 
 const weatherCardIds = new Set(cardStatusGroups.weather);
@@ -97,7 +99,8 @@ function matchesStatus(card: KardsCardRecord, status: string) {
 }
 
 export function matchesCardFilters(card: KardsCardRecord, filters: CardFilters) {
-  return matchesCardSearch(card, filters.query)
+  return (!filters.alternateArtOnly || alternateCardArt(card.cardId).length > 0)
+    && matchesCardSearch(card, filters.query)
     && (!filters.factions.length || filters.factions.some(faction => [card.json.faction, card.json.exile]
       .some(nation => typeof nation === 'string' && faction.toLowerCase() === nation.trim().toLowerCase())))
     && (!filters.cardType.length || filters.cardType.includes(card.json.type || ''))

@@ -117,8 +117,19 @@ const catalogPaths = new Set([
   ...HEADQUARTERS.map(item => item.image), ...TABLECLOTHS.map(item => item.file),
 ]);
 const actualImages = new Set((existsSync(privateAssets) ? readdirSync(privateAssets, { recursive: true }) : [...catalogPaths].map(file => file.slice('/assets/'.length))).map(file => `/assets/${String(file).replaceAll('\\', '/')}`)
-  .filter(file => /\.(png|jpe?g|svg|webp)$/i.test(file) && !/_(reserved|reversed)_\d+\./.test(file)));
+  .filter(file => /\.(png|jpe?g|svg|webp|avif)$/i.test(file) && !/_(reserved|reversed)_\d+\./.test(file)));
 assert.deepEqual([...catalogPaths].sort(), [...actualImages].sort(), 'all supported assets are registered exactly once per file; reserved faction variants stay unused');
+const artworkPaths = Object.values(manifest.alternateCardArt).flat();
+assert.equal(new Set(artworkPaths).size, artworkPaths.length, 'alternate artwork paths are unique');
+for (const [cardId, artworks] of Object.entries(manifest.alternateCardArt)) {
+  assert.ok(cards.some(card => card.cardId === cardId), `alternate artwork has a catalogue card: ${cardId}`);
+  for (const url of artworks) {
+    const asset = await readAsset(url);
+    assert.equal(asset?.mime, 'image/avif', url);
+    const { hasAlpha, compression } = await sharp(asset!.buffer).metadata();
+    assert.ok(hasAlpha && compression === 'av1', `transparent AVIF: ${url}`);
+  }
+}
 for (const file of [...catalogPaths].filter(file => file.startsWith('/assets/keywords/') && file.endsWith('.png'))) {
   const { data, info } = await sharp(await assetBuffer(file)).raw().toBuffer({ resolveWithObject: true });
   assert.equal(info.channels, 4, `${file} retains RGBA transparency`);

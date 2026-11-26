@@ -18,6 +18,12 @@ for (const query of ['测试', 'INFANTRY', 'fallback', 'card-a', 'aa', '  步兵
   assert.ok(matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, query }), query);
 }
 assert.ok(!matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, query: 'not found' }));
+const alternateArtOnly = { ...EMPTY_CARD_FILTERS, alternateArtOnly: true };
+assert.ok(hasCardFilterConditions(alternateArtOnly));
+assert.ok(!matchesCardFilters(base, alternateArtOnly));
+const withAlternateArt = { ...base, cardId: 'fast_heinz' };
+assert.ok(matchesCardFilters(withAlternateArt, alternateArtOnly));
+assert.ok(!matchesCardFilters(withAlternateArt, { ...alternateArtOnly, query: 'not found' }));
 for (const query of ['测.步兵', 'Te.t In.antry', 'card.a', 'fall.ack', '测..兵']) {
   assert.ok(matchesCardFilters(base, { ...EMPTY_CARD_FILTERS, query }), `single-character wildcard: ${query}`);
 }

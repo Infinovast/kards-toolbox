@@ -14,15 +14,17 @@ const load = (url: string) => new Promise<HTMLImageElement>((resolve, reject) =>
 });
 
 /** Local PNG cover with the same summary and featured-card choice as preset decks. */
-export async function renderDeckMiniImage(code: string, cards: KardsCardRecord[], title: string, background?: string, headquartersId?: string, cardBackUrl?: string, cardBackId?: string): Promise<string> {
+export async function renderDeckMiniImage(code: string, cards: KardsCardRecord[], title: string, background?: string, headquartersId?: string, cardBackUrl?: string, cardBackId?: string, alternateArt?: ReadonlyMap<string, string>): Promise<string> {
   const summary = summarizeDeckCover(code, findCardsByImportId(cards));
   const headquarters = headquartersForDeck(headquartersId, summary.mainNation) || BUNKER_HEADQUARTERS;
-  const cachedArt = summary.featured ? await getCachedCardImage(summary.featured) : null;
+  // The mini export has one card face, so it shows the most recently selected artwork.
+  const selectedArt = alternateArt?.size ? [...alternateArt.values()].at(-1) : undefined;
+  const featuredArt = selectedArt || (summary.featured ? await getCachedCardImage(summary.featured) : null);
   const [wallpaper, mainIcon, allyIcon, back, front] = await Promise.all([
     load(background || DEFAULT_TABLECLOTH), load(factionIcon(summary.mainNation, 'white')),
     load(factionIcon(summary.allyNation, 'white')),
     load(cardBackForDeck({ ...summary, cardBackUrl })),
-    load(cachedArt || headquarters!.image).catch(() => load(headquarters!.image)),
+    load(featuredArt || headquarters!.image).catch(() => load(headquarters!.image)),
   ]);
   const canvas = document.createElement('canvas'); canvas.width = WIDTH * RESOLUTION; canvas.height = HEIGHT * RESOLUTION;
   const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('无法创建迷你分享图');

@@ -12,6 +12,7 @@ const workRoot = path.join(root, 'build', 'wails');
 const frontend = path.join(desktop, 'frontend', 'dist');
 const exeName = 'kards_toolbox.exe';
 const { version } = require('../package.json');
+const { alternateCardArt } = require('../src/data/assets.json');
 const localGo = process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'KardsToolboxDev', 'go', 'bin', 'go.exe');
 const go = process.env.KARDS_GO || (localGo && existsSync(localGo) ? localGo : 'go');
 const goEnv = { ...process.env, GOOS: 'windows', GOARCH: 'amd64', CGO_ENABLED: '0' };
@@ -63,8 +64,12 @@ async function build(work, executable, developer) {
   const bundled = path.join(desktop, 'bundled');
   await fs.mkdir(bundled, { recursive: true });
   const staticPack = await tools.buildStaticPack(root);
-  await fs.copyFile(staticPack, path.join(bundled, 'static.kpak'));
   const pack = await tools.Kpak.open(staticPack);
+  for (const artwork of Object.values(alternateCardArt).flat()) {
+    const key = tools.hashPackKey(tools.normalizeAssetPath(artwork), tools.packSalt());
+    if (pack.entries.get(key)?.mime !== 'image/avif') throw new Error(`静态资源包缺少异画 AVIF：${artwork}`);
+  }
+  await fs.copyFile(staticPack, path.join(bundled, 'static.kpak'));
   const icons = [];
   for (const color of ['Black', 'White']) {
     const name = `KardsLogo${color}_cards_new.png`;

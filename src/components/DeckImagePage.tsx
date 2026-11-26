@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { Download, History, Image as ImageIcon, Library, LoaderCircle, Palette, RotateCcw, X } from 'lucide-react';
+import { Download, History, Image as ImageIcon, Library, LoaderCircle, RotateCcw, X } from 'lucide-react';
 import type { KardsCardRecord } from '../types/card';
 import { decodeDeckCode } from '../lib/deckCode';
 import { extractDeckCodeFromText, inferDeckTitleFromText } from '../lib/deckImport';
@@ -14,6 +14,7 @@ import { listDeckImageCodes, readDeckImage, saveDeckImage, type DeckImageKind } 
 import { useCardImageCacheRevision } from '../lib/cardImages';
 import { handleDialogKeys, useDismissiblePanel } from '../lib/dialogKeyboard';
 import DeckImageHistoryItem from './DeckImageHistoryItem';
+import DeckImageAppearance from './DeckImageAppearance';
 import type { ExistingCompareDeck } from './DeckComparePage';
 
 interface ImageDeck { code: string; name: string; headquartersId?: string; cardBackUrl?: string }
@@ -45,6 +46,7 @@ export default function DeckImagePage({ cards, decks, existingDecks, tablecloth:
   const reducedMotion = useReducedMotion();
   const cacheRevision = useCardImageCacheRevision();
   const [tableclothOverride, setTableclothOverride] = useState<string>();
+  const [alternateArtByDeck, setAlternateArtByDeck] = useState(new Map<string, ReadonlyMap<string, string>>());
   const tablecloth = tableclothOverride || defaultTablecloth;
   const [input, setInput] = useState<{ text: string; title?: string; history?: { tablecloth: string; revision: number; cards: KardsCardRecord[] } }>({ text: '' });
   const [previews, setPreviews] = useState({ full: emptyPreview(), mini: emptyPreview() });
@@ -78,6 +80,7 @@ export default function DeckImagePage({ cards, decks, existingDecks, tablecloth:
       return { code, error: '', deck: { ...saved, code, name: input.title || saved?.name || deckTitle(code), ...decoded } };
     } catch (error) { return { code: '', error: error instanceof Error ? error.message : '请检查卡组码', deck: null }; }
   }, [input.text, input.title, decks]);
+  const alternateArt = alternateArtByDeck.get(parsed.code);
 
   useEffect(() => {
     let cancelled = false, detecting = false;
@@ -125,8 +128,8 @@ export default function DeckImagePage({ cards, decks, existingDecks, tablecloth:
             if (cached) { update(kind, { image: cached, loading: false, error: '' }); return true; }
           }
           const image = kind === 'full'
-            ? await renderDeckImage(deck.code, cards, deck.name, background, deck.headquartersId, 40, cardBackId)
-            : await renderDeckMiniImage(deck.code, cards, deck.name, background, deck.headquartersId, cardBackUrl, cardBackId);
+            ? await renderDeckImage(deck.code, cards, deck.name, background, deck.headquartersId, 40, cardBackId, alternateArt)
+            : await renderDeckMiniImage(deck.code, cards, deck.name, background, deck.headquartersId, cardBackUrl, cardBackId, alternateArt);
           if (cancelled) return false;
           update(kind, { image, loading: false, error: '' });
           if ((fullSaved && !await fullSaved) || cancelled) return false;
@@ -145,7 +148,7 @@ export default function DeckImagePage({ cards, decks, existingDecks, tablecloth:
       void generate('mini', fullSaved);
     }, input.history ? 0 : 350);
     return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [parsed, input.history, cards, tablecloth, tableclothOverride, customCategories, cacheRevision, retry]);
+  }, [parsed, input.history, cards, tablecloth, tableclothOverride, customCategories, cacheRevision, retry, alternateArt]);
 
   useEffect(() => {
     if (!historyOpen) return;
@@ -165,7 +168,7 @@ export default function DeckImagePage({ cards, decks, existingDecks, tablecloth:
   };
 
   return <section aria-label="卡组生图" className="relative flex h-full w-full min-h-0 flex-col overflow-hidden">
-    <div className="glass-panel shrink-0 border-b border-kards-border px-5 py-4">
+    <div className="glass-panel relative z-20 shrink-0 border-b border-kards-border px-5 py-4">
       <div className="flex items-end gap-3">
         <div className="min-w-0 flex-1">
           <label htmlFor="deck-image-code" className="mb-2 block text-sm font-bold">卡组码</label>
@@ -178,17 +181,20 @@ export default function DeckImagePage({ cards, decks, existingDecks, tablecloth:
           onClick={() => setPickerOpen(true)} className="deck-compare-analyze is-secondary deck-image-picker-button">
           <Library className="h-4 w-4" />选择现有卡组
         </button>
-        <button type="button" disabled={!parsed.deck || previews.full.loading || previews.mini.loading}
-          onClick={() => {
+        <DeckImageAppearance code={parsed.code} cards={cards} selection={alternateArt}
+          disabled={!parsed.deck || previews.full.loading || previews.mini.loading}
+          onTablecloth={() => {
             if (!parsed.deck) return;
             const { background } = imageOptions(parsed.deck, tablecloth, customCategories, tableclothOverride);
             onOpenTableclothPicker(background, selected => {
               setTableclothOverride(selected); setRetry(0);
               setInput(current => ({ ...current, history: undefined }));
             });
-          }} className="flex shrink-0 items-center gap-2 rounded border border-kards-border px-4 py-2 text-sm font-bold disabled:opacity-40">
-          <Palette className="h-4 w-4" />更换桌布
-        </button>
+          }} onAlternateArt={selection => {
+            setAlternateArtByDeck(current => new Map(current).set(parsed.code, selection));
+            setRetry(0);
+            setInput(current => ({ ...current, history: undefined }));
+          }} />
         <button ref={historyButton} type="button" aria-expanded={historyOpen} aria-controls="deck-image-history" onClick={() => setHistoryOpen(open => !open)}
           className={`flex shrink-0 items-center gap-2 rounded border px-3 py-2 text-sm hover:border-kards-gold ${historyOpen ? 'border-kards-gold text-kards-status' : 'border-kards-border text-kards-text'}`}>
           <History className="h-4 w-4" />历史记录
@@ -255,7 +261,7 @@ export default function DeckImagePage({ cards, decks, existingDecks, tablecloth:
                     renderMini={async () => {
                       const deck = decks.find(deck => deck.code === code) || { code, name: deckTitle(code) };
                       const { background, cardBackUrl, cardBackId } = imageOptions(deck, tablecloth, customCategories, tableclothOverride);
-                      return renderDeckMiniImage(code, cards, deck.name, background, deck.headquartersId, cardBackUrl, cardBackId);
+                      return renderDeckMiniImage(code, cards, deck.name, background, deck.headquartersId, cardBackUrl, cardBackId, alternateArtByDeck.get(code));
                     }} onSelect={() => {
                     inputRevision.current++; setRetry(0);
                     setInput({ text: code, history: { tablecloth, revision: cacheRevision, cards } }); closeHistory();

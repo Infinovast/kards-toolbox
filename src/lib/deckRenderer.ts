@@ -23,7 +23,7 @@ async function imageDataUrl(url: string): Promise<string> {
   });
 }
 
-export async function renderDeckImage(code: string, cards: KardsCardRecord[], title = '', background?: string | null, headquartersId?: string, limit = 40, cardBackId?: string): Promise<string> {
+export async function renderDeckImage(code: string, cards: KardsCardRecord[], title = '', background?: string | null, headquartersId?: string, limit = 40, cardBackId?: string, alternateArt?: ReadonlyMap<string, string>): Promise<string> {
   const deck = decodeDeckCode(code), index = findCardsByImportId(cards);
   title = title.trim() || defaultDeckName(deck.mainNation, deck.allyNation);
   const nativeRender = window.kardsDesktop?.renderDeckImage;
@@ -35,7 +35,8 @@ export async function renderDeckImage(code: string, cards: KardsCardRecord[], ti
     statistics: { curve: costs.buckets.map(bucket => bucket.total), totals: costs.totals },
     cards: await Promise.all(entries.map(async ([id, count]) => {
       const card = index.get(id);
-      return { id, count, name: card ? cardTitle(card, 'zh-Hans') : `未知卡牌 ${id}`, rarity: card?.json.rarity || '', faction: card?.json.faction, cardId: card?.cardId, imageUrl: card?.imageUrl, image: !nativeRender && card ? await getCachedCardImage(card) : null };
+      const selected = card && alternateArt?.get(card.cardId);
+      return { id, count, name: card ? cardTitle(card, 'zh-Hans') : `未知卡牌 ${id}`, rarity: card?.json.rarity || '', faction: card?.json.faction, cardId: card?.cardId, imageUrl: card?.imageUrl, image: selected || (!nativeRender && card ? await getCachedCardImage(card) : null) };
     })),
   };
   if (nativeRender) return nativeRender(request);

@@ -1,7 +1,8 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Download, Search, Trash2, X } from 'lucide-react';
 import { CardFace } from './CardFace';
-import { SET_ICONS } from '../lib/assetCatalog';
+import { alternateCardArt, SET_ICONS } from '../lib/assetCatalog';
+import { CardDetailArt } from './CardDetailArt';
 import CardNationality from './CardNationality';
 import { startImageDownload, useImageDownload } from '../lib/imageDownloads';
 import { useDismissiblePanel } from '../lib/dialogKeyboard';
@@ -96,7 +97,7 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange, aut
     };
   }, [cards, filteredCards.length, filters]);
   const visibleHeadquartersStacks = useMemo(() => {
-    if (filters.query.trim() || filters.cardType.length || filters.subtypes.length || filters.keywords.length || filters.keywordCount || filters.cost.length || filters.rarity.length
+    if (filters.alternateArtOnly || filters.query.trim() || filters.cardType.length || filters.subtypes.length || filters.keywords.length || filters.keywordCount || filters.cost.length || filters.rarity.length
       || filters.expansion !== 'All' || filters.status.length) return [];
     const factions = filters.factions.map(faction => faction.toLowerCase());
     return HEADQUARTERS_STACKS.filter(stack => !factions.length
@@ -197,7 +198,8 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange, aut
               if (filteredCards.length > 100 && !await requestConfirmation(`缓存当前筛选的 ${filteredCards.length.toLocaleString()} 张卡牌大图+缩略图？`)) return;
               startImageDownload(filteredCards);
             }} className="flex h-9 items-center gap-1 rounded border border-kards-border glass-panel px-3 py-2 text-kards-text disabled:opacity-40"><Download className="h-3.5 w-3.5" />缓存卡牌图片（{filteredCards.length.toLocaleString()}）</button>}
-            <CardLibrarySettings language={language} onLanguageChange={setLanguage} detailMode={detailMode} onDetailModeChange={onDetailModeChange} />
+            <CardLibrarySettings language={language} onLanguageChange={setLanguage} detailMode={detailMode} onDetailModeChange={onDetailModeChange}
+              alternateArtOnly={!!filters.alternateArtOnly} onToggleAlternateArt={() => selectFilter({ ...filters, alternateArtOnly: !filters.alternateArtOnly })} />
           </div>
         </div>
 
@@ -238,7 +240,8 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange, aut
           <button onClick={closeDetails} aria-label="关闭卡牌详情" className="absolute right-3 top-3 z-10 rounded-full bg-black/60 p-1 text-white"><X className="h-4 w-4" /></button>
           <div className="detail-sidebar-content">
             {selectedCard && <>
-              <CardFace card={selectedCard} className="mx-auto mb-4 max-h-[55vh] w-full object-contain" />
+              <CardDetailArt key={selectedCard.cardId} card={selectedCard} className="mx-auto mb-4 max-h-[55vh] w-full object-contain" />
+              {alternateCardArt(selectedCard.cardId).length > 0 && <CardBrowsingTip className="mb-4" alternateArt />}
               <h2 className="text-lg font-bold text-kards-text">{cardDisplayTitle(selectedCard, language)}</h2>
               {language.startsWith('zh') && selectedCard.json.title?.['en-EN'] && <p className="mt-1 text-xs text-kards-text-muted" lang="en">{selectedCard.json.title['en-EN']}</p>}
               <CardKeywordList card={selectedCard} language={language} className="mt-2 text-sm text-kards-text" />
@@ -271,7 +274,7 @@ export default function CardLibrary({ cards, detailMode, onDetailModeChange, aut
               {selectedHeadquarters.brief && <p className="mt-3 text-sm leading-relaxed text-kards-text">{selectedHeadquarters.brief}</p>}
               {selectedHeadquarters.history && <section className="mt-4 border-t border-kards-border pt-3"><h3 className="text-sm font-bold text-kards-text">历史背景</h3><p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-kards-text-muted">{selectedHeadquarters.history}</p></section>}
             </>}
-            <CardBrowsingTip className="mt-4" />
+            {(!selectedCard || !alternateCardArt(selectedCard.cardId).length) && <CardBrowsingTip className="mt-4" />}
           </div>
         </aside>)}
       {detailMode === 'modal' && (selectedCard || selectedHeadquarters) && <CardDetailModal card={selectedCard || undefined} headquarters={selectedHeadquarters || undefined} origin={detailOrigin} cards={cards} sequence={detailSequence} onNavigate={revealSource} language={language} onClose={closeDetails} />}
