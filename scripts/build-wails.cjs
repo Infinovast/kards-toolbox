@@ -4,7 +4,7 @@ const path = require('node:path');
 const { spawn, execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const tools = require('./load-pack-tools.cjs');
-const { stageCards, exists } = require('./card-pack-source.cjs');
+const { stageCards } = require('./card-pack-source.cjs');
 
 const root = path.resolve(__dirname, '..');
 const desktop = path.join(root, 'desktop');
@@ -90,33 +90,10 @@ async function build(work, executable, developer) {
   await run(go, ['build', '-trimpath', '-tags', tags, '-ldflags', ldflags, '-o', executable, '.'], { cwd: desktop, env: goEnv });
 }
 
-async function publishDirectory(output, executable) {
-  const folder = path.join(output, 'win-unpacked');
-  if (await exists(path.join(folder, 'resources', 'app.asar'))) {
-    let legacy = path.join(output, 'win-unpacked-electron');
-    for (let index = 2; await exists(legacy); index++) legacy = path.join(output, `win-unpacked-electron-${index}`);
-    // Rename only the existing, resolved output folder and leave it intact.
-    const target = await fs.realpath(folder);
-    const parent = await fs.realpath(output);
-    if (path.relative(parent, target) !== 'win-unpacked') throw new Error('发布目录必须直接位于输出目录中，且不能为链接。');
-    await fs.rename(target, legacy);
-    console.log(`已保留之前的 Electron 发布目录：${legacy}`);
-    await fs.mkdir(folder);
-    const pack = path.join(legacy, 'cards.kpak');
-    if (await exists(pack)) await fs.copyFile(pack, path.join(folder, 'cards.kpak'));
-  }
-  await fs.mkdir(folder, { recursive: true });
-  await fs.copyFile(executable, path.join(folder, exeName));
-  await Promise.all([...noticeFiles.map(([, name]) => name), 'THIRD_PARTY_LICENSES.txt'].map(name =>
-    fs.copyFile(path.join(frontend, name), path.join(folder, name)),
-  ));
-  console.log(`已生成 ${folder}`);
-}
-
 async function main() {
   if (process.platform !== 'win32') throw new Error('当前桌面构建脚本需要 Windows。');
   const [mode, ...args] = process.argv.slice(2);
-  if (!['build', 'dev', 'dir', 'portable', 'zip', 'full-dir', 'full-portable', 'cache-only'].includes(mode)) {
+  if (!['build', 'dev', 'dist', 'full', 'cache-only'].includes(mode)) {
     throw new Error(`未知构建目标：${mode}`);
   }
   const opts = { output: path.join(root, 'release'), developer: mode === 'dev' };
@@ -145,7 +122,7 @@ async function main() {
   const work = await fs.mkdtemp(path.join(workRoot, 'stage-'));
   try {
     const executable = path.join(work, exeName);
-    const full = mode.startsWith('full-');
+    const full = mode === 'full';
     const cards = path.join(work, 'cards.kpak');
     if (full || mode === 'cache-only') await stageCards(opts, cards);
     if (mode !== 'cache-only') await build(work, executable, opts.developer);
@@ -157,22 +134,16 @@ async function main() {
       return;
     }
     await fs.mkdir(opts.output, { recursive: true });
-    if (mode === 'dir') await publishDirectory(opts.output, executable);
-    else if (mode === 'portable' || mode === 'cache-only') {
-      const artifact = mode === 'portable' ? exeName : 'cards.kpak';
-      const dest = path.join(opts.output, artifact);
-      await fs.copyFile(path.join(work, artifact), dest);
-      console.log(`已生成 ${dest}`);
-    } else {
-      const name = `kards_toolbox-${version}${full ? `-${mode.slice(5)}-full` : ''}.zip`;
-      const archive = path.join(work, name);
+    let artifact = mode === 'cache-only' ? 'cards.kpak' : exeName;
+    if (full) {
+      artifact = `kards_toolbox-${version}-portable-full.zip`;
       await run(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe'), [
-        '-a', '-cf', archive, '-C', work, exeName, ...(full ? ['cards.kpak'] : []),
+        '-a', '-cf', path.join(work, artifact), '-C', work, exeName, 'cards.kpak',
       ]);
-      const dest = path.join(opts.output, name);
-      await fs.copyFile(archive, dest);
-      console.log(`已生成 ${dest}`);
     }
+    const dest = path.join(opts.output, artifact);
+    await fs.copyFile(path.join(work, artifact), dest);
+    console.log(`已生成 ${dest}`);
   } finally {
     // Work is a newly created directory inside this project's build output.
     if (path.dirname(await fs.realpath(work)) === resolvedRoot) await fs.rm(work, { recursive: true, force: true });

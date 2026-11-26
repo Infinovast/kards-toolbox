@@ -15,17 +15,12 @@
     "build:server": "esbuild server.ts --bundle --platform=node --format=cjs --outfile=dist/server.cjs --external:express",
     "build:desktop": "node scripts/build-wails.cjs build",
     "build:desktop:dev": "node scripts/build-wails.cjs build --developer",
-    "dist:win": "npm run dist:win:dir",
-    "dist:win:dir": "node scripts/build-wails.cjs dir",
-    "dist:win:zip": "node scripts/build-wails.cjs zip",
-    "dist:win:portable": "node scripts/build-wails.cjs portable",
-    "dist:win:dir:full": "node scripts/build-wails.cjs full-dir",
-    "dist:win:portable:full": "node scripts/build-wails.cjs full-portable",
+    "dist": "node scripts/build-wails.cjs dist",
+    "dist:full": "node scripts/build-wails.cjs full",
     "build:cache-bundle": "node scripts/build-wails.cjs cache-only",
     "build:packs": "tsx scripts/build-packs.ts",
     "export:cache:loose": "node scripts/export-cache.cjs --to-loose",
     "export:cache:pack": "node scripts/export-cache.cjs --to-pack",
-    "dist:win:portable:dev": "node scripts/build-wails.cjs portable --developer",
     "start": "node dist/server.cjs",
     "preview": "vite preview",
     "clean": "node scripts/clean-build.cjs",
@@ -34,7 +29,7 @@
     "test:deck-image-header": "tsx src/lib/deckRenderHeader.test.ts",
     "test": "npm run test:deck-import && tsx src/lib/deckCode.test.ts && tsx src/lib/deckCostCurve.test.ts && tsx src/lib/deckAnalysis.test.ts && tsx src/lib/deckImageImport.test.ts && npm run test:deck-image-header && tsx src/lib/appDialogs.test.ts && tsx src/lib/backup.test.ts && tsx src/lib/userDataStorage.test.ts && tsx tooling/cacheBundle.test.ts && tsx src/lib/cardData.test.ts && tsx src/lib/cardAssets.test.ts && tsx src/lib/cardFilters.test.ts && tsx src/lib/cardKeywords.test.tsx && tsx src/lib/pagination.test.ts && tsx src/lib/cardImages.test.ts && tsx src/lib/cardPacks.test.ts && tsx src/lib/packHistory.test.ts",
     "test:desktop": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/smoke-wails.ps1",
-    "app": "start \"\" \"release/win-unpacked/kards_toolbox.exe\""
+    "app": "start \"\" \"release/kards_toolbox.exe\""
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.14",

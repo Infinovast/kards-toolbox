@@ -31,6 +31,6 @@ KARDS Toolbox 自行编写的代码和文档采用 [MIT License](LICENSE)。该�
 | Sharp、libvips | 开发测试依赖，适用组件自带的许可 |
 | Vite、esbuild、Express、Tailwind CSS 等构建及服务依赖 | 按各组件附带许可证使用；Lightning CSS 使用 MPL-2.0 |
 
-`npm run build:web` 将生产依赖的许可证收集到 `dist/THIRD_PARTY_LICENSES.txt`。桌面构建补充 Go 的运行依赖许可，将完整文本、中英文第三方说明和项目 MIT 许可证嵌入 EXE。文件夹版也在 EXE 旁附上这些文本。
+`npm run build:web` 将生产依赖的许可证收集到 `dist/THIRD_PARTY_LICENSES.txt`。桌面构建补充 Go 的运行依赖许可，将完整文本、中英文第三方说明和项目 MIT 许可证嵌入 EXE。
 
 收集文件用于保留软件依赖声明，不替代游戏内容授权，也不自动满足所有二进制组件的源码提供义务。重新分发前应结合实际产物、所含组件及对应版本检查许可要求。

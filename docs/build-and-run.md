@@ -71,28 +71,22 @@ git diff --no-index -- src/data/cardHistory.json references/kards_changes/cardHi
 ```powershell
 npm run lint
 npm test
-npm run dist:win:dir
-npm run dist:win:portable:full
 ```
 
-按需要选择一种产物，不必全部生成：
+按需要选择打包命令。
 
 | 命令 | `release/` 中的产物 | 如何分发 |
 | --- | --- | --- |
-| `npm run dist:win:dir` | `win-unpacked/kards_toolbox.exe` 及许可声明 | 双击目录内的 EXE |
-| `npm run dist:win:zip` | `kards_toolbox-版本.zip`，内含 EXE | 解压后运行 |
-| `npm run dist:win:portable` | `kards_toolbox.exe` | 分发这个便携 EXE |
-| `npm run dist:win:portable:full` | `kards_toolbox-版本-portable-full.zip`，内含 EXE 和 `cards.kpak` | 完整解压到同一目录再运行 |
-| `npm run dist:win:dir:full` | `kards_toolbox-版本-dir-full.zip`，内含 EXE 和 `cards.kpak` | 完整解压到同一目录再运行 |
-| `npm run dist:win` | 同 `dist:win:dir` | 分发文件夹版 |
+| `npm run dist` | `kards_toolbox.exe` | 直接分发便携 EXE |
+| `npm run dist:full` | `kards_toolbox-版本-portable-full.zip`，内含 EXE 和 `cards.kpak` | 完整解压到同一目录再运行 |
 
-`npm run app` 只启动 `release/win-unpacked/kards_toolbox.exe`，不构建发布目录，也不会启动便携 EXE。便携版直接双击对应 EXE。
+打包后可通过 `npm run app` 启动 `release/kards_toolbox.exe`。
 
-默认发布根目录为 `release/`。需要隔离构建输出时可传入 `-- --output <目录>`。首次打包发现旧的 Electron 文件夹时，脚本会将它保留为旁边的 `win-unpacked-electron` 目录。
+默认发布目录为 `release/`。可传入 `-- --output <目录>` 指定输出目录。需要带开发者选项的便携 EXE 时，可执行 `npm run dist -- --developer`。
 
 EXE 内嵌界面、静态素材包与许可文本，运行时使用系统的 WebView2。若本机没有 WebView2，启动时会提示安装。需要离线部署时可在联网机器上另取微软的 Evergreen 独立安装程序。应用版本取自 `package.json`。 [WebView2 下载页面](https://developer.microsoft.com/microsoft-edge/webview2/#download-section)
 
-完整包优先读取默认应用数据目录中的 `packs/cards.kpak`，然后查找 `dist-packs/cards.kpak` 和 `assets-private/cards.kpak`。默认应用数据目录为 `%APPDATA%\kards-toolbox`，可由 `KARDS_USER_DATA_DIR` 覆盖。可以通过 `npm run dist:win:portable:full -- --cards-pack <文件>` 指定任意兼容卡图包，或用 `--profile <数据目录>` 指定数据目录。若数据目录有当前生效的牌库快照，快照会随卡图打包。
+完整包优先读取默认应用数据目录中的 `packs/cards.kpak`，然后查找 `dist-packs/cards.kpak` 和 `assets-private/cards.kpak`。默认应用数据目录为 `%APPDATA%\kards-toolbox`，可由 `KARDS_USER_DATA_DIR` 覆盖。可以通过 `npm run dist:full -- --cards-pack <文件>` 指定任意兼容卡图包，或用 `--profile <数据目录>` 指定数据目录。若数据目录有当前生效的牌库快照，快照会随卡图打包。
 
 ## 用户数据
 

@@ -1,5 +1,5 @@
 param(
-    [string]$Executable = 'release/win-unpacked/kards_toolbox.exe',
+    [string]$Executable = 'release/kards_toolbox.exe',
     [string]$CardsPack,
     [switch]$WithoutPack
 )

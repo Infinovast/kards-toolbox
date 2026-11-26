@@ -31,6 +31,6 @@ Dependencies retain their own licenses. JavaScript and Go dependencies are recor
 | Sharp, libvips | Test dependencies under their respective licenses |
 | Build and server dependencies such as Vite, esbuild, Express, and Tailwind CSS | Follow the license included with each component. Lightning CSS uses MPL-2.0 |
 
-`npm run build:web` collects production dependency licenses in `dist/THIRD_PARTY_LICENSES.txt`. Desktop builds add the Go runtime dependency licenses and embed the collection, the Chinese and English third-party notices, and the project's MIT License in the EXE. Directory releases also include copies beside the EXE.
+`npm run build:web` collects production dependency licenses in `dist/THIRD_PARTY_LICENSES.txt`. Desktop builds add the Go runtime dependency licenses and embed the collection, the Chinese and English third-party notices, and the project's MIT License in the EXE.
 
 The collected file preserves software dependency notices. It does not grant permission to use game content or automatically satisfy every binary component's corresponding-source obligations. Before redistributing a build, check the requirements against the actual artifacts, included components, and exact versions.
