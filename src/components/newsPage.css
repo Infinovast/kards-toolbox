@@ -19,6 +19,7 @@
   :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   :is(.month-tick, .article-tick, .news-item, .article-image):enabled:hover { filter: none; box-shadow: none; }
   .news-viewport {
+    position: relative;
     flex: 1;
     min-width: 0;
     overflow: auto;
@@ -65,6 +66,8 @@
   .day-stories li:last-child { border-bottom: 1px solid var(--border); }
   .day-stories li + li .news-item { padding-top: 5px; }
   .news-item {
+    position: relative;
+    isolation: isolate;
     display: grid;
     width: 100%;
     grid-template-columns: minmax(0, 1fr) 22px;
@@ -72,12 +75,24 @@
     padding: 20px 16px 16px 0;
     text-align: left;
   }
+  .news-item-art {
+    position: absolute;
+    inset: 0 0 0 auto;
+    z-index: -1;
+    width: min(64%, 560px);
+    overflow: hidden;
+    opacity: .25;
+    mask-image: linear-gradient(to right, transparent, currentColor 64%, currentColor 87%, transparent);
+    pointer-events: none;
+  }
+  .news-item-art img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center 43%; }
   .news-item > svg { align-self: center; justify-self: end; color: var(--link); }
   .news-item:hover, .news-item:focus-visible { background: color-mix(in srgb, var(--hover), transparent 30%); }
   .news-item:is(:hover, :focus-visible) .news-title { color: var(--link); }
   time { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
   .news-title { display: block; font-size: 17px; font-weight: 700; line-height: 1.5; }
   .news-summary { display: block; margin-top: 5px; color: var(--muted); overflow-wrap: anywhere; }
+  .news-item:has(.news-item-art img) .news-summary { color: color-mix(in srgb, var(--text) 80%, var(--muted)); }
   .month-rail {
     --month-tick-height: 22px;
     --compact-height: min(calc(var(--month-count) * var(--month-tick-height) + 10px), 400px, 55dvh);
@@ -215,6 +230,9 @@
     mask-image: linear-gradient(#000 49%, #0000001a 87%, transparent 98%);
   }
   .article-art img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center top; }
+  @media (prefers-reduced-motion: no-preference) {
+    .article-art { translate: 0 var(--article-cover-offset, 0px); }
+  }
   .article-art::after {
     content: '';
     position: absolute;
@@ -244,9 +262,29 @@
     cursor: zoom-in;
   }
   .article-image img { display: block; width: 100%; height: auto; max-height: var(--image-max-height); object-fit: contain; }
-  .article-image:empty { aspect-ratio: var(--image-ratio, 16 / 9); }
-  .article-image[data-failed]:empty { display: grid; place-items: center; width: min(100%, var(--image-width, 744px)); aspect-ratio: auto; min-height: 48px; color: var(--muted); }
-  .article-image[data-failed]:empty::before { content: '图片加载失败'; }
+  .article-image-content { display: block; }
+  .article-image-content:empty, .article-image > .card-image-loading { display: none; }
+  .article-image:has(.article-image-content:empty) { display: grid; place-items: center; aspect-ratio: var(--image-ratio, 16 / 9); }
+  .article-image:not([data-failed]):has(.article-image-content:empty) > .card-image-loading { display: block; }
+  .article-image[data-failed] { width: min(100%, var(--image-width, 744px)); aspect-ratio: auto; min-height: 48px; color: var(--muted); }
+  .article-image[data-failed]::before { content: '图片加载失败'; }
+  .news-loading { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+  .news-loading > span {
+    position: relative;
+    left: -115px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    color: var(--muted);
+    animation: news-loading-17 2s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .news-loading > span {
+      animation: none;
+      left: 0;
+      box-shadow: -15px 0 currentColor, -5px 0 currentColor, 5px 0 currentColor, 15px 0 currentColor;
+    }
+  }
   .news-status { padding: 14px 0; color: var(--muted); font-size: 13px; }
   .news-retry { margin-left: 8px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--panel); color: var(--link); }
   .news-retry:hover { background: var(--hover); }
@@ -266,6 +304,9 @@
   }
   .news-image-dialog::backdrop { background: #0009; backdrop-filter: blur(12px); }
   .image-stage { display: grid; place-items: center; height: 100%; padding: 52px 24px; }
+  .image-stage-art { display: contents; }
+  .image-stage > .card-image-loading { display: none; color: inherit; }
+  .image-stage[data-loading] > .card-image-loading { display: block; }
   .image-stage :is(img, canvas) { display: block; max-width: 100%; max-height: calc(100dvh - 104px); object-fit: contain; filter: drop-shadow(0 8px 24px #0008); }
   .image-close { position: absolute; z-index: 1; top: 12px; right: 12px; display: grid; place-items: center; width: 36px; height: 36px; border-radius: var(--radius-sm); background: var(--panel); color: var(--text); }
   @media (max-width: 680px) {
@@ -289,4 +330,16 @@
     .news-detail { padding-bottom: 30px; }
     .has-cover .article-header { margin-top: clamp(120px, 24dvh, 205px); }
   }
+}
+
+@keyframes news-loading-17 {
+  0% { box-shadow: 0 0 transparent, 0 0 transparent, 0 0 transparent, 0 0 transparent; }
+  12% { box-shadow: 100px 0 currentColor, 0 0 transparent, 0 0 transparent, 0 0 transparent; }
+  25% { box-shadow: 110px 0 currentColor, 100px 0 currentColor, 0 0 transparent, 0 0 transparent; }
+  36% { box-shadow: 120px 0 currentColor, 110px 0 currentColor, 100px 0 currentColor, 0 0 transparent; }
+  50% { box-shadow: 130px 0 currentColor, 120px 0 currentColor, 110px 0 currentColor, 100px 0 currentColor; }
+  62% { box-shadow: 200px 0 transparent, 130px 0 currentColor, 120px 0 currentColor, 110px 0 currentColor; }
+  75% { box-shadow: 200px 0 transparent, 200px 0 transparent, 130px 0 currentColor, 120px 0 currentColor; }
+  87% { box-shadow: 200px 0 transparent, 200px 0 transparent, 200px 0 transparent, 130px 0 currentColor; }
+  100% { box-shadow: 200px 0 transparent, 200px 0 transparent, 200px 0 transparent, 200px 0 transparent; }
 }

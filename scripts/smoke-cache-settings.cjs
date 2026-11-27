@@ -67,8 +67,8 @@ async function context(browser) {
   return { ctx, page };
 }
 
-async function seed(page, { count = 8, cached = 3, pending = true } = {}) {
-  return page.evaluate(async ({ cards, count, cached, pending, png }) => {
+async function seed(page, { count = 8, cached = 3, pending = true, withBatch = false } = {}) {
+  return page.evaluate(async ({ cards, count, cached, pending, withBatch, png }) => {
     const { default: store } = await import('/node_modules/.vite/deps/localforage.js');
     const { mergeWeatherCardRecords } = await import('/src/lib/cardData.ts');
     const { encodeDeckCode } = await import('/src/lib/deckCode.ts');
@@ -89,8 +89,11 @@ async function seed(page, { count = 8, cached = 3, pending = true } = {}) {
     }
     await store.setItem('deck_img_local_v1_fixture', png);
     await store.setItem('kards_card_image_v2_old_obsolete', png);
+    if (withBatch) {
+      await store.setItem('kards_card_image_batch_v1', { importIds: records.map(card => card.importId), startedAt: snapshot.fetchedAt });
+    }
     return { count: records.length, cached, code };
-  }, { cards: fixtureCards, count, cached, pending, png });
+  }, { cards: fixtureCards, count, cached, pending, withBatch, png });
 }
 
 async function read(page, key) {
@@ -140,12 +143,23 @@ async function confirmDialog(page) {
 async function settingsTests(browser) {
   const { ctx, page } = await context(browser);
   try {
-    const fixture = await seed(page);
+    const fixture = await seed(page, { withBatch: true });
+    await page.evaluate(async png => {
+      const { loadNewsImage } = await import('/src/lib/newsImages.ts');
+      await loadNewsImage(png, new AbortController().signal);
+    }, png);
     await page.reload();
     await page.getByRole('button', { name: '设置', exact: true }).click();
     const cache = page.getByRole('region', { name: '本地缓存', exact: true });
-    await expect(cache.getByRole('button', { name: `已缓存（${fixture.cached}）`, exact: true })).toBeVisible();
     await expect(cache.getByRole('button', { name: '刷新缓存清单', exact: true })).toHaveCount(0);
+    const maintenance = cache.getByLabel('缓存维护', { exact: true });
+    const summary = maintenance.locator(':scope > summary');
+    const gridSection = maintenance.getByRole('region', { name: '卡图网格', exact: true });
+    await expect(gridSection).toBeHidden();
+    await summary.click();
+    await expect(gridSection.getByRole('heading', { name: '卡图网格', exact: true })).toBeVisible();
+    await expect(gridSection.getByRole('button', { name: `已缓存（${fixture.cached}）`, exact: true })).toBeVisible();
+    await expect(gridSection.getByRole('combobox', { name: '缓存查看范围' })).toHaveAttribute('data-value', 'recent');
     for (const width of [980, 1280, 1920]) {
       await page.setViewportSize({ width, height: 900 });
       const layout = await cache.locator('dl').first().evaluate(element => {
@@ -155,31 +169,59 @@ async function settingsTests(browser) {
         });
         return { columns, overflow: element.scrollWidth > element.clientWidth + 1 };
       });
-      assert.equal(layout.columns.length, 4);
+      assert.equal(layout.columns.length, 5);
       assert.ok(Math.max(...layout.columns.map(item => item.y)) - Math.min(...layout.columns.map(item => item.y)) < 2, `${width}px has a single statistics row`);
       assert.equal(layout.overflow, false);
       assert.ok(layout.columns.every(item => !item.overflow), 'statistics content fits');
       const later = layout.columns.slice(1).map(item => item.width);
-      assert.ok(Math.max(...later) - Math.min(...later) < 2, 'the three action statistics share equal width');
+      assert.ok(Math.max(...later) - Math.min(...later) < 2, 'the action statistics share equal width');
       assert.ok(layout.columns[0].width <= later[0] + 1, 'the basic card count does not displace action statistics');
       result.layouts.push({ width, ...layout });
-      const grid = cache.getByLabel('卡牌缓存图片清单', { exact: true });
+      const grid = gridSection.getByLabel('卡牌缓存图片清单', { exact: true });
       await expect(grid.locator('article')).toHaveCount(3);
       await expect(grid.locator('article').first().locator('img')).toHaveCount(2);
       const template = await grid.evaluate(element => getComputedStyle(element).gridTemplateColumns.split(' ').length);
       assert.equal(template, width < 1024 ? 5 : width < 1280 ? 6 : width < 1536 ? 8 : 10);
+      const toolbarPositions = await Promise.all([
+        gridSection.getByRole('textbox', { name: '搜索缓存卡牌' }),
+        gridSection.getByRole('combobox', { name: '缓存查看范围' }),
+        gridSection.getByRole('group', { name: '缓存状态分类' }),
+        gridSection.getByRole('button', { name: /^补全当前范围/ }),
+      ].map(control => control.boundingBox()));
+      assert.ok(toolbarPositions.every(box => Math.abs(box.y - toolbarPositions[0].y) < 2 && box.height === 36));
+      const toolbar = await gridSection.locator('.cache-grid-toolbar').boundingBox();
+      const download = toolbarPositions.at(-1);
+      assert.ok(Math.abs(toolbar.x + toolbar.width - download.x - download.width) < 1);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
-      await cache.screenshot({ path: path.join(output, `cache-settings-${width}.png`) });
-    }
-    result.checks.push('980/1280/1920 single statistics row, equal action widths, unchanged responsive card grid');
-
-    await page.setViewportSize({ width: 1280, height: 820 });
-    await cache.getByLabel('缓存维护', { exact: true }).locator('summary').first().click();
-    for (const width of [980, 1280]) {
-      await page.setViewportSize({ width, height: 900 });
       await cache.screenshot({ path: path.join(output, `cache-settings-${width}-maintenance.png`) });
     }
+    const search = gridSection.getByRole('textbox', { name: '搜索缓存卡牌', exact: true });
+    await search.fill(fixtureCards[0].cardId);
+    await expect(gridSection.locator('article')).toHaveCount(1);
+    await gridSection.getByRole('button', { name: '清除缓存卡牌搜索', exact: true }).click();
+    await expect(gridSection.locator('article')).toHaveCount(fixture.cached);
+    await expect(gridSection.getByRole('navigation', { name: '分页', exact: true })).toBeVisible();
+    result.checks.push('980/1280/1920 single statistics and filter rows, responsive grid, search and pagination inside maintenance');
+
+    await page.setViewportSize({ width: 1280, height: 820 });
+    await summary.click();
+    await expect(gridSection).toBeHidden();
+    for (const width of [980, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      await cache.screenshot({ path: path.join(output, `cache-settings-${width}.png`) });
+    }
     const full = cache.getByRole('button', { name: '删除全部卡牌大图', exact: true });
+    const clearNews = cache.getByRole('button', { name: '删除全部新闻图片缓存', exact: true });
+    await expect(clearNews).toBeEnabled();
+    await clearNews.click();
+    await cancelDialog(page, clearNews, true);
+    await clearNews.click();
+    await confirmDialog(page);
+    await expect(clearNews).toBeDisabled();
+    await expect(cache.getByLabel('新闻图片占用空间')).toHaveText('0 B');
+    assert.equal(await read(page, 'deck_img_local_v1_fixture'), png);
+    await expect(full).toBeEnabled();
+    result.checks.push('news image cache persists across reload, cancels cleanly and deletes independently of card and deck images');
     await resetMutations(page);
     await full.click();
     await cancelDialog(page, full, true);
@@ -250,7 +292,11 @@ async function batchTests(browser) {
     await page.reload();
     await page.getByRole('button', { name: '设置', exact: true }).click();
     const cache = page.getByRole('region', { name: '本地缓存', exact: true });
+    await cache.getByLabel('缓存维护', { exact: true }).locator(':scope > summary').click();
     await cache.getByRole('button', { name: /^未缓存（/ }).click();
+    const pager = cache.getByRole('navigation', { name: '分页', exact: true });
+    await pager.getByRole('button', { name: '下一页', exact: true }).click();
+    await expect(pager).toHaveAttribute('data-page', '2');
     const start = cache.getByRole('button', { name: /^缓存未缓存卡图（/ });
     await expect(start).toBeEnabled();
     await resetMutations(page);

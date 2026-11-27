@@ -1,64 +1,26 @@
 import { createElement, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import { ArrowUpRight, ChevronLeft, X } from 'lucide-react';
-import { NEWS_SOURCE, fetchNewsPage, parseNewsArticle, type NewsArticle, type NewsContent, type NewsEntry } from '../lib/newsSource';
+import { openExternalLink } from '../lib/externalLinks';
+import { fillNewsCover, loadNewsImage, newsImageVersions } from '../lib/newsImages';
+import { NEWS_SOURCE, loadNewsArticle, type NewsArticle, type NewsContent, type NewsEntry } from '../lib/newsSource';
+import CardImageLoading from './CardImageLoading';
 
-let imageQueue = Promise.resolve<HTMLImageElement | null>(null);
+const coverScrollSpeed = 0.1;
 
-function loadImage(src: string, signal: AbortSignal) {
-  const pending = imageQueue.then(() => {
-    if (signal.aborted) return null;
-    return new Promise<HTMLImageElement | null>(resolve => {
-      const image = new Image();
-      image.referrerPolicy = 'no-referrer';
-      const cancel = () => {
-        image.removeAttribute('src');
-        resolve(null);
-      };
-      const finish = (result: HTMLImageElement | null) => {
-        signal.removeEventListener('abort', cancel);
-        resolve(result);
-      };
-      signal.addEventListener('abort', cancel, { once: true });
-      image.src = src;
-      void image.decode().then(() => finish(image), () => finish(null));
-    });
-  });
-  imageQueue = pending;
-  return pending;
-}
-
-function imageVersions(src: string, width: number) {
-  const url = new URL(src);
-  if (!['datocms.kardsplayer.com', 'www.datocms-assets.com'].includes(url.hostname)) return [src];
-  url.searchParams.set('auto', 'format,compress');
-  url.searchParams.set('fit', 'max');
-  url.searchParams.set('w', String(Math.min(480, width)));
-  url.searchParams.set('q', '34');
-  const thumbnail = url.href;
-  url.searchParams.set('w', String(width));
-  url.searchParams.set('q', '78');
-  return [thumbnail, url.href];
-}
-
-async function fillArticleImages(article: HTMLElement, cover: NewsArticle['cover'], signal: AbortSignal) {
+async function fillArticleImages(article: HTMLElement, signal: AbortSignal) {
   const bodyWidth = article.querySelector<HTMLElement>('.article-body')!.clientWidth;
   const pictures = [...article.querySelectorAll<HTMLElement>('.article-image')].map((element, index) => {
     element.setAttribute('aria-label', element.getAttribute('aria-label') || `图片 ${index + 1}`);
     const sourceWidth = Number.parseFloat(element.style.getPropertyValue('--image-width')) || bodyWidth;
     const width = Math.max(1, Math.min(1600, Math.ceil(Math.min(bodyWidth, sourceWidth) * devicePixelRatio)));
-    return { element, width, versions: imageVersions(element.dataset.imageSrc!, width) };
+    const content = element.querySelector('.article-image-content')!;
+    return { element, content, width, versions: newsImageVersions(element.dataset.imageSrc!, width) };
   });
-  if (cover) {
-    const element = article.querySelector<HTMLElement>('.article-art')!;
-    const filledWidth = cover.width && cover.height ? element.clientHeight * cover.width / cover.height : 0;
-    const width = Math.max(1, Math.min(cover.width ?? 1920, 1920, Math.ceil(Math.max(element.clientWidth, filledWidth) * devicePixelRatio)));
-    pictures.unshift({ element, width, versions: imageVersions(cover.src, width) });
-  }
   for (const pass of [0, 1]) {
-    for (const { element, width, versions } of pictures) {
+    for (const { element, content, width, versions } of pictures) {
       if (signal.aborted) return;
       if (!versions[pass]) continue;
-      const image = await loadImage(versions[pass], signal);
+      const image = await loadNewsImage(versions[pass], signal);
       if (signal.aborted) return;
       if (image) {
         image.alt = '';
@@ -68,9 +30,9 @@ async function fillArticleImages(article: HTMLElement, cover: NewsArticle['cover
             element.style.setProperty('--image-width', `${image.naturalWidth}px`);
           }
         }
-        element.replaceChildren(image);
+        content.replaceChildren(image);
         delete element.dataset.failed;
-      } else if (!element.firstChild && pass === versions.length - 1) {
+      } else if (!content.firstChild && pass === versions.length - 1) {
         element.dataset.failed = '';
       }
     }
@@ -79,13 +41,6 @@ async function fillArticleImages(article: HTMLElement, cover: NewsArticle['cover
 
 function normalClick(event: MouseEvent) {
   return !event.defaultPrevented && event.button === 0 && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey;
-}
-
-function openOutside(event: MouseEvent<HTMLAnchorElement>) {
-  if (!event.defaultPrevented && window.runtime?.BrowserOpenURL) {
-    event.preventDefault();
-    window.runtime.BrowserOpenURL(event.currentTarget.href);
-  }
 }
 
 function articleNodes(nodes: NewsContent[], openRelated: (id: string) => void, openImage?: (trigger: HTMLButtonElement) => void, insideLink = false) {
@@ -98,7 +53,10 @@ function articleNodes(nodes: NewsContent[], openRelated: (id: string) => void, o
       return <button key={key} className="article-image" type="button" aria-label={label || undefined} aria-haspopup="dialog"
         data-image-src={src} style={style} onClick={event => {
           event.preventDefault(); event.stopPropagation(); openImage(event.currentTarget);
-        }} />;
+        }}>
+        <span className="article-image-content" />
+        <CardImageLoading label="正在加载图片" />
+      </button>;
     }
     const children = articleNodes(node.children, openRelated, openImage, insideLink || node.type === 'link');
     if (!openImage && node.children.length && !children.some(child => typeof child === 'string' ? child.trim() : child != null)) return null;
@@ -110,7 +68,7 @@ function articleNodes(nodes: NewsContent[], openRelated: (id: string) => void, o
     return <a key={key} href={node.url} target="_blank" rel="noreferrer" onClick={event => {
       if (node.articleId && normalClick(event)) {
         event.preventDefault(); openRelated(node.articleId);
-      } else openOutside(event);
+      } else openExternalLink(event);
     }}>{children.length ? children : (node.articleId ? '阅读相关新闻' : '查看原文中的链接')}</a>;
   });
 }
@@ -123,6 +81,7 @@ function NewsImagePreview({ pictures, initial, onClose }: {
   const [index, setIndex] = useState(initial);
   const dialog = useRef<HTMLDialogElement>(null);
   const stage = useRef<HTMLDivElement>(null);
+  const previewArt = useRef<HTMLDivElement>(null);
   const close = useRef<HTMLButtonElement>(null);
   const picture = pictures[index];
   const label = picture.getAttribute('aria-label') ?? '图片预览';
@@ -149,30 +108,35 @@ function NewsImagePreview({ pictures, initial, onClose }: {
 
   useLayoutEffect(() => {
     const element = stage.current!;
+    const art = previewArt.current!;
     const request = new AbortController();
     const inline = picture.querySelector('img');
-    element.replaceChildren();
+    art.replaceChildren();
+    element.toggleAttribute('data-loading', !inline?.naturalWidth);
+    if (element.hasAttribute('data-loading')) element.setAttribute('aria-busy', 'true');
     if (inline?.naturalWidth) {
       const canvas = document.createElement('canvas');
       canvas.width = inline.naturalWidth;
       canvas.height = inline.naturalHeight;
       canvas.setAttribute('aria-hidden', 'true');
       canvas.getContext('2d')?.drawImage(inline, 0, 0);
-      element.append(canvas);
+      art.append(canvas);
     }
-    void loadImage(picture.dataset.imageSrc!, request.signal).then(image => {
+    void loadNewsImage(picture.dataset.imageSrc!, request.signal).then(image => {
       if (request.signal.aborted) return;
+      element.removeAttribute('data-loading');
+      element.removeAttribute('aria-busy');
       if (image) {
         image.alt = label;
-        element.replaceChildren(image);
-      } else if (!element.firstChild) {
+        art.replaceChildren(image);
+      } else if (!art.firstChild) {
         const status = document.createElement('p');
         status.setAttribute('role', 'status');
         status.textContent = '图片加载失败';
-        element.append(status);
+        art.append(status);
       }
     });
-    return () => request.abort();
+    return () => { request.abort(); element.removeAttribute('aria-busy'); };
   }, [picture, label]);
 
   return <dialog ref={dialog} className="news-image-dialog" aria-label={label} onCancel={event => { event.preventDefault(); onClose(); }}
@@ -183,12 +147,19 @@ function NewsImagePreview({ pictures, initial, onClose }: {
       if (!event.repeat) setIndex(current => Math.max(0, Math.min(pictures.length - 1, current + (event.key === 'ArrowDown' ? 1 : -1))));
     }}>
     <button ref={close} className="image-close" type="button" aria-label="关闭图片预览" onClick={onClose}><X size={20} /></button>
-    <div className="image-stage" ref={stage} />
+    <div className="image-stage" ref={stage}>
+      <div className="image-stage-art" ref={previewArt} />
+      <CardImageLoading label="正在加载原图" />
+    </div>
   </dialog>;
 }
 
 export function NewsStatus({ children, onRetry }: { children: string; onRetry?: () => void }) {
   return <div className="news-status" role="status">{children}{onRetry && <button className="news-retry" type="button" onClick={onRetry}>重试</button>}</div>;
+}
+
+export function NewsLoading({ label }: { label: string }) {
+  return <div className="news-loading" role="status" aria-label={label}><span aria-hidden="true" /></div>;
 }
 
 export default function NewsArticleView({ id, entry, dataSaver, onBack, onOpen }: {
@@ -203,12 +174,13 @@ export default function NewsArticleView({ id, entry, dataSaver, onBack, onOpen }
   const [attempt, setAttempt] = useState(0);
   const [preview, setPreview] = useState<{ pictures: HTMLButtonElement[]; index: number }>();
   const detail = useRef<HTMLElement>(null);
+  const coverRef = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
 
   useLayoutEffect(() => { heading.current?.focus({ preventScroll: true }); }, []);
   useEffect(() => {
     const request = new AbortController();
-    void fetchNewsPage(request.signal, id).then(parseNewsArticle).then(data => {
+    void loadNewsArticle(id, request.signal).then(data => {
       if (!request.signal.aborted) setArticle(data);
     }).catch(() => { if (!request.signal.aborted) setFailed(true); });
     return () => request.abort();
@@ -218,9 +190,19 @@ export default function NewsArticleView({ id, entry, dataSaver, onBack, onOpen }
   useLayoutEffect(() => {
     if (!article || dataSaver) return;
     const request = new AbortController();
-    void fillArticleImages(detail.current!, cover, request.signal);
+    void fillArticleImages(detail.current!, request.signal);
     return () => request.abort();
-  }, [article, cover, dataSaver]);
+  }, [article, dataSaver]);
+
+  useLayoutEffect(() => {
+    if (!cover) return;
+    const element = coverRef.current!;
+    const request = new AbortController();
+    const filledWidth = cover.width && cover.height ? element.clientHeight * cover.width / cover.height : 0;
+    const width = Math.max(1, Math.min(cover.width ?? 1920, 1920, Math.ceil(Math.max(element.clientWidth, filledWidth) * devicePixelRatio)));
+    void fillNewsCover(element, cover, width, request.signal);
+    return () => request.abort();
+  }, [cover]);
 
   function openImage(trigger: HTMLButtonElement) {
     const pictures = [...detail.current!.querySelectorAll<HTMLButtonElement>('.article-image')];
@@ -231,18 +213,21 @@ export default function NewsArticleView({ id, entry, dataSaver, onBack, onOpen }
   return <div className="news-detail-pane">
     <nav className="detail-tools" aria-label="新闻详情">
       <button className="detail-link" type="button" aria-keyshortcuts="Escape" title="返回（Esc）" onClick={onBack}><ChevronLeft size={15} aria-hidden="true" />返回</button>
-      <a className="detail-link" href={`${NEWS_SOURCE}/${id}`} target="_blank" rel="noreferrer" onClick={openOutside}>查看原文<ArrowUpRight size={15} aria-hidden="true" /></a>
+      <a className="detail-link" href={`${NEWS_SOURCE}/${id}`} target="_blank" rel="noreferrer" onClick={openExternalLink}>查看原文<ArrowUpRight size={15} aria-hidden="true" /></a>
     </nav>
-    <div className="news-viewport no-scrollbar">
+    <div className="news-viewport no-scrollbar" onScroll={cover ? event => {
+      const distance = Math.min(event.currentTarget.scrollTop, (coverRef.current?.offsetHeight ?? 0) / coverScrollSpeed);
+      detail.current?.style.setProperty('--article-cover-offset', `${distance * (1 - coverScrollSpeed)}px`);
+    } : undefined}>
       <article className={`news-detail${cover ? ' has-cover' : ''}`} ref={detail}>
-        {cover && <div className="article-art" aria-hidden="true" />}
+        {cover && <div ref={coverRef} className="article-art" aria-hidden="true" />}
         <header className="article-header">
           <h1 ref={heading} tabIndex={-1}>{article?.title ?? entry?.title ?? '新闻详情'}</h1>
           {date && <div className="article-meta"><time dateTime={date}>{date.replaceAll('-', '.')}</time><span>KARDS 官网</span></div>}
         </header>
         {failed ? <NewsStatus onRetry={() => { setFailed(false); setAttempt(count => count + 1); }}>暂时无法读取官网正文。</NewsStatus>
           : article ? <div className="article-body">{articleNodes(article.body, onOpen, dataSaver ? undefined : openImage)}</div>
-            : <NewsStatus>正在从官网读取正文…</NewsStatus>}
+            : <NewsLoading label="正在从官网读取正文" />}
       </article>
     </div>
     {!dataSaver && preview && <NewsImagePreview pictures={preview.pictures} initial={preview.index} onClose={() => setPreview(undefined)} />}

@@ -86,7 +86,7 @@ npm test
 
 默认发布目录为 `release/`。可传入 `-- --output <目录>` 指定输出目录。需要带开发者选项的便携 EXE 时，可执行 `npm run dist -- --developer`。
 
-EXE 内嵌界面、静态素材包与许可文本，运行时使用系统的 WebView2。若本机没有 WebView2，启动时会提示安装。需要离线部署时可在联网机器上另取微软的 Evergreen 独立安装程序。应用版本取自 `package.json`。 [WebView2 下载页面](https://developer.microsoft.com/microsoft-edge/webview2/#download-section)
+EXE 内嵌界面、静态素材包与许可文本，运行时使用系统的 WebView2。若本机没有 WebView2，启动时会提示安装。需要离线部署时可在联网机器上另取微软的 Evergreen 独立安装程序。应用版本取自 `package.json`。关于页的日期在构建或启动 Vite 时读取当前 Git 提交的日期，提交信息不可用时省略日期。 [WebView2 下载页面](https://developer.microsoft.com/microsoft-edge/webview2/#download-section)
 
 完整包优先读取默认应用数据目录中的 `packs/cards.kpak`，然后查找 `dist-packs/cards.kpak` 和 `assets-private/cards.kpak`。默认应用数据目录为 `%APPDATA%\kards-toolbox`，可由 `KARDS_USER_DATA_DIR` 覆盖。可以通过 `npm run dist:full -- --cards-pack <文件>` 指定任意兼容卡图包，或用 `--profile <数据目录>` 指定数据目录。若数据目录有当前生效的牌库快照，快照会随卡图打包。
 

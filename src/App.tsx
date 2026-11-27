@@ -289,7 +289,7 @@ export default function App() {
   const [backupStatus, setBackupStatus] = useState<string | null>(null);
   const [activeMenu, setActiveMenu] = useState<AppPage>('welcome');
   const [newsArticleId, setNewsArticleId] = useState<string>();
-  const [newsDataSaver, setNewsDataSaver] = useState(true);
+  const [newsDataSaver, setNewsDataSaver] = useState(false);
   const [deckCompareOpened, setDeckCompareOpened] = useState(false);
   const [deckCompareSelection, setDeckCompareSelection] = useState<DeckCompareSelectionRequest>();
   const deckGrid = useDeckGridLayout(dataLoaded && activeMenu === 'decks' && !settings.showDeckFolders, settings.uiScale, settings.deckGap);
@@ -1237,7 +1237,10 @@ export default function App() {
     <CardDataUpdater cards={cardDatabase} onApplied={cards => { setCardDatabase(cards); setCardDatabaseError(null); }} />
     <CardCacheManager cards={cardDatabase} />
     <section className="glass-panel rounded-lg p-5 md:p-6">
-      <h3 className="mb-6 text-lg font-bold text-kards-text">外观与本地数据</h3>
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <h3 className="text-lg font-bold text-kards-text">外观与本地数据</h3>
+        <button type="button" onClick={() => setSettings(DEFAULT_SETTINGS)} className="glass-control shrink-0">重置外观默认值</button>
+      </div>
       <div className="mb-6 flex items-center gap-3">
         <label htmlFor="settings-theme-color" className="text-sm font-bold text-kards-text tracking-wider">{effectiveIsDarkMode ? '深色主题色' : '浅色主题色'}</label>
         <input id="settings-theme-color" type="color"
@@ -1369,14 +1372,11 @@ export default function App() {
           <button type="button" onClick={() => { resetUsageTips(); setBackupStatus('已恢复所有使用 Tips'); }} className="rounded border border-kards-border px-2 py-1 text-xs text-kards-text-muted hover:border-kards-gold hover:text-kards-text">重新显示所有使用Tips</button>
         </div>
         <div role="group" aria-label="备份操作" className="grid grid-cols-3 gap-3">
-          <button type="button" onClick={handleExportBackup} disabled={backupBusy} className="glass-panel rounded border border-kards-input-border px-2 py-2 text-sm text-kards-text hover:border-kards-gold disabled:opacity-50">导出备份</button>
-          <button type="button" onClick={handleImportBackup} disabled={backupBusy} className="glass-panel rounded border border-kards-input-border px-2 py-2 text-sm text-kards-text hover:border-kards-gold disabled:opacity-50">导入备份</button>
-          <button type="button" onClick={() => { void showAutomaticBackups(); }} disabled={backupBusy} className="glass-panel rounded border border-kards-input-border px-2 py-2 text-sm text-kards-text hover:border-kards-gold disabled:opacity-50">恢复自动备份</button>
+          <button type="button" onClick={handleExportBackup} disabled={backupBusy} className="glass-control">导出备份</button>
+          <button type="button" onClick={handleImportBackup} disabled={backupBusy} className="glass-control">导入备份</button>
+          <button type="button" onClick={() => { void showAutomaticBackups(); }} disabled={backupBusy} className="glass-control">恢复自动备份</button>
         </div>
         {backupStatus && <p role="status" className="break-all text-xs text-kards-text-muted">{backupStatus}</p>}
-      </div>
-      <div className="mt-6 border-t border-kards-border pt-4">
-        <button onClick={() => setSettings(DEFAULT_SETTINGS)} className="rounded border border-kards-border px-4 py-2 text-sm text-kards-text hover:border-kards-gold">重置外观默认值</button>
       </div>
     </section>
   </section>;
@@ -1526,7 +1526,7 @@ export default function App() {
           </div>
 
           {/* Scrollable Content Container */}
-          <div ref={deckGrid.ref} className={`h-full w-full ${['packs', 'deck-image', 'news'].includes(activeMenu) ? 'overflow-hidden' : 'overflow-y-auto'} no-scrollbar relative z-10 flex flex-col items-center ${['welcome', 'deck-compare', 'cards', 'packs', 'news', 'builder', 'settings', 'deck-image'].includes(activeMenu) ? '' : 'p-12'}`}>
+          <div ref={deckGrid.ref} className={`h-full w-full ${['packs', 'deck-image', 'news', 'about'].includes(activeMenu) ? 'overflow-hidden' : 'overflow-y-auto'} no-scrollbar relative z-10 flex flex-col items-center ${['welcome', 'deck-compare', 'cards', 'packs', 'news', 'builder', 'settings', 'deck-image', 'about'].includes(activeMenu) ? '' : 'p-12'}`}>
             {activeMenu === 'welcome' && <WelcomePage showWelcomePage={settings.showWelcomePage} onShowWelcomePageChange={showWelcomePage => setSettings(current => ({ ...current, showWelcomePage }))} onAction={handleWelcomeAction} />}
             {activeMenu === 'news' && <NewsPage articleId={newsArticleId} onSelectArticle={setNewsArticleId} dataSaver={newsDataSaver} />}
             {activeMenu === 'deck-compare' && cardDatabaseLoading && <p className="py-20 text-kards-text-muted">正在读取本地卡牌目录…</p>}
@@ -2785,7 +2785,7 @@ function SidebarButton({ active, icon, label, onClick }: { active: boolean, icon
       onClick={onClick}
       className={`
         w-full aspect-square flex flex-col items-center justify-center gap-1 transition-all
-        ${active ? 'bg-kards-accent text-white shadow-inner scale-[0.98]' : 'text-kards-text-muted hover:bg-kards-panel-hover hover:text-white'}
+        ${active ? 'bg-kards-accent text-white shadow-inner scale-[0.98]' : 'sidebar-nav-idle text-kards-text-muted hover:bg-kards-panel-hover hover:text-white'}
         relative overflow-hidden group
       `}
     >

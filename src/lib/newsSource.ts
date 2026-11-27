@@ -137,10 +137,25 @@ export async function fetchNewsPage(signal?: AbortSignal, id?: string) {
 }
 
 let cachedNewsIndex: Promise<NewsEntry[]> | undefined;
+const newsArticles = new Map<string, NewsArticle>();
 
 export function loadNewsIndex() {
   return cachedNewsIndex ??= fetchNewsPage().then(parseNewsIndex).catch(error => {
     cachedNewsIndex = undefined;
     throw error;
   });
+}
+
+export async function loadNewsArticle(id: string, signal: AbortSignal) {
+  const cached = newsArticles.get(id);
+  if (cached) {
+    newsArticles.delete(id);
+    newsArticles.set(id, cached);
+    return cached;
+  }
+  const article = parseNewsArticle(await fetchNewsPage(AbortSignal.any([signal, AbortSignal.timeout(15_000)]), id));
+  signal.throwIfAborted();
+  newsArticles.set(id, article);
+  if (newsArticles.size > 64) newsArticles.delete(newsArticles.keys().next().value!);
+  return article;
 }

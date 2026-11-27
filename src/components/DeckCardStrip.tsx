@@ -6,6 +6,7 @@ import { headquartersForDeck, type HeadquartersAsset } from '../lib/cardAssets';
 import { cardDisplayTitle, factionLabel, type KardsCardRecord } from '../types/card';
 import ReservedBadge from './ReservedBadge';
 import { RARITY_SLOTS } from './CardFace';
+import CardImageLoading from './CardImageLoading';
 import { captureCardDetailOrigin, type CardDetailOrigin } from '../lib/cardDetailOrigin';
 import { cardFactionIcon, FACTION_ASSETS } from '../lib/assetCatalog';
 
@@ -112,8 +113,8 @@ export default function DeckCardStrip({ card, importId, count, enabled = true, c
   const nation = Object.keys(CARD_STRIP_NATIONS).find(key => key.toLowerCase() === card?.json.faction?.toLowerCase());
   const appearance = CARD_STRIP_NATIONS[nation || 'Neutral'];
   const isUnit = !!card && !['order', 'countermeasure'].includes((card.json.type || '').toLowerCase());
-  const [source, setSource] = useState('');
-  const [thumbnail, setThumbnail] = useState('');
+  const [source, setSource] = useState<string | null>();
+  const [thumbnail, setThumbnail] = useState<string | null>();
   const root = useRef<HTMLDivElement>(null);
   const [preview, setPreview] = useState<CSSProperties | null>(null);
   const previewBlocked = usePreviewDismissal(!!preview, () => setPreview(null));
@@ -138,11 +139,11 @@ export default function DeckCardStrip({ card, importId, count, enabled = true, c
     return () => { window.removeEventListener('scroll', hide, true); window.removeEventListener('resize', hide); window.removeEventListener('blur', hide); window.removeEventListener('kards-deck-card-preview', otherPreview); };
   }, [preview]);
   useEffect(() => {
-    setSource(''); setThumbnail('');
+    setSource(undefined); setThumbnail(undefined);
     if (!enabled || !card) return;
     let active = true;
-    cacheCardImage(card).then(url => { if (active) setSource(url); }).catch(() => {});
-    cacheCardImage(card, 'thumbnail').then(url => { if (active) setThumbnail(url); }).catch(() => {});
+    cacheCardImage(card).then(url => { if (active) setSource(url); }).catch(() => { if (active) setSource(null); });
+    cacheCardImage(card, 'thumbnail').then(url => { if (active) setThumbnail(url); }).catch(() => { if (active) setThumbnail(null); });
     return () => { active = false; };
   }, [card, enabled]);
   return <div ref={root} tabIndex={card ? 0 : undefined} role={onClick ? 'button' : undefined} aria-label={`${title}，${count} 张`} className="deck-card-strip" data-deck-card-id={importId} data-nation={nation || 'Unknown'} data-preview={!!preview && enabled} style={{ '--strip-color': appearance.color, '--strip-text': appearance.darkText ? '#12130e' : '#fff9e8', '--rarity-color': (RARITY_SLOTS[card?.json.rarity || 'Standard'] || RARITY_SLOTS.Standard).color } as CSSProperties}
@@ -150,14 +151,14 @@ export default function DeckCardStrip({ card, importId, count, enabled = true, c
       if (!enabled || !onClick || (event.target as HTMLElement).closest('.deck-card-controls')) return;
       setPreview(null);
       if (onDoubleClick && event.detail > 1) onDoubleClick();
-      else onClick(captureCardDetailOrigin(root.current, 'strip', source, event.nativeEvent));
+      else onClick(captureCardDetailOrigin(root.current, 'strip', source ?? '', event.nativeEvent));
     }}
     onContextMenu={event => { if (enabled && onRemove) { event.preventDefault(); setPreview(null); onRemove(); } }}
     onMouseEnter={event => previewBlocked.resume(event, showPreview)} onMouseMove={event => previewBlocked.resume(event, preview ? undefined : showPreview)} onMouseLeave={() => setPreview(null)} onFocus={showPreview} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setPreview(null); }}
     onKeyDown={event => {
       if (event.nativeEvent.isComposing) return;
       if (preview && event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setPreview(null); }
-      else if (enabled && onClick && !event.ctrlKey && !event.metaKey && (event.key === 'Enter' || event.key === ' ') && event.target === event.currentTarget) { event.preventDefault(); event.stopPropagation(); setPreview(null); onClick(captureCardDetailOrigin(root.current, 'strip', source)); }
+      else if (enabled && onClick && !event.ctrlKey && !event.metaKey && (event.key === 'Enter' || event.key === ' ') && event.target === event.currentTarget) { event.preventDefault(); event.stopPropagation(); setPreview(null); onClick(captureCardDetailOrigin(root.current, 'strip', source ?? '')); }
     }}>
     <span className="deck-card-marker">{card?.reserved && <ReservedBadge />}</span>
     <div className="deck-card-strip-body" draggable={draggable} onDragStart={event => { setPreview(null); onDragStart?.(event); }} onDragEnd={onDragEnd}>
@@ -167,13 +168,17 @@ export default function DeckCardStrip({ card, importId, count, enabled = true, c
       <span className="deck-card-name">{title}</span>
       <img className="deck-card-nation" src={cardFactionIcon(nation, card?.json.type)} alt={factionLabel(card?.json.faction)} />
       <span className="deck-card-thumbnail" data-thumbnail="true" aria-label={`${title}卡图缩略图`}>
-        {thumbnail ? <img src={thumbnail} alt="" onError={() => setThumbnail('')} /> : <ImageOff className="h-4 w-4 opacity-60" aria-hidden="true" />}
+        {thumbnail ? <img src={thumbnail} alt="" onError={() => setThumbnail(null)} />
+          : enabled && card && thumbnail === undefined ? <CardImageLoading compact label="正在载入缩略图" />
+            : <ImageOff className="h-4 w-4 opacity-60" aria-hidden="true" />}
       </span>
     </div>
     <span className="deck-card-count" aria-label={`${count} 张`}><span className="deck-card-count-number">{count}</span></span>
     {controls && <div className="deck-card-controls">{controls}</div>}
     {card && enabled && preview && createPortal(<div role="tooltip" aria-label={`${title}卡牌大图`} className="deck-card-preview glass-panel" style={preview}>
-      {source ? <img className="card-face" src={source} alt={title} /> : <div className="card-face card-face-placeholder">{title}<br />卡图暂不可用</div>}
+      {source ? <img className="card-face" src={source} alt={title} /> : <div className="card-face card-face-placeholder">
+        {source === undefined ? <CardImageLoading label={`正在载入${title}的卡图`} /> : <span>{title}<br />卡图暂不可用</span>}
+      </div>}
     </div>, document.body)}
   </div>;
 }

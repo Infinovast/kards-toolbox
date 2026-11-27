@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { cacheCardImage } from '../lib/cardImages';
 import { RARITY_COUNT_IMAGES } from '../lib/assetCatalog';
 import { cardDisplayTitle, type KardsCardRecord } from '../types/card';
+import CardImageLoading from './CardImageLoading';
 
 export function CardFace({ card, enabled = true, className = '', initialSource = '' }: {
   card: KardsCardRecord; enabled?: boolean; className?: string; initialSource?: string;
@@ -16,9 +17,12 @@ export function CardFace({ card, enabled = true, className = '', initialSource =
       .catch(() => { if (active) setFailed(true); });
     return () => { active = false; };
   }, [card, enabled, initialSource]);
+  const title = cardDisplayTitle(card, 'zh-Hans');
   return source
-    ? <img src={source} alt={cardDisplayTitle(card, 'zh-Hans')} className={`card-face ${className}`} />
-    : <div className={`card-face card-face-placeholder ${className}`}><span>{cardDisplayTitle(card, 'zh-Hans')}<br />{failed ? '卡图暂不可用' : '正在载入卡图…'}</span></div>;
+    ? <img src={source} alt={title} className={`card-face ${className}`} />
+    : <div className={`card-face card-face-placeholder ${className}`}>
+      {failed ? <span>{title}<br />卡图暂不可用</span> : enabled && <CardImageLoading label={`正在载入${title}的卡图`} />}
+    </div>;
 }
 
 export const RARITY_SLOTS: Record<string, { max: number; color: string }> = {

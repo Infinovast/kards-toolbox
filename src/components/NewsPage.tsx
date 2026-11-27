@@ -2,7 +2,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { loadNewsIndex, type NewsEntry } from '../lib/newsSource';
 import NewsMonthRail, { NEWS_JUMP_OFFSET, type NewsMonth } from './NewsMonthRail';
-import NewsArticleView, { NewsStatus } from './NewsArticleView';
+import NewsArticleView, { NewsLoading, NewsStatus } from './NewsArticleView';
+import { watchNewsListCovers } from './newsListCovers';
 import './newsPage.css';
 
 const batchSize = 10;
@@ -90,6 +91,10 @@ export default function NewsPage({ articleId, onSelectArticle, dataSaver }: {
     returnTo.current = null;
   }, [articleId, days]);
 
+  useLayoutEffect(() => {
+    if (!articleId && !dataSaver && viewport.current) return watchNewsListCovers(viewport.current);
+  }, [articleId, dataSaver]);
+
   function jump(month: NewsMonth) {
     const date = month.entries[0].date;
     if (scrollToDay(date)) return;
@@ -114,6 +119,7 @@ export default function NewsPage({ articleId, onSelectArticle, dataSaver }: {
             <ul className="day-stories">
               {entries.map(entry => <li key={entry.id}>
                 <button type="button" className="news-item" data-news-id={entry.id} onClick={() => open(entry)}>
+                  {!dataSaver && <span className="news-item-art" data-news-cover={entry.id} aria-hidden="true" />}
                   <span><span className="news-title">{entry.title}</span>{entry.summary && <span className="news-summary">{entry.summary}</span>}</span>
                   <ChevronRight size={16} aria-hidden="true" />
                 </button>
@@ -122,7 +128,7 @@ export default function NewsPage({ articleId, onSelectArticle, dataSaver }: {
           </li>)}
         </ol>
         {failed ? <NewsStatus onRetry={() => { setFailed(false); setAttempt(count => count + 1); }}>暂时无法读取官网新闻。</NewsStatus>
-          : !news.length && <NewsStatus>正在加载新闻，请稍候…</NewsStatus>}
+          : !news.length && <NewsLoading label="正在加载新闻" />}
         {limit < news.length && <div ref={sentinel} className="news-sentinel" aria-hidden="true" />}
         <div ref={padding} aria-hidden="true" />
       </div>

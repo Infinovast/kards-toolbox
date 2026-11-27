@@ -1,0 +1,17 @@
+.about-external-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: color-mix(in srgb, var(--color-kards-status) 82%, var(--color-kards-text));
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.about-external-link:hover {
+  color: var(--color-kards-text);
+}
+
+.about-external-link:focus-visible {
+  outline-color: currentColor;
+}
